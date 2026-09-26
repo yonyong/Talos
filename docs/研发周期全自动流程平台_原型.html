@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>研发周期全自动流程平台 · 原型</title>
+<style>
+  :root{
+    --bg:#f4f6fa; --panel:#ffffff; --border:#e3e8ef; --line:#eef2f7;
+    --text:#1f2a3d; --muted:#6b7891; --primary:#2563eb; --primary-soft:#eaf1ff;
+    --green:#15a34a; --green-soft:#e7f6ec; --red:#e0483b; --red-soft:#fdecea;
+    --amber:#d98a08; --amber-soft:#fdf1dc; --slate:#33415c;
+    --shadow:0 1px 3px rgba(16,24,40,.06),0 1px 2px rgba(16,24,40,.04);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    background:var(--bg);color:var(--text);font-size:13px;line-height:1.5}
+  .tag{display:inline-block;padding:1px 8px;border-radius:10px;font-size:11px;font-weight:600}
+  .t-green{background:var(--green-soft);color:var(--green)}
+  .t-red{background:var(--red-soft);color:var(--red)}
+  .t-amber{background:var(--amber-soft);color:var(--amber)}
+  .t-blue{background:var(--primary-soft);color:var(--primary)}
+  .t-slate{background:#eef1f6;color:var(--slate)}
+  .t-gray{background:#f1f3f7;color:var(--muted)}
+  /* ---------- 登录页 ---------- */
+  #login{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+    background:linear-gradient(135deg,#1e3a8a,#2563eb 55%,#3b82f6);}
+  .login-card{background:#fff;border-radius:14px;padding:38px 34px;width:360px;box-shadow:0 12px 40px rgba(0,0,0,.2)}
+  .login-card h1{font-size:19px;color:var(--text);margin-bottom:4px}
+  .login-card .sub{color:var(--muted);font-size:12px;margin-bottom:24px}
+  .field{margin-bottom:15px}
+  .field label{display:block;font-size:12px;color:var(--slate);margin-bottom:5px;font-weight:600}
+  .field input,.field select{width:100%;padding:9px 11px;border:1px solid var(--border);
+    border-radius:8px;font-size:13px;color:var(--text);background:#fff}
+  .field input:focus,.field select:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-soft)}
+  .btn-primary{width:100%;padding:10px;border:none;border-radius:8px;background:var(--primary);
+    color:#fff;font-size:14px;font-weight:600;cursor:pointer;margin-top:6px}
+  .btn-primary:hover{background:#1d4ed8}
+  .login-hint{margin-top:14px;font-size:11px;color:var(--muted);text-align:center}
+  /* ---------- 应用布局 ---------- */
+  #app{display:none;height:100vh}
+  .topbar{height:52px;background:var(--panel);border-bottom:1px solid var(--border);
+    display:flex;align-items:center;padding:0 18px;gap:14px;position:sticky;top:0;z-index:10}
+  .topbar .logo{font-weight:700;font-size:15px;color:var(--slate);display:flex;align-items:center;gap:8px}
+  .topbar .logo .dot{width:10px;height:10px;border-radius:3px;background:var(--primary)}
+  .topbar .spacer{flex:1}
+  .topbar .pill{font-size:12px;color:var(--muted)}
+  .topbar .who{display:flex;align-items:center;gap:8px}
+  .topbar .avatar{width:28px;height:28px;border-radius:50%;background:var(--primary-soft);color:var(--primary);
+    display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px}
+  .layout{display:flex;height:calc(100vh - 52px)}
+  .sidebar{width:212px;background:var(--panel);border-right:1px solid var(--border);padding:12px 10px;overflow-y:auto}
+  .nav-group{font-size:11px;color:var(--muted);font-weight:700;margin:14px 8px 6px;letter-spacing:.4px}
+  .nav-item{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:8px;color:var(--slate);
+    cursor:pointer;font-size:13px;margin-bottom:2px}
+  .nav-item:hover{background:var(--line)}
+  .nav-item.active{background:var(--primary-soft);color:var(--primary);font-weight:600}
+  .nav-item .ic{width:16px;text-align:center;opacity:.8}
+  .content{flex:1;overflow-y:auto;padding:20px 24px}
+  .page{display:none}
+  .page.active{display:block}
+  .page-head{display:flex;align-items:center;gap:12px;margin-bottom:16px}
+  .page-head h2{font-size:18px;color:var(--text)}
+  .page-head .desc{color:var(--muted);font-size:12px}
+  .btn{display:inline-flex;align-items:center;gap:6px;padding:7px 13px;border-radius:8px;
+    border:1px solid var(--border);background:#fff;color:var(--slate);font-size:12px;font-weight:600;cursor:pointer}
+  .btn:hover{background:var(--line)}
+  .btn.primary{background:var(--primary);color:#fff;border-color:var(--primary)}
+  .btn.primary:hover{background:#1d4ed8}
+  .btn.sm{padding:4px 9px;font-size:11px}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow);padding:16px}
+  .grid{display:grid;gap:14px}
+  .grid.cols-4{grid-template-columns:repeat(4,1fr)}
+  .grid.cols-3{grid-template-columns:repeat(3,1fr)}
+  .grid.cols-2{grid-template-columns:repeat(2,1fr)}
+  .stat .k{font-size:12px;color:var(--muted)}
+  .stat .v{font-size:24px;font-weight:700;color:var(--text);margin-top:4px}
+  .stat .d{font-size:11px;color:var(--muted);margin-top:3px}
+  table{width:100%;border-collapse:collapse;font-size:12px}
+  th{text-align:left;color:var(--muted);font-weight:600;padding:9px 10px;border-bottom:1px solid var(--border);font-size:11px}
+  td{padding:9px 10px;border-bottom:1px solid var(--line);color:var(--slate)}
+  tr:hover td{background:var(--line)}
+  .filterbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;align-items:center}
+  .filterbar input,.filterbar select{padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-size:12px}
+  .filterbar .grow{flex:1;min-width:160px}
+  .row{display:flex;gap:14px}
+  .col{flex:1}
+  .ph{height:14px;border-radius:4px;background:linear-gradient(90deg,#eef1f6,#f6f8fb);margin:4px 0}
+  .ph.line{height:10px}
+  .label{font-size:11px;color:var(--muted);font-weight:600;margin-bottom:5px}
+  .seg{display:inline-flex;border:1px solid var(--border);border-radius:8px;overflow:hidden}
+  .seg button{border:none;background:#fff;padding:6px 14px;font-size:12px;cursor:pointer;color:var(--slate)}
+  .seg button.on{background:var(--primary-soft);color:var(--primary);font-weight:700}
+  .node{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--border);
+    border-radius:10px;background:#fff;margin-bottom:8px}
+  .node .idx{width:22px;height:22px;border-radius:50%;background:var(--primary-soft);color:var(--primary);
+    display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex:none}
+  .node .meta{flex:1}
+  .node .meta .nm{font-weight:600;color:var(--text)}
+  .node .meta .sub{font-size:11px;color:var(--muted)}
+  .node .handle{display:flex;gap:6px;align-items:center}
+  .dotbar{display:flex;gap:3px}
+  .dotbar i{width:7px;height:7px;border-radius:50%;display:inline-block}
+  .timeline{position:relative;padding-left:22px}
+  .timeline .step{position:relative;padding-bottom:16px}
+  .timeline .step:before{content:"";position:absolute;left:-15px;top:3px;width:11px;height:11px;border-radius:50%;
+    background:#fff;border:2px solid var(--border)}
+  .timeline .step.done:before{background:var(--green);border-color:var(--green)}
+  .timeline .step.run:before{background:var(--primary);border-color:var(--primary)}
+  .timeline .step.fail:before{background:var(--red);border-color:var(--red)}
+  .timeline .step:after{content:"";position:absolute;left:-10px;top:14px;bottom:0;width:2px;background:var(--border)}
+  .timeline .step:last-child:after{display:none}
+  .codebox{background:#0f172a;color:#cbd5e1;border-radius:10px;padding:14px;font-family:ui-monospace,Menlo,Consolas,monospace;
+    font-size:11.5px;line-height:1.7;white-space:pre-wrap;max-height:300px;overflow:auto}
+  .kv{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px dashed var(--line);font-size:12px}
+  .kv .l{color:var(--muted)}
+  .kv .r{color:var(--text);font-weight:600}
+  .progress{height:7px;background:var(--line);border-radius:6px;overflow:hidden}
+  .progress i{display:block;height:100%;background:var(--primary)}
+  .alert{border-radius:10px;padding:10px 12px;font-size:12px;display:flex;gap:9px;align-items:center;margin-bottom:8px}
+  .alert.red{background:var(--red-soft);color:#9b2c25}
+  .alert.amber{background:var(--amber-soft);color:#8a5a06}
+  .upload{border:1.5px dashed var(--border);border-radius:10px;padding:24px;text-align:center;color:var(--muted);font-size:12px}
+  .matrix th,.matrix td{padding:8px;text-align:center}
+  .matrix td.l{text-align:left;font-weight:600;color:var(--slate)}
+  .toggle{width:34px;height:18px;border-radius:10px;background:var(--green);position:relative;display:inline-block}
+  .toggle.off{background:#cbd5e1}
+  .toggle:after{content:"";position:absolute;width:14px;height:14px;border-radius:50%;background:#fff;top:2px;left:18px}
+  .toggle.off:after{left:2px}
+  .drawer{display:flex;gap:16px}
+  .drawer .dcontent{flex:1}
+  .muted{color:var(--muted)}
+  .mt{margin-top:14px}.mb{margin-bottom:14px}
+  .small{font-size:11px}
+</style>
+</head>
+<body>
+
+<!-- ============ 登录页 ============ -->
+<div id="login">
+  <div class="login-card">
+    <h1>研发周期全自动流程平台</h1>
+    <div class="sub">Issue 录入 · 准入判定 · 工作流编排 · 客户端执行编排</div>
+    <div class="field">
+      <label>内网账号</label>
+      <input type="text" placeholder="如 yangde / 工号" />
+    </div>
+    <div class="field">
+      <label>密码</label>
+      <input type="password" placeholder="请输入密码" />
+    </div>
+    <div class="field">
+      <label>角色</label>
+      <select>
+        <option>超级管理员</option>
+        <option>研发负责人</option>
+        <option>测试</option>
+        <option>设计师</option>
+        <option>普通研发</option>
+        <option>访客（只读）</option>
+      </select>
+    </div>
+    <button class="btn-primary" onclick="enterApp()">登 录</button>
+    <div class="login-hint">仅限公司内网访问 · 账号鉴权经 RBAC 统一控制</div>
+  </div>
+</div>
+
+<!-- ============ 应用主体 ============ -->
+<div id="app">
+  <div class="topbar">
+    <div class="logo"><span class="dot"></span>研发周期全自动流程平台</div>
+    <div class="spacer"></div>
+    <div class="pill">内网环境 · mTLS 反向通道</div>
+    <div class="who">
+      <div class="avatar">YD</div>
+      <span>YangDe（超级管理员）</span>
+      <button class="btn sm" onclick="logout()">退出</button>
+    </div>
+  </div>
+  <div class="layout">
+    <!-- 侧边导航 -->
+    <div class="sidebar">
+      <div class="nav-group">概览</div>
+      <div class="nav-item active" onclick="show('dashboard',this)"><span class="ic">▦</span>总览看板</div>
+      <div class="nav-group">Issue 管理</div>
+      <div class="nav-item" onclick="show('issue-new',this)"><span class="ic">✎</span>Issue 录入</div>
+      <div class="nav-item" onclick="show('issue-list',this)"><span class="ic">⊞</span>Issue 列表 / 准入</div>
+      <div class="nav-item" onclick="show('workflow',this)"><span class="ic">⚒</span>工作流编排</div>
+      <div class="nav-group">执行监控</div>
+      <div class="nav-item" onclick="show('monitor',this)"><span class="ic">◴</span>作业监控</div>
+      <div class="nav-item" onclick="show('clients',this)"><span class="ic">🖥</span>客户端管理</div>
+      <div class="nav-item" onclick="show('agent-cfg',this)"><span class="ic">⚙</span>CodingAgent 配置</div>
+      <div class="nav-group">可观测</div>
+      <div class="nav-item" onclick="show('ai-log',this)"><span class="ic">⌗</span>AI 调用日志</div>
+      <div class="nav-group">资源中心</div>
+      <div class="nav-item" onclick="show('docs',this)"><span class="ic">📄</span>文档中心</div>
+      <div class="nav-item" onclick="show('kb',this)"><span class="ic">📚</span>知识库管理</div>
+      <div class="nav-item" onclick="show('rbac',this)"><span class="ic">🔐</span>权限 / 用户</div>
+    </div>
+
+    <div class="content">
+      <!-- ===== 总览看板 ===== -->
+      <section class="page active" id="dashboard">
+        <div class="page-head"><div><h2>总览看板</h2><div class="desc">平台运行态势一览</div></div>
+          <div class="spacer" style="flex:1"></div><button class="btn primary">+ 新建 Issue</button></div>
+        <div class="grid cols-4 mb">
+          <div class="card stat"><div class="k">Issue 总数</div><div class="v">128</div><div class="d">执行中 36 · 已准入 84</div></div>
+          <div class="card stat"><div class="k">运行中的工作流</div><div class="v">36</div><div class="d">阻塞 4 · 待人工 9</div></div>
+          <div class="card stat"><div class="k">在线客户端</div><div class="v">22<span style="font-size:14px;color:var(--muted)">/25</span></div><div class="d">3 台离线</div></div>
+          <div class="card stat"><div class="k">本月 AI 成本</div><div class="v">¥3,420</div><div class="d">Claude 2.1k · CodeBuddy 私 0</div></div>
+        </div>
+        <div class="grid cols-3">
+          <div class="card col" style="grid-column:span 2">
+            <div class="label">近期 Issue（最近 8 条）</div>
+            <table>
+              <tr><th>ID</th><th>业务</th><th>类型</th><th>责任人</th><th>状态</th><th>工作流</th></tr>
+              <tr><td>#1024</td><td>行情</td><td><span class="tag t-blue">需求</span></td><td>张工</td><td><span class="tag t-green">执行中</span></td><td>需求流程 · 编码</td></tr>
+              <tr><td>#1023</td><td>资讯</td><td><span class="tag t-red">BUG</span></td><td>李工</td><td><span class="tag t-amber">阻塞</span></td><td>BUG流程 · 测试</td></tr>
+              <tr><td>#1022</td><td>交易</td><td><span class="tag t-blue">需求</span></td><td>王工</td><td><span class="tag t-green">执行中</span></td><td>需求流程 · 详设</td></tr>
+              <tr><td>#1021</td><td>风控</td><td><span class="tag t-red">BUG</span></td><td>赵工</td><td><span class="tag t-gray">待准入</span></td><td>—</td></tr>
+              <tr><td>#1020</td><td>行情</td><td><span class="tag t-blue">需求</span></td><td>张工</td><td><span class="tag t-slate">待确认</span></td><td>需求流程 · 详设评审</td></tr>
+            </table>
+          </div>
+          <div class="card col">
+            <div class="label">告警 / 异常</div>
+            <div class="alert red">⛔ 客户端「李工-PC」离线，#1023 任务未回执</div>
+            <div class="alert amber">⚠ #1023 测试门禁失败，已禁止 MR（护栏生效）</div>
+            <div class="alert amber">⚠ 3 个 issue 准入置信度 &lt; 0.6，建议人工复核</div>
+            <div class="alert red">⛔ Codex 后端本月额度已用 92%</div>
+            <div class="label mt">快捷入口</div>
+            <div class="row"><button class="btn sm">查看离线客户端</button><button class="btn sm">查看阻塞任务</button></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== Issue 录入 ===== -->
+      <section class="page" id="issue-new">
+        <div class="page-head"><div><h2>Issue 录入</h2><div class="desc">页面录入需求 / BUG，必填项校验</div></div></div>
+        <div class="grid cols-2">
+          <div class="card">
+            <div class="label">业务 *</div>
+            <select><option>行情</option><option>资讯</option><option>交易</option><option>风控</option><option>数据中台</option></select>
+            <div class="label mt">诉求类型 *</div>
+            <div class="seg"><button class="on">需求</button><button>BUG</button></div>
+            <div class="label mt">标题 *</div>
+            <input style="width:100%;padding:9px 11px;border:1px solid var(--border);border-radius:8px" placeholder="一句话描述诉求" />
+            <div class="label mt">描述 / 复现步骤</div>
+            <textarea style="width:100%;min-height:90px;padding:9px 11px;border:1px solid var(--border);border-radius:8px" placeholder="补充背景、预期、复现路径..."></textarea>
+            <div class="label mt">优先级</div>
+            <select><option>P0（紧急）</option><option>P1（高）</option><option>P2（中）</option><option>P3（低）</option></select>
+          </div>
+          <div class="card">
+            <div class="label">期望完成时间 *</div>
+            <input type="date" style="width:100%;padding:9px 11px;border:1px solid var(--border);border-radius:8px" />
+            <div class="label mt">责任人 *</div>
+            <select><option>张工（行情）</option><option>李工（资讯）</option><option>王工（交易）</option><option>赵工（风控）</option></select>
+            <div class="label mt">关联项目（可选，分拣后回写）</div>
+            <input style="width:100%;padding:9px 11px;border:1px solid var(--border);border-radius:8px;background:#f8fafc" placeholder="系统自动分拣识别，可手动覆盖" disabled />
+            <div class="kv mt"><span class="l">准入判定</span><span class="r t-blue">保存后自动触发</span></div>
+            <div class="kv"><span class="l">分拣方式</span><span class="r">规则 + AI（基于知识库）</span></div>
+            <div class="row mt">
+              <button class="btn primary">提交并触发判定</button>
+              <button class="btn">存草稿</button>
+            </div>
+            <div class="alert amber mt">提交后系统将：① AI 知识库辅助准入判定 → ② 内容识别关联项目 / Git 地址 → ③ 生成工作流实例</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== Issue 列表 / 准入 ===== -->
+      <section class="page" id="issue-list">
+        <div class="page-head"><div><h2>Issue 列表 / 准入判定</h2><div class="desc">查看、复核 AI 准入结论与分拣结果</div></div></div>
+        <div class="filterbar">
+          <input class="grow" placeholder="搜索 ID / 标题 / 责任人" />
+          <select><option>全部业务</option><option>行情</option><option>资讯</option></select>
+          <select><option>全部状态</option><option>待准入</option><option>已准入</option><option>已拒绝</option><option>执行中</option></select>
+          <select><option>全部类型</option><option>需求</option><option>BUG</option></select>
+          <button class="btn primary">查询</button>
+        </div>
+        <div class="card">
+          <table>
+            <tr><th>ID</th><th>业务</th><th>类型</th><th>标题</th><th>责任人</th><th>期望完成</th><th>准入</th><th>置信度</th><th>分拣项目</th><th>操作</th></tr>
+            <tr><td>#1024</td><td>行情</td><td><span class="tag t-blue">需求</span></td><td>K线性能优化</td><td>张工</td><td>10-12</td><td><span class="tag t-green">准入</span></td><td>0.91</td><td>quote-service</td><td><button class="btn sm">判定详情</button></td></tr>
+            <tr><td>#1023</td><td>资讯</td><td><span class="tag t-red">BUG</span></td><td>推送重复</td><td>李工</td><td>10-08</td><td><span class="tag t-green">准入</span></td><td>0.88</td><td>news-push</td><td><button class="btn sm">判定详情</button></td></tr>
+            <tr><td>#1021</td><td>风控</td><td><span class="tag t-red">BUG</span></td><td>阈值告警丢失</td><td>赵工</td><td>10-05</td><td><span class="tag t-amber">待复核</span></td><td>0.52</td><td>risk-engine?</td><td><button class="btn sm primary">人工判定</button></td></tr>
+            <tr><td>#1018</td><td>交易</td><td><span class="tag t-blue">需求</span></td><td>下单并发</td><td>王工</td><td>09-30</td><td><span class="tag t-red">拒入</span></td><td>0.41</td><td>—</td><td><button class="btn sm">查看原因</button></td></tr>
+          </table>
+        </div>
+        <div class="card mt">
+          <div class="label">准入判定详情（示例 #1021）</div>
+          <div class="kv"><span class="l">AI 判定</span><span class="r t-amber">待复核（置信度 0.52）</span></div>
+          <div class="kv"><span class="l">判定依据（KB 检索片段）</span><span class="r">命中「风控告警链路 v2」文档 2 段</span></div>
+          <div class="kv"><span class="l">分拣候选</span><span class="r">risk-engine / risk-gateway（歧义）</span></div>
+          <div class="label mt">AI 给出的理由</div>
+          <div class="codebox" style="background:#f8fafc;color:#33415c">"该 issue 描述指向告警链路，但缺少明确模块归属；建议人工指定项目后准入。"</div>
+          <div class="row mt">
+            <button class="btn primary">确认准入</button>
+            <button class="btn">拒绝</button>
+            <select><option>指定项目：risk-engine</option><option>risk-gateway</option></select>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== 工作流编排 ===== -->
+      <section class="page" id="workflow">
+        <div class="page-head"><div><h2>工作流编排</h2><div class="desc">需求 / BUG 两套流程模板，节点可配置（F-05）</div></div></div>
+        <div class="grid" style="grid-template-columns:200px 1fr">
+          <div class="card">
+            <div class="label">模板</div>
+            <div class="node" style="background:var(--primary-soft)"><div class="meta"><div class="nm">需求流程</div><div class="sub">7 节点 · 启用</div></div></div>
+            <div class="node"><div class="meta"><div class="nm">BUG 流程</div><div class="sub">7 节点 · 启用</div></div></div>
+            <div class="label mt">节点类型图例</div>
+            <div class="small muted">GIT 拉取 · DOC 文档生成 · CODE 编码 · TEST 测试 · REVIEW 人工评审</div>
+          </div>
+          <div class="card">
+            <div class="row" style="align-items:center;margin-bottom:12px">
+              <b>需求流程 · v3</b><span class="tag t-green">启用</span>
+              <div style="flex:1"></div>
+              <button class="btn sm">+ 新增节点</button><button class="btn sm">保存编排</button>
+            </div>
+            <div class="node"><div class="idx">1</div><div class="meta"><div class="nm">拉取 GIT</div><div class="sub">类型 GIT · 客户端执行</div></div><div class="handle"><span class="tag t-slate">自动</span></div></div>
+            <div class="node"><div class="idx">2</div><div class="meta"><div class="nm">需求分析（概要文档）</div><div class="sub">类型 DOC · CodingAgent 生成 · 后端 CodeBuddy</div></div><div class="handle"><span class="tag t-blue">AI生成</span></div></div>
+            <div class="node"><div class="idx">3</div><div class="meta"><div class="nm">详细设计（设计文档）</div><div class="sub">类型 DOC · CodingAgent 生成 · 需读代码</div></div><div class="handle"><span class="tag t-blue">AI生成</span></div></div>
+            <div class="node"><div class="idx">4</div><div class="meta"><div class="nm">设计评审</div><div class="sub">类型 REVIEW · 人工节点（闸门）</div></div><div class="handle"><span class="tag t-amber">人工</span></div></div>
+            <div class="node"><div class="idx">5</div><div class="meta"><div class="nm">编码</div><div class="sub">类型 CODE · CodingAgent · 护栏：分支隔离+测试门禁</div></div><div class="handle"><span class="tag t-blue">AI</span></div></div>
+            <div class="node"><div class="idx">6</div><div class="meta"><div class="nm">测试</div><div class="sub">类型 TEST · CodingAgent 跑测试</div></div><div class="handle"><span class="tag t-blue">AI</span></div></div>
+            <div class="node"><div class="idx">7</div><div class="meta"><div class="nm">验收</div><div class="sub">类型 REVIEW · 人工节点（闸门）</div></div><div class="handle"><span class="tag t-amber">人工</span></div></div>
+            <div class="alert amber mt">BUG 流程差异：节点 2=故障报告、节点 3=修复方案设计，其余同构。所有 DOC/CODE/TEST 均由客户端 CodingAgent 执行，prompt 模板服务端统管。</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== 作业监控 ===== -->
+      <section class="page" id="monitor">
+        <div class="page-head"><div><h2>作业监控</h2><div class="desc">工作流实例进度 · 节点状态 · 客户端连接（F-22）</div></div></div>
+        <div class="filterbar">
+          <input class="grow" placeholder="搜索 issue / 工作流实例" />
+          <select><option>全部客户端</option><option>张工-PC</option><option>李工-PC</option></select>
+          <select><option>全部状态</option><option>执行中</option><option>阻塞</option><option>完成</option></select>
+          <button class="btn primary">查询</button>
+        </div>
+        <div class="grid cols-3">
+          <div class="card col" style="grid-column:span 2">
+            <div class="label">工作流实例</div>
+            <table>
+              <tr><th>实例</th><th>类型</th><th>当前节点</th><th>进度</th><th>状态</th><th>客户端</th></tr>
+              <tr><td>#WI-77</td><td><span class="tag t-blue">需求</span></td><td>编码</td><td><div class="progress" style="width:70px"><i style="width:71%"></i></div></td><td><span class="tag t-green">执行中</span></td><td>张工-PC</td></tr>
+              <tr><td>#WI-76</td><td><span class="tag t-red">BUG</span></td><td>测试</td><td><div class="progress" style="width:70px"><i style="width:71%"></i></div></td><td><span class="tag t-amber">阻塞</span></td><td>李工-PC</td></tr>
+              <tr><td>#WI-75</td><td><span class="tag t-blue">需求</span></td><td>详设</td><td><div class="progress" style="width:70px"><i style="width:43%"></i></div></td><td><span class="tag t-green">执行中</span></td><td>王工-PC</td></tr>
+            </table>
+            <div class="label mt">选中实例 #WI-77 节点时间线</div>
+            <div class="timeline">
+              <div class="step done"><b>拉取 GIT</b><div class="small muted">张工-PC · 成功 · 09-28 10:02</div></div>
+              <div class="step done"><b>需求分析（概要）</b><div class="small muted">CodeBuddy 生成 · 文档已回传</div></div>
+              <div class="step done"><b>详细设计</b><div class="small muted">CodeBuddy 生成 · 待评审</div></div>
+              <div class="step done"><b>设计评审</b><div class="small muted">人工通过</div></div>
+              <div class="step run"><b>编码</b><div class="small muted">执行中 · 分支 feature/issue-1024</div></div>
+              <div class="step"><b>测试</b><div class="small muted">待执行</div></div>
+              <div class="step"><b>验收</b><div class="small muted">人工闸门</div></div>
+            </div>
+          </div>
+          <div class="card col">
+            <div class="label">客户端连接状态</div>
+            <div class="kv"><span class="l">在线</span><span class="r t-green">22</span></div>
+            <div class="kv"><span class="l">离线</span><span class="r t-red">3</span></div>
+            <div class="kv"><span class="l">执行中任务</span><span class="r">36</span></div>
+            <div class="kv"><span class="l">待回执（超时风险）</span><span class="r t-amber">2</span></div>
+            <div class="label mt">最近心跳异常</div>
+            <div class="alert red">李工-PC 离线 35s（超过 30s 阈值）</div>
+            <div class="alert amber">王工-PC 版本过旧 v1.2，建议升级</div>
+            <button class="btn sm mt">查看全部客户端 →</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== 客户端管理 ===== -->
+      <section class="page" id="clients">
+        <div class="page-head"><div><h2>客户端管理</h2><div class="desc">Go daemon 连接状态 · 版本 · 归属（F-06/F-22）</div></div>
+          <div style="flex:1"></div><button class="btn">导出</button></div>
+        <div class="card">
+          <table>
+            <tr><th>客户端</th><th>责任人</th><th>状态</th><th>最后心跳</th><th>版本</th><th>IP</th><th>CodingAgent</th><th>操作</th></tr>
+            <tr><td>张工-PC</td><td>张工</td><td><span class="tag t-green">在线</span></td><td>2s 前</td><td>v1.4</td><td>10.2.3.11</td><td><span class="tag t-blue">4 后端</span></td><td><button class="btn sm">详情</button></td></tr>
+            <tr><td>李工-PC</td><td>李工</td><td><span class="tag t-red">离线</span></td><td>35s 前</td><td>v1.4</td><td>10.2.3.12</td><td><span class="tag t-gray">未知</span></td><td><button class="btn sm">重连</button></td></tr>
+            <tr><td>王工-PC</td><td>王工</td><td><span class="tag t-green">在线</span></td><td>1s 前</td><td>v1.2 ⚠</td><td>10.2.3.13</td><td><span class="tag t-blue">3 后端</span></td><td><button class="btn sm">详情</button></td></tr>
+            <tr><td>赵工-PC</td><td>赵工</td><td><span class="tag t-green">在线</span></td><td>4s 前</td><td>v1.4</td><td>10.2.3.14</td><td><span class="tag t-blue">4 后端</span></td><td><button class="btn sm">详情</button></td></tr>
+          </table>
+          <div class="alert amber mt">心跳 10s / 离线阈值 30s。断线期间下发任务进入待回执队列，重连后去重补推。</div>
+        </div>
+      </section>
+
+      <!-- ===== CodingAgent 配置 ===== -->
+      <section class="page" id="agent-cfg">
+        <div class="page-head"><div><h2>CodingAgent 配置</h2><div class="desc">服务端统管 · 支持按客户端差异化覆盖（D5 / F-19 / F-21）</div></div></div>
+        <div class="filterbar">
+          <span class="label" style="margin:0">配置对象：</span>
+          <select><option>全局默认配置</option><option>张工-PC（覆盖）</option><option>李工-PC（覆盖）</option><option>王工-PC（覆盖）</option></select>
+          <button class="btn">拉取该客户端最新状态</button>
+        </div>
+        <div class="alert amber">当前查看：全局默认。带「覆盖」标记的客户端以本地 override 优先，未覆盖项继承此处。</div>
+        <div class="card">
+          <div class="row" style="align-items:center;margin-bottom:10px"><b>后端配置</b><span class="tag t-slate">模型 / 限额服务端下发</span></div>
+          <table>
+            <tr><th>后端</th><th>启用</th><th>默认模型</th><th>Token 限额</th><th>本月已用</th><th>用途</th></tr>
+            <tr><td>ClaudeCode</td><td><span class="toggle"></span></td><td><input style="width:140px;padding:5px 8px;border:1px solid var(--border);border-radius:6px" value="claude-opus-4" /></td><td><input style="width:90px;padding:5px 8px;border:1px solid var(--border);border-radius:6px" value="200k" /></td><td>142k</td><td>通用文档/编码</td></tr>
+            <tr><td>Cursor</td><td><span class="toggle"></span></td><td><input style="width:140px;padding:5px 8px;border:1px solid var(--border);border-radius:6px" value="cursor-pro" /></td><td><input style="width:90px;padding:5px 8px;border:1px solid var(--border);border-radius:6px" value="150k" /></td><td>88k</td><td>编码辅助</td></tr>
+            <tr><td>Codex</td><td><span class="toggle off"></span></td><td><input style="width:140px;padding:5px 8px;border:1px solid var(--border);border-radius:6px" value="codex" /></td><td><input style="width:90px;padding:5px 8px;border:1px solid var(--border);border-radius:6px" value="100k" /></td><td>0</td><td>备选</td></tr>
+            <tr><td>CodeBuddy（私有化）</td><td><span class="toggle"></span></td><td><input style="width:140px;padding:5px 8px;border:1px solid var(--border);border-radius:6px" value="internal-coder" /></td><td><input style="width:90px;padding:5px 8px;border:1px solid var(--border);border-radius:6px" value="不限" /></td><td>内网</td><td>敏感仓库强制</td></tr>
+          </table>
+          <div class="label mt">Prompt 模板（服务端统管，变量由系统注入）</div>
+          <table>
+            <tr><th>模板 Key</th><th>作用域</th><th>版本</th><th>说明</th></tr>
+            <tr><td>doc.requirement.summary</td><td><span class="tag t-slate">GLOBAL</span></td><td>v2</td><td>需求概要生成</td></tr>
+            <tr><td>doc.design.detail</td><td><span class="tag t-slate">GLOBAL</span></td><td>v3</td><td>详细设计（读代码）</td></tr>
+            <tr><td>bug.report</td><td><span class="tag t-slate">GLOBAL</span></td><td>v1</td><td>故障报告</td></tr>
+            <tr><td>code.fix.plan</td><td><span class="tag t-slate">GLOBAL</span></td><td>v1</td><td>修复方案</td></tr>
+          </table>
+          <div class="row mt">
+            <button class="btn primary">保存配置（触发 ConfigPush）</button>
+            <button class="btn">编辑模板</button>
+            <span class="small muted">保存后服务端合并默认+覆盖，经反向通道下发到对应客户端</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== AI 调用日志 ===== -->
+      <section class="page" id="ai-log">
+        <div class="page-head"><div><h2>AI 调用日志 / 可观测</h2><div class="desc">每次调用渲染后 prompt + 日志回传服务端（F-20）</div></div></div>
+        <div class="filterbar">
+          <input class="grow" placeholder="issue / 客户端 / prompt hash" />
+          <select><option>全部后端</option><option>ClaudeCode</option><option>Cursor</option><option>CodeBuddy</option></select>
+          <select><option>全部结果</option><option>成功</option><option>失败</option></select>
+          <button class="btn primary">查询</button>
+        </div>
+        <div class="card">
+          <table>
+            <tr><th>时间</th><th>Issue</th><th>客户端</th><th>后端</th><th>模型</th><th>Tokens</th><th>耗时</th><th>费用</th><th>结果</th><th>操作</th></tr>
+            <tr><td>09-28 10:05</td><td>#1024</td><td>张工-PC</td><td>CodeBuddy</td><td>internal-coder</td><td>3,210</td><td>18s</td><td>内网</td><td><span class="tag t-green">成功</span></td><td><button class="btn sm" onclick="show('ai-detail',this)">看 Prompt</button></td></tr>
+            <tr><td>09-28 09:51</td><td>#1023</td><td>李工-PC</td><td>ClaudeCode</td><td>claude-opus-4</td><td>5,880</td><td>42s</td><td>¥1.2</td><td><span class="tag t-green">成功</span></td><td><button class="btn sm" onclick="show('ai-detail',this)">看 Prompt</button></td></tr>
+            <tr><td>09-28 09:40</td><td>#1021</td><td>赵工-PC</td><td>ClaudeCode</td><td>claude-opus-4</td><td>—</td><td>—</td><td>—</td><td><span class="tag t-red">失败</span></td><td><button class="btn sm" onclick="show('ai-detail',this)">看 Prompt</button></td></tr>
+          </table>
+        </div>
+        <div class="card mt" id="ai-detail">
+          <div class="label">调用详情 · #1024 · 张工-PC · CodeBuddy（渲染后完整 Prompt）</div>
+          <div class="codebox">系统：你是基于仓库代码的详设生成助手。请依据以下上下文输出详细设计文档。
+────────────────────────────
+[变量 issue.biz] = 行情
+[变量 issue.desc] = K线性能优化，目标 P99 &lt; 50ms
+[变量 repo.context] = （本地仓库摘要，含 QuoteService.java / KLineCache.java）
+[变量 kb.retrieval] = 命中「行情链路性能基线」文档 3 段
+[变量 node.type] = DOC_DETAIL_DESIGN
+────────────────────────────
+任务：输出详细设计，包含模块划分、接口变更、缓存策略、压测方案。</div>
+          <div class="kv mt"><span class="l">请求摘要</span><span class="r">prompt 3210 tokens · 模型 internal-coder</span></div>
+          <div class="kv"><span class="l">响应摘要</span><span class="r">返回详设文档 1 篇（已回传 artifact）</span></div>
+          <div class="kv"><span class="l">prompt_hash</span><span class="r small">a3f9c1...e72b</span></div>
+          <div class="kv"><span class="l">变量缺失检查</span><span class="r t-green">无缺失</span></div>
+        </div>
+      </section>
+
+      <!-- ===== 文档中心 ===== -->
+      <section class="page" id="docs">
+        <div class="page-head"><div><h2>文档中心</h2><div class="desc">过程文档服务端可见（概要/详设/故障报告/修复方案/评审）</div></div></div>
+        <div class="filterbar">
+          <input class="grow" placeholder="按 issue 搜索文档" />
+          <select><option>全部类型</option><option>需求概要</option><option>详细设计</option><option>故障报告</option><option>修复方案</option><option>评审记录</option></select>
+          <button class="btn primary">查询</button>
+        </div>
+        <div class="grid cols-3">
+          <div class="card"><div class="kv"><span class="l">Issue</span><span class="r">#1024</span></div><div class="kv"><span class="l">类型</span><span class="r">需求概要</span></div><div class="kv"><span class="l">版本</span><span class="r">v1</span></div><div class="kv"><span class="l">生成</span><span class="r">CodeBuddy</span></div><button class="btn sm mt">在线预览</button></div>
+          <div class="card"><div class="kv"><span class="l">Issue</span><span class="r">#1024</span></div><div class="kv"><span class="l">类型</span><span class="r">详细设计</span></div><div class="kv"><span class="l">版本</span><span class="r">v1</span></div><div class="kv"><span class="l">生成</span><span class="r">CodeBuddy</span></div><button class="btn sm mt">在线预览</button></div>
+          <div class="card"><div class="kv"><span class="l">Issue</span><span class="r">#1023</span></div><div class="kv"><span class="l">类型</span><span class="r">故障报告</span></div><div class="kv"><span class="l">版本</span><span class="r">v1</span></div><div class="kv"><span class="l">生成</span><span class="r">ClaudeCode</span></div><button class="btn sm mt">在线预览</button></div>
+          <div class="card"><div class="kv"><span class="l">Issue</span><span class="r">#1023</span></div><div class="kv"><span class="l">类型</span><span class="r">修复方案</span></div><div class="kv"><span class="l">版本</span><span class="r">v2</span></div><div class="kv"><span class="l">生成</span><span class="r">ClaudeCode</span></div><button class="btn sm mt">在线预览</button></div>
+        </div>
+        <div class="alert amber mt">文档由客户端 CodingAgent 生成并经 UploadArtifact 回传，服务端 MinIO/对象存储落地，全过程对服务端可见、可检索、可评审。</div>
+      </section>
+
+      <!-- ===== 知识库管理 ===== -->
+      <section class="page" id="kb">
+        <div class="page-head"><div><h2>知识库管理</h2><div class="desc">RAG 来源 · 准入/分拣检索（F-03 / F-12）</div></div></div>
+        <div class="grid cols-3">
+          <div class="card col" style="grid-column:span 2">
+            <div class="label">文档列表</div>
+            <table>
+              <tr><th>标题</th><th>来源</th><th>版本</th><th>切分</th><th>向量化</th><th>操作</th></tr>
+              <tr><td>行情链路性能基线</td><td>内部 Wiki</td><td>v3</td><td><span class="tag t-green">完成</span></td><td><span class="tag t-green">完成</span></td><td><button class="btn sm">检索测试</button></td></tr>
+              <tr><td>风控告警链路 v2</td><td>上传</td><td>v2</td><td><span class="tag t-green">完成</span></td><td><span class="tag t-green">完成</span></td><td><button class="btn sm">检索测试</button></td></tr>
+              <tr><td>交易下单并发规范</td><td>上传</td><td>v1</td><td><span class="tag t-amber">处理中</span></td><td><span class="tag t-gray">等待</span></td><td><button class="btn sm">查看</button></td></tr>
+            </table>
+            <div class="upload mt">＋ 拖拽 / 点击上传知识文档（Markdown / PDF / Word），自动切分 + 向量化</div>
+          </div>
+          <div class="card col">
+            <div class="label">检索测试</div>
+            <textarea style="width:100%;min-height:70px;padding:9px;border:1px solid var(--border);border-radius:8px" placeholder="输入 query，看 top-k 命中片段"></textarea>
+            <button class="btn primary sm mt">检索</button>
+            <div class="label mt">命中预览</div>
+            <div class="ph"></div><div class="ph line"></div>
+            <div class="ph"></div><div class="ph line"></div>
+            <div class="small muted">向量库候选：pgvector（推荐）/ Milvus / ES。来源待定：内部 Wiki / 自建上传 / 混合。</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== 权限 / 用户 ===== -->
+      <section class="page" id="rbac">
+        <div class="page-head"><div><h2>权限 / 用户管理</h2><div class="desc">RBAC 统一鉴权（F-09）</div></div>
+          <div style="flex:1"></div><button class="btn primary">+ 新建用户</button></div>
+        <div class="grid cols-2">
+          <div class="card">
+            <div class="label">角色</div>
+            <table>
+              <tr><th>角色</th><th>权限范围</th></tr>
+              <tr><td>超级管理员</td><td>全部（含配置/权限）</td></tr>
+              <tr><td>研发负责人</td><td>本人 issue / 工作流 / 客户端</td></tr>
+              <tr><td>测试</td><td>验收节点 / 文档查看</td></tr>
+              <tr><td>设计师</td><td>评审节点 / 文档查看</td></tr>
+              <tr><td>普通研发</td><td>本人 issue / 本人客户端</td></tr>
+              <tr><td>访客</td><td>只读看板</td></tr>
+            </table>
+          </div>
+          <div class="card">
+            <div class="label">用户</div>
+            <table>
+              <tr><th>姓名</th><th>角色</th><th>可访问 issue</th><th>操作</th></tr>
+              <tr><td>YangDe</td><td>超级管理员</td><td>全部</td><td><button class="btn sm">编辑</button></td></tr>
+              <tr><td>张工</td><td>普通研发</td><td>本人（行情）</td><td><button class="btn sm">编辑</button></td></tr>
+              <tr><td>李工</td><td>普通研发</td><td>本人（资讯）</td><td><button class="btn sm">编辑</button></td></tr>
+              <tr><td>测试-周</td><td>测试</td><td>验收范围</td><td><button class="btn sm">编辑</button></td></tr>
+            </table>
+            <div class="alert amber mt">服务端对"谁可见/操作哪个 issue、文档、客户端"统一鉴权；客户端仅执行被指派且服务端签名的任务（HMAC）。</div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </div>
+</div>
+
+<script>
+  function show(id, el){
+    document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+    var t=document.getElementById(id);
+    if(t) t.classList.add('active');
+    if(el){document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));el.classList.add('active');}
+    var c=document.querySelector('.content'); if(c) c.scrollTop=0;
+  }
+  function enterApp(){document.getElementById('login').style.display='none';document.getElementById('app').style.display='block';}
+  function logout(){document.getElementById('app').style.display='none';document.getElementById('login').style.display='flex';}
+</script>
+</body>
+</html>

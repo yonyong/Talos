@@ -1,0 +1,1186 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Talos — 研发周期全自动流程平台</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --bg:#ffffff; --bg-subtle:#fbfbfc; --bg-muted:#f5f5f7; --bg-sunken:#f0f0f2;
+    --ink:#0a0a0b; --ink-2:#33343a; --ink-3:#71717a; --ink-4:#a1a1aa; --ink-5:#d4d4d8;
+    --line:rgba(10,10,11,0.08); --line-2:rgba(10,10,11,0.14);
+    --accent:#4f46e5; --accent-2:#6366f1; --accent-ink:#4338ca; --accent-soft:rgba(79,70,229,0.07);
+    --ok:#15803d; --ok-soft:#eaf6ee; --warn:#b45309; --warn-soft:#fdf4e7; --err:#b91c1c; --err-soft:#fdecec;
+    --radius:16px; --radius-sm:11px; --radius-xs:8px;
+    --shadow:0 1px 2px rgba(10,10,11,0.04),0 10px 30px -12px rgba(10,10,11,0.12);
+    --shadow-sm:0 1px 2px rgba(10,10,11,0.05);
+    --font:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'PingFang SC','Microsoft YaHei',sans-serif;
+    --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+    --maxw:1180px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{font-family:var(--font);color:var(--ink);background:var(--bg);-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;line-height:1.5;font-size:14px}
+  a{color:inherit;text-decoration:none}
+  button{font-family:inherit;cursor:pointer;border:none;background:none}
+  ::selection{background:var(--accent-soft);color:var(--accent-ink)}
+  .ic{width:18px;height:18px;display:inline-block;vertical-align:middle;flex:none}
+  .ic svg{width:100%;height:100%;display:block}
+
+  /* ---------- Layout ---------- */
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 28px}
+  .hidden{display:none !important}
+
+  /* ---------- Top Nav (landing) ---------- */
+  .nav{position:sticky;top:0;z-index:50;backdrop-filter:saturate(180%) blur(12px);background:rgba(255,255,255,0.72);border-bottom:1px solid var(--line)}
+  .nav-in{height:64px;display:flex;align-items:center;justify-content:space-between}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:600;font-size:15.5px;letter-spacing:-0.01em}
+  .brand .mark{width:26px;height:26px}
+  .nav-links{display:flex;gap:30px;font-size:13.5px;color:var(--ink-3);font-weight:500}
+  .nav-links a:hover{color:var(--ink)}
+  .nav-cta{display:flex;align-items:center;gap:14px}
+  .nav-cta .ghost{font-size:13.5px;color:var(--ink-2);font-weight:500}
+  .nav-cta .ghost:hover{color:var(--ink)}
+
+  /* ---------- Buttons ---------- */
+  .btn{display:inline-flex;align-items:center;gap:8px;height:42px;padding:0 20px;border-radius:var(--radius-xs);font-weight:560;font-size:13.5px;transition:all .18s ease;white-space:nowrap}
+  .btn svg{width:16px;height:16px}
+  .btn-primary{background:var(--ink);color:#fff}
+  .btn-primary:hover{background:#000;transform:translateY(-1px);box-shadow:0 6px 18px -6px rgba(10,10,11,.5)}
+  .btn-accent{background:var(--accent);color:#fff}
+  .btn-accent:hover{background:var(--accent-ink);transform:translateY(-1px);box-shadow:0 8px 22px -8px rgba(79,70,229,.6)}
+  .btn-outline{background:#fff;color:var(--ink);border:1px solid var(--line-2)}
+  .btn-outline:hover{border-color:var(--ink);background:var(--bg-subtle)}
+  .btn-sm{height:34px;padding:0 14px;font-size:12.5px;border-radius:8px}
+  .btn-xs{height:28px;padding:0 10px;font-size:12px;border-radius:7px}
+
+  /* ---------- Landing Hero ---------- */
+  .hero{position:relative;overflow:hidden;padding:110px 0 92px}
+  .hero-grid{position:absolute;inset:0;background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);background-size:56px 56px;mask-image:radial-gradient(ellipse 80% 60% at 50% 30%,#000 30%,transparent 75%);opacity:.5;pointer-events:none}
+  .hero-glow{position:absolute;top:50%;left:50%;width:720px;height:420px;transform:translate(-50%,-55%);background:radial-gradient(ellipse at center,rgba(99,102,241,.12) 0%,transparent 65%);pointer-events:none}
+  .hero-in{position:relative;text-align:center;max-width:780px;margin:0 auto;padding:0 20px}
+  .pill{display:inline-flex;align-items:center;gap:7px;height:30px;padding:0 14px;border:1px solid var(--line-2);border-radius:999px;font-size:12px;color:var(--ink-3);background:rgba(255,255,255,.7);font-weight:500;margin-bottom:24px}
+  .pill .dot{width:5px;height:5px;border-radius:50%;background:var(--ok)}
+  h1.hero-title{font-size:clamp(2.4rem,5.6vw,4.2rem);line-height:1.05;letter-spacing:-0.04em;font-weight:700;color:var(--ink);text-wrap:balance}
+  h1.hero-title .grad{background:linear-gradient(135deg,var(--accent) 0%,#8b5cf6 55%,#c084fc 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .hero-sub{margin:22px auto 0;max-width:560px;font-size:17px;line-height:1.7;color:var(--ink-3);font-weight:400}
+  .hero-actions{margin-top:40px;display:flex;gap:14px;justify-content:center;align-items:center}
+  .hero-actions .btn{height:46px;padding:0 24px;border-radius:12px;font-size:14px;font-weight:600}
+  .hero-actions .btn-primary{background:linear-gradient(135deg,#18181b 0%,#27272a 100%);box-shadow:0 1px 2px rgba(0,0,0,.1),0 12px 28px -10px rgba(0,0,0,.45)}
+  .hero-actions .btn-primary:hover{transform:translateY(-2px);box-shadow:0 1px 2px rgba(0,0,0,.1),0 18px 36px -12px rgba(0,0,0,.5)}
+  .hero-actions .btn-outline{border-color:var(--line-2);background:#fff}
+  .hero-actions .btn-outline:hover{border-color:var(--ink-3)}
+  .hero-note{margin-top:24px;font-size:12px;color:var(--ink-4);display:flex;align-items:center;gap:8px;justify-content:center;letter-spacing:.02em}
+  .hero-badges{position:absolute;inset:0;pointer-events:none;overflow:hidden;max-width:var(--maxw);margin:0 auto}
+  .hb{position:absolute;display:flex;align-items:center;gap:8px;padding:8px 14px;background:#fff;border:1px solid var(--line);border-radius:999px;font-size:11.5px;font-weight:500;color:var(--ink-2);box-shadow:0 8px 24px -8px rgba(10,10,11,.1)}
+  .hb .ic{width:15px;height:15px;color:var(--accent)}
+  .hb.a{top:18%;left:2%;animation:float 5s ease-in-out infinite}
+  .hb.b{top:26%;right:3%;animation:float 5.5s ease-in-out infinite .8s}
+  .hb.c{bottom:22%;left:6%;animation:float 6s ease-in-out infinite 1.5s}
+  @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+
+  /* ---------- Architecture diagram ---------- */
+  .arch{margin-top:72px;border:1px solid #27272a;border-radius:24px;background:linear-gradient(180deg,#111113 0%,#18181b 100%);padding:36px 32px 32px;box-shadow:0 24px 60px -24px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.06);color:#fff;position:relative;overflow:hidden}
+  .arch::before{content:"";position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.14),transparent)}
+  .arch-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:30px;position:relative;z-index:2}
+  .arch-head h3{font-size:16px;font-weight:650;letter-spacing:-0.01em;color:#fff}
+  .arch-head span{font-size:13px;color:#a1a1aa}
+  .arch-svg{width:100%;height:auto;display:block;position:relative;z-index:2}
+
+  /* ---------- Section ---------- */
+  section.block{padding:84px 0}
+  .sec-head{text-align:center;max-width:600px;margin:0 auto 52px}
+  .sec-tag{font-size:12.5px;font-weight:600;color:var(--accent);letter-spacing:.04em;text-transform:uppercase}
+  .sec-h{font-size:clamp(1.7rem,3.4vw,2.3rem);letter-spacing:-0.025em;font-weight:650;margin-top:12px;line-height:1.12}
+  .sec-d{margin-top:14px;font-size:15px;color:var(--ink-3);line-height:1.6}
+
+  .bento{display:grid;grid-template-columns:repeat(3,1fr);grid-auto-rows:1fr;gap:18px}
+  .bcard{border:1px solid var(--line);border-radius:20px;padding:26px 26px 22px;background:#fff;transition:all .22s ease;display:flex;flex-direction:column;position:relative;overflow:hidden;min-height:0}
+  .bcard::before{content:"";position:absolute;width:260px;height:260px;border-radius:50%;filter:blur(72px);opacity:.28;pointer-events:none;z-index:0}
+  .bcard.c1::before{background:#818cf8;top:-130px;right:-90px}
+  .bcard.c2::before{background:#c4b5fd;bottom:-130px;left:-90px}
+  .bcard.c3::before{background:#67e8f9;top:-130px;right:-90px}
+  .bcard.c4::before{background:#86efac;bottom:-130px;right:-90px}
+  .bcard>*{position:relative;z-index:1}
+  .bcard:hover{border-color:#d4d4d8;box-shadow:0 18px 40px -22px rgba(10,10,11,.22);transform:translateY(-3px)}
+  .bcard .bicon{width:46px;height:46px;border-radius:13px;display:flex;align-items:center;justify-content:center;margin-bottom:16px}
+  .bcard .bicon .ic{width:23px;height:23px;stroke-width:1.7}
+  .bcard .b1i{background:linear-gradient(135deg,#eef2ff,#e0e7ff);color:#4338ca}
+  .bcard .b2i{background:linear-gradient(135deg,#f3e8ff,#ede9fe);color:#6d28d9}
+  .bcard .b3i{background:linear-gradient(135deg,#ecfeff,#cffafe);color:#0e7490}
+  .bcard .b4i{background:linear-gradient(135deg,#f0fdf4,#dcfce7);color:#15803d}
+  .bcard h4{font-size:16.5px;font-weight:640;letter-spacing:-0.015em}
+  .bcard p{margin-top:9px;font-size:13.5px;color:var(--ink-3);line-height:1.62;max-width:44ch}
+  .bvis{margin-top:auto;padding-top:22px}
+  .bvis-in{border:1px solid var(--line);border-radius:14px;background:linear-gradient(180deg,#fcfcfd,#f8f8fa);padding:14px 12px}
+  .bvis svg{width:100%;height:auto;display:block}
+  .bcard.ba{grid-column:span 2}
+  .bcard.bb{grid-row:span 2}
+  .bcard.bb .bvis{flex:1;display:flex;padding-top:22px}
+  .bcard.bb .bvis-in{flex:1;display:flex;align-items:center;justify-content:center;padding:18px 16px}
+  .bcard.bb .bvis svg{height:100%;width:auto;max-width:100%}
+
+  /* ---------- Workflow pipeline ---------- */
+  .wf{display:grid;grid-template-columns:1fr;gap:22px}
+  .wf-card{border:1px solid var(--line);border-radius:20px;padding:30px 34px 26px;background:#fff;position:relative;overflow:hidden}
+  .wf-card h4{font-size:15px;font-weight:650;display:flex;align-items:center;gap:10px;margin-bottom:4px}
+  .wf-card h4 .ic{width:18px;height:18px;color:var(--accent)}
+  .wf-card .sub{font-size:12.5px;color:var(--ink-4);margin-bottom:34px}
+  .wf-flow{display:flex;align-items:flex-start;justify-content:space-between;position:relative;z-index:2;padding:0 8px}
+  .wf-flow::before{content:"";position:absolute;top:31px;left:48px;right:48px;height:1.5px;background:#e4e4e7;z-index:0}
+  .wf-flow::after{content:"";position:absolute;top:27px;right:44px;border-left:7px solid #c7d2fe;border-top:4.5px solid transparent;border-bottom:4.5px solid transparent;z-index:0}
+  .wf-node{position:relative;flex:1;display:flex;flex-direction:column;align-items:center;text-align:center;z-index:2}
+  .wf-node .ndot{width:62px;height:62px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#fff;border:1px solid #e4e4e7;box-shadow:0 0 0 5px #fff,0 2px 6px -2px rgba(10,10,11,.1);transition:all .18s ease}
+  .wf-node:hover .ndot{transform:translateY(-3px);border-color:#d4d4d8;box-shadow:0 0 0 5px #fff,0 8px 18px -6px rgba(10,10,11,.18)}
+  .wf-node .ndot .ic{width:25px;height:25px;stroke-width:1.6}
+  .wf-node.n-git .ndot{color:#52525b}
+  .wf-node.n-doc .ndot{color:#4f46e5}
+  .wf-node.n-code .ndot{color:#2563eb}
+  .wf-node.n-test .ndot{color:#16a34a}
+  .wf-node.n-rev .ndot{color:#d97706}
+  .wf-node .nstep{font-family:var(--mono);font-size:10px;font-weight:600;color:#a1a1aa;letter-spacing:.08em;margin-top:16px}
+  .wf-node .ntext{font-size:13.5px;font-weight:620;color:var(--ink);margin-top:5px}
+  .wf-node .ntag{font-size:10px;font-weight:600;letter-spacing:.05em;margin-top:5px;color:#a1a1aa}
+  .wf-conn{display:none}
+
+  /* ---------- Security strip ---------- */
+  .sec-dark{background:var(--ink);color:#fff;border-radius:24px;padding:54px 50px;display:grid;grid-template-columns:1.1fr 1fr;gap:46px;align-items:center}
+  .sec-dark h3{font-size:26px;font-weight:640;letter-spacing:-0.02em;line-height:1.18}
+  .sec-dark p{margin-top:14px;font-size:14px;color:#a1a1aa;line-height:1.65}
+  .sec-list{display:flex;flex-direction:column;gap:16px}
+  .sec-item{display:flex;gap:13px;align-items:flex-start}
+  .sec-item .si{width:30px;height:30px;border-radius:8px;background:rgba(255,255,255,.08);color:#c7c7d1;display:flex;align-items:center;justify-content:center;flex:none}
+  .sec-item .si .ic{width:16px;height:16px}
+  .sec-item b{font-weight:560;font-size:13.5px}
+  .sec-item span{display:block;font-size:12.5px;color:#9b9ba6;margin-top:3px;line-height:1.55}
+
+  /* ---------- Footer ---------- */
+  footer{border-top:1px solid var(--line);padding:46px 0 60px;margin-top:20px}
+  .foot-in{display:flex;justify-content:space-between;align-items:flex-start;gap:40px;flex-wrap:wrap}
+  .foot-brand{max-width:280px}
+  .foot-brand p{font-size:12.5px;color:var(--ink-4);margin-top:14px;line-height:1.6}
+  .foot-cols{display:flex;gap:62px}
+  .foot-col h5{font-size:12px;color:var(--ink-4);font-weight:600;letter-spacing:.03em;text-transform:uppercase;margin-bottom:14px}
+  .foot-col a{display:block;font-size:13px;color:var(--ink-3);margin-bottom:10px}
+  .foot-col a:hover{color:var(--ink)}
+  .foot-bot{margin-top:40px;padding-top:22px;border-top:1px solid var(--line);font-size:12px;color:var(--ink-4);display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px}
+
+  /* ---------- Login ---------- */
+  .login{display:grid;grid-template-columns:1fr 1fr;min-height:100vh}
+  .login-l{background:var(--ink);color:#fff;position:relative;overflow:hidden;display:flex;flex-direction:column;justify-content:space-between;padding:48px}
+  .login-l .lgrid{position:absolute;inset:0;background-image:radial-gradient(circle at 1px 1px,rgba(255,255,255,.12) 1px,transparent 0);background-size:34px 34px;opacity:.5;mask-image:radial-gradient(circle at 30% 40%,#000,transparent 70%)}
+  .login-l .lbrand{position:relative;display:flex;align-items:center;gap:11px;font-weight:600;font-size:17px}
+  .login-l .lbrand .mark{width:30px;height:30px}
+  .login-l .lmid{position:relative}
+  .login-l .lmid .q{font-size:30px;font-weight:600;letter-spacing:-0.025em;line-height:1.3;max-width:420px;text-wrap:balance}
+  .login-l .lmid .q em{color:#a5b4fc;font-style:normal}
+  .login-l .lfoot{position:relative;font-size:12px;color:#71717a;display:flex;gap:18px}
+  .login-r{display:flex;align-items:center;justify-content:center;padding:40px;background:var(--bg)}
+  .login-card{width:100%;max-width:380px}
+  .login-card h2{font-size:23px;font-weight:640;letter-spacing:-0.02em}
+  .login-card .ld{font-size:13.5px;color:var(--ink-3);margin-top:8px;margin-bottom:30px}
+  .field{margin-bottom:16px}
+  .field label{display:block;font-size:12.5px;font-weight:550;color:var(--ink-2);margin-bottom:7px}
+  .field .inp{display:flex;align-items:center;gap:10px;height:44px;border:1px solid var(--line-2);border-radius:var(--radius-xs);padding:0 14px;background:#fff;transition:all .15s}
+  .field .inp:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+  .field .inp .ic{width:17px;height:17px;color:var(--ink-4)}
+  .field .inp input{flex:1;border:none;outline:none;font-family:inherit;font-size:14px;color:var(--ink);background:transparent}
+  .field .inp input::placeholder{color:var(--ink-4)}
+  .login-row{display:flex;align-items:center;justify-content:space-between;margin:6px 0 22px;font-size:12.5px}
+  .login-row label{display:flex;align-items:center;gap:7px;color:var(--ink-3);cursor:pointer}
+  .login-row a{color:var(--accent);font-weight:500}
+  .login-card .btn{width:100%;justify-content:center;height:46px}
+  .login-div{display:flex;align-items:center;gap:14px;margin:22px 0;color:var(--ink-4);font-size:12px}
+  .login-div::before,.login-div::after{content:"";flex:1;height:1px;background:var(--line)}
+  .sso{width:100%;justify-content:center;height:44px}
+
+  /* ---------- Console v2 components ---------- */
+  .chips{display:flex;gap:7px;flex-wrap:wrap;align-items:center}
+  .chip{height:30px;padding:0 12px;border-radius:8px;border:1px solid var(--line-2);background:#fff;font-size:12.5px;color:var(--ink-3);display:inline-flex;align-items:center;gap:6px;cursor:pointer;transition:all .14s;font-weight:500}
+  .chip:hover{border-color:#c7c7cc;color:var(--ink)}
+  .chip.on{background:var(--ink);border-color:var(--ink);color:#fff}
+  .chip .n{font-size:11px;opacity:.65}
+
+  .kpi{border:1px solid var(--line);border-radius:16px;background:#fff;padding:20px;position:relative;overflow:hidden;transition:all .2s}
+  .kpi:hover{border-color:#d4d4d8;box-shadow:0 14px 30px -18px rgba(10,10,11,.25);transform:translateY(-2px)}
+  .kpi::after{content:"";position:absolute;width:150px;height:150px;border-radius:50%;filter:blur(50px);opacity:.16;right:-50px;top:-60px;pointer-events:none}
+  .kpi.a1::after{background:#818cf8}.kpi.a2::after{background:#7dd3fc}.kpi.a3::after{background:#86efac}.kpi.a4::after{background:#fcd34d}
+  .kpi .kt{font-size:12.5px;color:var(--ink-3);display:flex;align-items:center;gap:7px;position:relative}
+  .kpi .kt .ic{width:15px;height:15px;color:var(--ink-4)}
+  .kpi .kv{font-size:30px;font-weight:660;letter-spacing:-0.03em;line-height:1;margin-top:12px;position:relative}
+  .kpi .kd{font-size:12px;margin-top:9px;color:var(--ink-4);position:relative}
+  .kpi .kd.up{color:var(--ok)}.kpi .kd.down{color:var(--err)}
+  .kpi .spark{margin-top:16px;display:block;position:relative}
+
+  .panel{border:1px solid var(--line);border-radius:16px;background:#fff;overflow:hidden}
+  .panel-h{display:flex;align-items:center;justify-content:space-between;padding:15px 20px;border-bottom:1px solid var(--line);gap:14px}
+  .panel-h h3{font-size:14px;font-weight:620;letter-spacing:-0.005em}
+  .panel-h .sub{font-size:12px;color:var(--ink-4);margin-top:3px}
+  .panel-b{padding:20px}
+  .panel-b.flush{padding:0}
+
+  .split{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:18px;align-items:start}
+  .split-l{display:grid;grid-template-columns:330px minmax(0,1fr);gap:18px;align-items:start}
+
+  .qitem{display:flex;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line);cursor:pointer;transition:background .14s;align-items:flex-start}
+  .qitem:hover{background:var(--bg-subtle)}
+  .qitem.on{background:var(--accent-soft)}
+  .qitem .qi{flex:1;min-width:0}
+  .qitem .qi b{font-size:13px;font-weight:560;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .qitem .qi span{font-size:11.5px;color:var(--ink-4);margin-top:3px;display:block}
+
+  .conf{position:relative;width:92px;height:92px;flex:none}
+  .conf span{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:660;letter-spacing:-0.02em;color:var(--ink)}
+  .conf small{position:absolute;bottom:20px;left:0;right:0;text-align:center;font-size:10px;color:var(--ink-4);font-weight:500}
+
+  .ccard{border:1px solid var(--line);border-radius:14px;background:#fff;padding:16px;transition:all .18s;position:relative;overflow:hidden}
+  .ccard:hover{border-color:#d4d4d8;box-shadow:0 14px 30px -20px rgba(10,10,11,.28);transform:translateY(-2px)}
+  .ccard .ch{display:flex;align-items:center;gap:11px}
+  .ccard .cico{width:34px;height:34px;border-radius:10px;background:var(--bg-muted);display:flex;align-items:center;justify-content:center;color:var(--ink-3);flex:none}
+  .ccard .cico .ic{width:17px;height:17px}
+  .ccard .ch b{font-size:13.5px;font-weight:580;display:block;line-height:1.3}
+  .ccard .ch span{font-size:11.5px;color:var(--ink-4)}
+  .ccard .cst{margin-left:auto;display:flex;align-items:center;gap:6px}
+  .ccard .chips{margin-top:13px;display:flex;gap:5px;flex-wrap:wrap}
+  .ccard .cmeta{display:flex;align-items:center;justify-content:space-between;margin-top:14px;padding-top:12px;border-top:1px solid var(--line);font-size:11.5px;color:var(--ink-4)}
+  .mini{font-size:10.5px;font-weight:600;padding:3px 7px;border-radius:6px;background:var(--bg-muted);color:var(--ink-4)}
+  .mini.on{background:var(--accent-soft);color:var(--accent-ink)}
+
+  .term{background:#0b0b0d;border-radius:14px;padding:16px 18px;font-family:var(--mono);font-size:11.5px;line-height:1.9;color:#a1a1aa;overflow:auto;max-height:230px}
+  .term .g{color:#86efac}.term .b{color:#a5b4fc}.term .y{color:#fcd34d}.term .r{color:#fca5a5}.term .d{color:#52525b}
+
+  .dcard{border:1px solid var(--line);border-radius:14px;background:#fff;padding:18px;cursor:pointer;transition:all .18s;display:flex;flex-direction:column}
+  .dcard:hover{border-color:#d4d4d8;box-shadow:0 14px 30px -20px rgba(10,10,11,.25);transform:translateY(-2px)}
+  .dcard .dico{width:38px;height:38px;border-radius:10px;background:var(--accent-soft);color:var(--accent);display:flex;align-items:center;justify-content:center}
+  .dcard .dico .ic{width:19px;height:19px}
+  .dcard b{font-size:13.5px;font-weight:580;margin-top:14px;display:block}
+  .dcard .dm{font-size:11.5px;color:var(--ink-4);margin-top:5px}
+  .dcard .df{display:flex;align-items:center;justify-content:space-between;margin-top:16px;padding-top:12px;border-top:1px solid var(--line);font-size:11.5px;color:var(--ink-4)}
+
+  .mx th{text-transform:none;font-size:12.5px;color:var(--ink-3)}
+  .mx td{font-size:12.5px;text-align:center}
+  .mx td:first-child{text-align:left;font-weight:550;color:var(--ink-2)}
+  .mx .yes{color:var(--ok)}.mx .no{color:#d4d4d8}.mx .par{color:var(--warn)}
+
+  /* ---------- App Shell ---------- */
+  .app{display:grid;grid-template-columns:248px 1fr;min-height:100vh}
+  .side{background:var(--bg-subtle);border-right:1px solid var(--line);display:flex;flex-direction:column;position:sticky;top:0;height:100vh}
+  .side-top{height:62px;display:flex;align-items:center;gap:10px;padding:0 20px;border-bottom:1px solid var(--line);font-weight:600;font-size:15px}
+  .side-top .mark{width:25px;height:25px}
+  .side-nav{flex:1;overflow-y:auto;padding:14px 12px}
+  .nav-group{font-size:11px;font-weight:600;color:var(--ink-4);letter-spacing:.04em;text-transform:uppercase;padding:14px 12px 7px}
+  .nav-i{display:flex;align-items:center;gap:11px;padding:9px 12px;border-radius:9px;font-size:13.5px;color:var(--ink-2);font-weight:500;cursor:pointer;transition:all .14s;margin-bottom:2px}
+  .nav-i .ic{width:17px;height:17px;color:var(--ink-4)}
+  .nav-i:hover{background:var(--bg-muted)}
+  .nav-i.active{background:#fff;color:var(--ink);box-shadow:var(--shadow-sm);border:1px solid var(--line)}
+  .nav-i.active .ic{color:var(--accent)}
+  .side-bot{padding:12px;border-top:1px solid var(--line)}
+  .userchip{display:flex;align-items:center;gap:10px;padding:8px;border-radius:9px;cursor:pointer}
+  .userchip:hover{background:var(--bg-muted)}
+  .avatar{width:32px;height:32px;border-radius:8px;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12.5px;font-weight:600;flex:none}
+  .userchip .un{font-size:13px;font-weight:550;line-height:1.2}
+  .userchip .ur{font-size:11px;color:var(--ink-4)}
+
+  .main{display:flex;flex-direction:column;min-width:0}
+  .topbar{height:62px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 28px;background:rgba(255,255,255,.7);backdrop-filter:blur(8px);position:sticky;top:0;z-index:20}
+  .topbar .crumb{font-size:14px;font-weight:560;display:flex;align-items:center;gap:9px}
+  .topbar .crumb .ic{width:16px;height:16px;color:var(--ink-4)}
+  .topbar .tools{display:flex;align-items:center;gap:8px}
+  .iconbtn{width:36px;height:36px;border-radius:9px;display:flex;align-items:center;justify-content:center;color:var(--ink-3);position:relative;transition:all .14s}
+  .iconbtn:hover{background:var(--bg-muted);color:var(--ink)}
+  .iconbtn .ic{width:18px;height:18px}
+  .iconbtn .badge{position:absolute;top:7px;right:8px;width:7px;height:7px;border-radius:50%;background:var(--err);border:2px solid #fff}
+  .content{padding:30px 28px 60px;max-width:1240px;width:100%}
+
+  .page-h{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:26px;gap:20px;flex-wrap:wrap}
+  .page-h h2{font-size:23px;font-weight:650;letter-spacing:-0.02em}
+  .page-h p{font-size:13px;color:var(--ink-3);margin-top:6px}
+  .page-h .acts{display:flex;gap:10px}
+
+  /* cards */
+  .card{border:1px solid var(--line);border-radius:var(--radius);background:#fff}
+  .card-pad{padding:22px}
+  .grid{display:grid;gap:18px}
+  .g4{grid-template-columns:repeat(4,1fr)}
+  .g3{grid-template-columns:repeat(3,1fr)}
+  .g2{grid-template-columns:repeat(2,1fr)}
+
+  .stat{display:flex;flex-direction:column;gap:6px}
+  .stat .sl{font-size:12.5px;color:var(--ink-3);font-weight:500;display:flex;align-items:center;gap:7px}
+  .stat .sl .ic{width:15px;height:15px;color:var(--ink-4)}
+  .stat .sv{font-size:27px;font-weight:660;letter-spacing:-0.02em;line-height:1}
+  .stat .sd{font-size:12px;color:var(--ink-4)}
+  .stat .sd.up{color:var(--ok)}
+  .stat .sd.down{color:var(--err)}
+
+  .seg{display:inline-flex;background:var(--bg-muted);border-radius:9px;padding:3px}
+  .seg button{padding:6px 13px;border-radius:7px;font-size:12.5px;font-weight:550;color:var(--ink-3);transition:all .14s}
+  .seg button.on{background:#fff;color:var(--ink);box-shadow:var(--shadow-sm)}
+
+  table{width:100%;border-collapse:collapse}
+  th{text-align:left;font-size:11.5px;font-weight:600;color:var(--ink-4);letter-spacing:.02em;text-transform:uppercase;padding:11px 14px;border-bottom:1px solid var(--line)}
+  td{padding:13px 14px;border-bottom:1px solid var(--line);font-size:13px;color:var(--ink-2)}
+  tr:last-child td{border-bottom:none}
+  tr:hover td{background:var(--bg-subtle)}
+  .tid{font-family:var(--mono);font-size:12px;color:var(--ink-3)}
+
+  .tag{display:inline-flex;align-items:center;gap:5px;height:23px;padding:0 9px;border-radius:6px;font-size:11.5px;font-weight:560}
+  .tag .dot{width:6px;height:6px;border-radius:50%}
+  .t-ok{background:var(--ok-soft);color:var(--ok)} .t-ok .dot{background:var(--ok)}
+  .t-warn{background:var(--warn-soft);color:var(--warn)} .t-warn .dot{background:var(--warn)}
+  .t-err{background:var(--err-soft);color:var(--err)} .t-err .dot{background:var(--err)}
+  .t-info{background:var(--accent-soft);color:var(--accent-ink)} .t-info .dot{background:var(--accent)}
+  .t-mut{background:var(--bg-muted);color:var(--ink-3)} .t-mut .dot{background:var(--ink-4)}
+  .t-prog{background:#eff6ff;color:#1d4ed8} .t-prog .dot{background:#1d4ed8}
+
+  .search{display:flex;align-items:center;gap:9px;height:38px;border:1px solid var(--line-2);border-radius:9px;padding:0 12px;background:#fff;width:280px}
+  .search .ic{width:16px;height:16px;color:var(--ink-4)}
+  .search input{flex:1;border:none;outline:none;font-family:inherit;font-size:13px;background:transparent}
+
+  /* wizard */
+  .wiz{display:grid;grid-template-columns:230px 1fr;gap:32px}
+  .wiz-steps{display:flex;flex-direction:column;gap:4px}
+  .wstep{display:flex;gap:13px;padding:14px 12px;border-radius:11px;cursor:default;transition:all .15s}
+  .wstep .num{width:28px;height:28px;border-radius:50%;border:1.5px solid var(--line-2);display:flex;align-items:center;justify-content:center;font-size:12.5px;font-weight:600;color:var(--ink-4);flex:none;transition:all .15s}
+  .wstep .wt b{font-size:13px;font-weight:560;color:var(--ink-2);display:block}
+  .wstep .wt span{font-size:11.5px;color:var(--ink-4)}
+  .wstep.active{background:var(--accent-soft)}
+  .wstep.active .num{background:var(--accent);border-color:var(--accent);color:#fff}
+  .wstep.active .wt b{color:var(--accent-ink)}
+  .wstep.done .num{background:var(--ok);border-color:var(--ok);color:#fff}
+  .wstep.done .num .ic{width:14px;height:14px}
+  .wiz-body{flex:1}
+  .wiz-card{border:1px solid var(--line);border-radius:var(--radius);padding:28px;background:#fff;min-height:420px}
+  .wiz-card h3{font-size:17px;font-weight:620;letter-spacing:-0.01em}
+  .wiz-card .wd{font-size:13px;color:var(--ink-3);margin-top:6px;margin-bottom:24px}
+  .wiz-foot{display:flex;justify-content:space-between;margin-top:26px}
+
+  .form-row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .form-row.three{grid-template-columns:1fr 1fr 1fr}
+  .lbl{display:block;font-size:12.5px;font-weight:550;color:var(--ink-2);margin-bottom:7px}
+  .lbl .req{color:var(--err);margin-left:2px}
+  .ctrl{width:100%;height:42px;border:1px solid var(--line-2);border-radius:var(--radius-xs);padding:0 13px;font-family:inherit;font-size:13.5px;color:var(--ink);background:#fff;outline:none;transition:all .14s}
+  .ctrl:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+  textarea.ctrl{height:auto;padding:11px 13px;resize:vertical;min-height:96px;line-height:1.55}
+  select.ctrl{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2371717a' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 13px center;padding-right:34px}
+  .hint{font-size:11.5px;color:var(--ink-4);margin-top:6px}
+  .auto-fill{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;color:var(--accent);margin-top:7px;font-weight:500}
+  .auto-fill .ic{width:13px;height:13px}
+
+  .preview-box{border:1px dashed var(--line-2);border-radius:var(--radius-xs);padding:18px;background:var(--bg-subtle)}
+  .preview-row{display:flex;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px}
+  .preview-row:last-child{border-bottom:none}
+  .preview-row .pk{width:120px;color:var(--ink-3);flex:none;font-weight:500}
+  .preview-row .pv{color:var(--ink);font-weight:500}
+
+  .success{text-align:center;padding:30px 10px}
+  .success .sring{width:64px;height:64px;border-radius:50%;background:var(--ok-soft);color:var(--ok);display:flex;align-items:center;justify-content:center;margin:0 auto 20px}
+  .success .sring .ic{width:30px;height:30px}
+  .success h3{font-size:20px;font-weight:640;letter-spacing:-0.01em}
+  .success p{font-size:13.5px;color:var(--ink-3);margin-top:10px;line-height:1.6;max-width:400px;margin-left:auto;margin-right:auto}
+  .success .meta{display:inline-flex;gap:10px;margin-top:18px;flex-wrap:wrap;justify-content:center}
+
+  /* monitor timeline */
+  .timeline{display:flex;align-items:flex-start;gap:0;padding:8px 0 4px;overflow-x:auto}
+  .tnode{flex:1;min-width:120px;display:flex;flex-direction:column;align-items:center;text-align:center;position:relative}
+  .tnode .tdot{width:30px;height:30px;border-radius:50%;background:#fff;border:1.5px solid var(--line-2);display:flex;align-items:center;justify-content:center;color:var(--ink-4);z-index:2}
+  .tnode .tdot .ic{width:15px;height:15px}
+  .tnode .tbar{position:absolute;top:15px;left:50%;width:100%;height:2px;background:var(--line-2);z-index:1}
+  .tnode.done .tdot{background:var(--ok);border-color:var(--ok);color:#fff}
+  .tnode.done .tbar{background:var(--ok)}
+  .tnode.active .tdot{background:var(--accent);border-color:var(--accent);color:#fff;box-shadow:0 0 0 4px var(--accent-soft)}
+  .tnode.fail .tdot{background:var(--err);border-color:var(--err);color:#fff}
+  .tnode .tname{font-size:12px;font-weight:550;margin-top:11px;color:var(--ink-2)}
+  .tnode .tst{font-size:11px;color:var(--ink-4);margin-top:3px}
+
+  .topo{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+  .client{display:flex;align-items:center;gap:12px;border:1px solid var(--line);border-radius:var(--radius-sm);padding:14px;background:#fff;transition:all .15s}
+  .client:hover{border-color:var(--line-2);box-shadow:var(--shadow-sm)}
+  .client .cdot{width:9px;height:9px;border-radius:50%;flex:none}
+  .client .cdot.on{background:var(--ok);box-shadow:0 0 0 3px var(--ok-soft)}
+  .client .cdot.busy{background:var(--accent);box-shadow:0 0 0 3px var(--accent-soft);animation:pulse 1.6s infinite}
+  .client .cdot.off{background:var(--ink-5)}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.45}}
+  .client .ci b{font-size:13px;font-weight:560;display:block}
+  .client .ci span{font-size:11.5px;color:var(--ink-4)}
+
+  /* agent config */
+  .acc{border:1px solid var(--line);border-radius:var(--radius-sm);overflow:hidden;margin-bottom:14px;background:#fff}
+  .acc-head{display:flex;align-items:center;gap:13px;padding:16px 18px;cursor:pointer;user-select:none}
+  .acc-head:hover{background:var(--bg-subtle)}
+  .acc-logo{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;color:#fff;flex:none}
+  .acc-logo.cc{background:#d97757}.acc-logo.cu{background:#0a0a0b}.acc-logo.cx{background:#10a37f}.acc-logo.cb{background:var(--accent)}
+  .acc-head b{font-size:14px;font-weight:560}
+  .acc-head .am{font-size:12px;color:var(--ink-4);margin-left:6px}
+  .acc-head .ar{margin-left:auto;display:flex;align-items:center;gap:12px}
+  .switch{width:40px;height:23px;border-radius:999px;background:var(--ink-5);position:relative;transition:all .18s;flex:none}
+  .switch.on{background:var(--accent)}
+  .switch::after{content:"";position:absolute;top:2.5px;left:2.5px;width:18px;height:18px;border-radius:50%;background:#fff;transition:all .18s;box-shadow:0 1px 2px rgba(0,0,0,.2)}
+  .switch.on::after{left:19.5px}
+  .acc-body{padding:0 18px;border-top:1px solid var(--line);display:none}
+  .acc.open .acc-body{display:block;padding:18px}
+  .ring{width:54px;height:54px;flex:none}
+  .usg{display:flex;align-items:center;gap:14px}
+  .usg .ub{font-size:11px;color:var(--ink-4);margin-bottom:4px}
+  .bar{height:6px;border-radius:999px;background:var(--bg-muted);overflow:hidden;flex:1}
+  .bar i{display:block;height:100%;border-radius:999px;background:var(--accent)}
+
+  .row-between{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:13px 0;border-bottom:1px solid var(--line)}
+  .row-between:last-child{border-bottom:none}
+  .row-between .rl b{font-size:13px;font-weight:550;display:block}
+  .row-between .rl span{font-size:11.5px;color:var(--ink-4);margin-top:2px;display:block}
+
+  .prompt-code{background:var(--bg-sunken);border:1px solid var(--line);border-radius:var(--radius-xs);padding:16px;font-family:var(--mono);font-size:12px;line-height:1.7;color:var(--ink-2);white-space:pre-wrap;max-height:340px;overflow:auto}
+  .prompt-code .v{color:var(--accent-ink);background:var(--accent-soft);border-radius:4px;padding:1px 4px}
+  .prompt-code .c{color:var(--ink-4)}
+
+  .empty{text-align:center;padding:50px 20px;color:var(--ink-4)}
+  .empty .eic{width:46px;height:46px;border-radius:12px;background:var(--bg-muted);display:flex;align-items:center;justify-content:center;margin:0 auto 14px;color:var(--ink-4)}
+  .empty .eic .ic{width:22px;height:22px}
+
+  /* toast */
+  .toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--ink);color:#fff;padding:13px 18px;border-radius:11px;font-size:13px;display:flex;align-items:center;gap:10px;box-shadow:0 12px 40px -8px rgba(0,0,0,.4);opacity:0;pointer-events:none;transition:all .25s;z-index:200}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  .toast .ic{width:17px;height:17px;color:#86efac}
+
+  @media(max-width:920px){
+    .bento{grid-template-columns:1fr}
+    .bcard.ba{grid-column:auto}.bcard.bb{grid-row:auto}
+    .sec-dark{grid-template-columns:1fr}
+    .login{grid-template-columns:1fr}.login-l{display:none}
+    .app{grid-template-columns:1fr}.side{display:none}
+    .wiz{grid-template-columns:1fr}.wiz-steps{flex-direction:row;overflow-x:auto}
+    .g4,.g3,.g2{grid-template-columns:1fr 1fr}
+    .split,.split-l{grid-template-columns:1fr}
+    .topo{grid-template-columns:1fr 1fr}
+    .wf-flow{flex-wrap:wrap;gap:26px 18px}
+    .wf-flow::before{display:none}
+    .wf-node{min-width:calc(25% - 18px);flex:none}
+    .hero-badges{display:none}
+  }
+</style>
+</head>
+<body>
+
+<!-- ============ ICON LIBRARY ============ -->
+<script>
+function ic(n){const m={
+ h:'<path d="M3 3h18v18H3z" opacity="0"/><path d="M4 7l8-4 8 4-8 4-8-4z"/><path d="M4 7v10l8 4 8-4V7"/><path d="M12 11v10"/>',
+ dash:'<rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>',
+ issue:'<circle cx="12" cy="12" r="9"/><path d="M12 8v4"/><path d="M12 16h.01"/>',
+ flow:'<rect x="3" y="4" width="7" height="6" rx="1.5"/><rect x="14" y="14" width="7" height="6" rx="1.5"/><path d="M10 7h4a3 3 0 0 1 3 3v4"/>',
+ monitor:'<path d="M3 12h4l3 8 4-16 3 8h4"/>',
+ client:'<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8"/><path d="M12 16v4"/>',
+ agent:'<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/>',
+ logs:'<path d="M4 4h16v16H4z"/><path d="M8 9h8M8 13h8M8 17h5"/>',
+ doc:'<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h6"/>',
+ kb:'<path d="M4 19V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/><path d="M9 7v5M12 7v5M9 12h3"/>',
+ users:'<circle cx="9" cy="8" r="3.5"/><path d="M3 20a6 6 0 0 1 12 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M21 20a6 6 0 0 0-5-5.9"/>',
+ plus:'<path d="M12 5v14M5 12h14"/>',
+ search:'<circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/>',
+ check:'<path d="M5 12l5 5L20 6"/>',
+ chevron:'<path d="M9 6l6 6-6 6"/>',
+ bell:'<path d="M6 9a6 6 0 0 1 12 0c0 6 2 7 2 7H4s2-1 2-7"/><path d="M10 20a2 2 0 0 0 4 0"/>',
+ logout:'<path d="M9 4H5a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h4"/><path d="M16 17l5-5-5-5M21 12H9"/>',
+ user:'<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
+ lock:'<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
+ git:'<circle cx="6" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="12" r="2.5"/><path d="M6 8.5v7M8.5 6H15a3 3 0 0 1 3 3v0"/>',
+ code:'<path d="M9 8l-4 4 4 4M15 8l4 4-4 4"/>',
+ test:'<path d="M7 2v6a5 5 0 0 0 10 0V2M7 2h10M5 2H3M19 2h2"/>',
+ review:'<path d="M3 21c0-5 3-8 9-8M15 13l6-6M18 4l3 3-3 3"/>',
+ shield:'<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/>',
+ key:'<circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M17 6l3 3M14 9l3 3"/>',
+ bolt:'<path d="M13 2L4 14h7l-1 8 9-12h-7z"/>',
+ spark:'<path d="M12 3l2 6 6 2-6 2-2 6-2-6-6-2 6-2z"/>',
+ arrow:'<path d="M5 12h14M13 6l6 6-6 6"/>',
+ download:'<path d="M12 3v12M7 10l5 5 5-5M5 21h14"/>',
+ eye:'<path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/>',
+ x:'<path d="M6 6l12 12M18 6L6 18"/>',
+ clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+ filter:'<path d="M3 5h18l-7 8v6l-4-2v-4z"/>',
+ send:'<path d="M22 2L11 13M22 2l-7 20-4-9-9-4z"/>',
+ refresh:'<path d="M21 12a9 9 0 1 1-3-6.7M21 4v4h-4"/>'
+};return '<span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">'+(m[n]||'')+'</svg></span>'}
+function mark(c){return '<svg class="mark" viewBox="0 0 32 32" fill="none">'+c+'</svg>'}
+const LOGO='<path d="M16 2l12 5v8c0 7.5-5.2 12.3-12 15-6.8-2.7-12-7.5-12-15V7z" fill="url(#g)"/><path d="M16 8l6 2.5v5c0 4-2.8 6.6-6 8-3.2-1.4-6-4-6-8v-5z" fill="rgba(255,255,255,.14)"/><path d="M16 12v9M11 16h10" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/><defs><linearGradient id="g" x1="4" y1="2" x2="28" y2="30"><stop stop-color="#4f46e5"/><stop offset="1" stop-color="#8b5cf6"/></linearGradient></defs></svg>';
+</script>
+
+<!-- ===================== LANDING ===================== -->
+<div id="view-landing">
+<nav class="nav"><div class="wrap nav-in">
+  <a class="brand" href="#"><span class="mark" id="m1"></span>Talos</a>
+  <div class="nav-links">
+    <a href="#arch">架构</a><a href="#feat">能力</a><a href="#sec">安全</a>
+  </div>
+  <div class="nav-cta">
+    <a class="ghost" href="#" onclick="go('login');return false">登录</a>
+    <button class="btn btn-primary btn-sm" onclick="go('login')">进入控制台 <span id="a1"></span></button>
+  </div>
+</div></nav>
+
+<header class="hero"><div class="hero-grid"></div><div class="hero-glow"></div><div class="wrap hero-in">
+  <div class="pill"><span class="dot"></span> 内网部署 · 研发闭环自动化</div>
+  <h1 class="hero-title">自动化<br><span class="grad">跑完研发周期</span></h1>
+  <p class="hero-sub">Talos 在服务端编排规则，在研发终端执行工作流。<br>Issue 从采集到交付，全程可观测。</p>
+  <div class="hero-actions">
+    <button class="btn btn-primary" onclick="go('login')">进入控制台 <span id="a2"></span></button>
+    <a class="btn btn-outline" href="#arch">查看架构</a>
+  </div>
+  <div class="hero-note"><span id="a3"></span> Claude Code · Cursor · Codex · CodeBuddy</div>
+  <div class="hero-badges">
+    <div class="hb a"><span id="hb1"></span> 反向长连接</div>
+    <div class="hb b"><span id="hb2"></span> 私有化推理</div>
+    <div class="hb c"><span id="hb3"></span> 四道安全护栏</div>
+  </div>
+</div></header>
+
+<div class="wrap" id="arch">
+  <div class="arch">
+    <div class="arch-head"><h3>系统架构 · 反向长连接</h3><span>服务端编排 · 客户端执行 · 文档回流</span></div>
+    <svg class="arch-svg" viewBox="0 0 1100 320" fill="none" style="font-family:Inter,system-ui,-apple-system,sans-serif">
+      <defs>
+        <linearGradient id="ln" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#6366f1"/><stop offset="1" stop-color="#a78bfa"/></linearGradient>
+        <linearGradient id="ln2" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#22c55e"/><stop offset="1" stop-color="#86efac"/></linearGradient>
+        <filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+        <marker id="ah" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="4.5" markerHeight="4.5" orient="auto-start-reverse"><path d="M0 1 L9 5 L0 9 Z" fill="#818cf8"/></marker>
+        <marker id="ah2" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="4.5" markerHeight="4.5" orient="auto"><path d="M0 1 L9 5 L0 9 Z" fill="#4ade80"/></marker>
+      </defs>
+
+      <!-- server zone -->
+      <rect x="70" y="55" width="260" height="210" rx="18" fill="rgba(255,255,255,.03)" stroke="rgba(255,255,255,.1)"/>
+      <text x="200" y="86" text-anchor="middle" font-size="15" font-weight="650" fill="#fff">Talos 服务端</text>
+      <text x="200" y="104" text-anchor="middle" font-size="11.5" fill="#71717a">编排 · 准入 · 配置</text>
+      <rect x="95" y="124" width="100" height="44" rx="10" fill="rgba(255,255,255,.06)" stroke="rgba(255,255,255,.1)"/>
+      <text x="145" y="151" text-anchor="middle" font-size="12.5" font-weight="600" fill="#e4e4e7">准入 / 分拣</text>
+      <rect x="205" y="124" width="100" height="44" rx="10" fill="rgba(255,255,255,.06)" stroke="rgba(255,255,255,.1)"/>
+      <text x="255" y="151" text-anchor="middle" font-size="12.5" font-weight="600" fill="#e4e4e7">工作流引擎</text>
+      <rect x="95" y="184" width="100" height="44" rx="10" fill="rgba(99,102,241,.12)" stroke="rgba(129,140,248,.25)"/>
+      <text x="145" y="211" text-anchor="middle" font-size="12.5" font-weight="600" fill="#c7d2fe">配置下发</text>
+      <rect x="205" y="184" width="100" height="44" rx="10" fill="rgba(34,197,94,.1)" stroke="rgba(74,222,128,.2)"/>
+      <text x="255" y="211" text-anchor="middle" font-size="12.5" font-weight="600" fill="#86efac">文档 / 日志</text>
+
+      <!-- reverse channel -->
+      <path d="M338 160 C 380 160 420 160 462 160" stroke="#818cf8" stroke-width="1.8" stroke-dasharray="5 5" stroke-linecap="round" marker-start="url(#ah)" marker-end="url(#ah)"/>
+      <text x="400" y="146" text-anchor="middle" font-size="11" font-weight="650" fill="#a5b4fc">gRPC 双向流</text>
+
+      <!-- client daemon -->
+      <rect x="480" y="55" width="260" height="210" rx="18" fill="rgba(255,255,255,.05)" stroke="rgba(255,255,255,.14)"/>
+      <text x="610" y="86" text-anchor="middle" font-size="15" font-weight="650" fill="#fff">研发终端</text>
+      <text x="610" y="104" text-anchor="middle" font-size="11.5" fill="#71717a">NAT 后 · 心跳 10s</text>
+      <rect x="520" y="124" width="180" height="54" rx="12" fill="rgba(0,0,0,.22)" stroke="rgba(255,255,255,.12)"/>
+      <text x="610" y="149" text-anchor="middle" font-size="14" font-weight="650" fill="#fff">客户端 Daemon</text>
+      <text x="610" y="168" text-anchor="middle" font-size="11.5" fill="#a1a1aa">常驻 · 拉取任务 · 回传产物</text>
+      <rect x="520" y="194" width="180" height="44" rx="10" fill="rgba(99,102,241,.12)" stroke="rgba(129,140,248,.22)"/>
+      <text x="610" y="221" text-anchor="middle" font-size="12.5" font-weight="600" fill="#c7d2fe">多后端 Agent 适配层</text>
+
+      <!-- agent invoke -->
+      <path d="M740 216 H 778" stroke="#818cf8" stroke-width="1.6" stroke-dasharray="4 4" stroke-linecap="round" marker-end="url(#ah)"/>
+
+      <!-- agent zone -->
+      <rect x="780" y="55" width="250" height="210" rx="18" fill="rgba(255,255,255,.03)" stroke="rgba(255,255,255,.1)"/>
+      <text x="905" y="86" text-anchor="middle" font-size="15" font-weight="650" fill="#fff">Coding Agent 后端</text>
+      <text x="905" y="104" text-anchor="middle" font-size="11.5" fill="#71717a">多模型推理</text>
+      <rect x="800" y="118" width="100" height="44" rx="10" fill="rgba(255,255,255,.06)" stroke="rgba(255,255,255,.1)"/>
+      <text x="850" y="145" text-anchor="middle" font-size="12.5" font-weight="600" fill="#e4e4e7">Claude Code</text>
+      <rect x="910" y="118" width="100" height="44" rx="10" fill="rgba(255,255,255,.06)" stroke="rgba(255,255,255,.1)"/>
+      <text x="960" y="145" text-anchor="middle" font-size="12.5" font-weight="600" fill="#e4e4e7">Cursor</text>
+      <rect x="800" y="174" width="100" height="44" rx="10" fill="rgba(255,255,255,.06)" stroke="rgba(255,255,255,.1)"/>
+      <text x="850" y="201" text-anchor="middle" font-size="12.5" font-weight="600" fill="#e4e4e7">Codex</text>
+      <rect x="910" y="174" width="100" height="44" rx="10" fill="rgba(99,102,241,.14)" stroke="rgba(129,140,248,.28)"/>
+      <text x="960" y="201" text-anchor="middle" font-size="12.5" font-weight="600" fill="#c7d2fe">CodeBuddy</text>
+
+      <!-- backflow -->
+      <path d="M330 220 C 390 220 420 220 468 220" stroke="#4ade80" stroke-width="1.6" stroke-dasharray="4 5" stroke-linecap="round" marker-end="url(#ah2)"/>
+      <text x="400" y="240" text-anchor="middle" font-size="11" font-weight="650" fill="#86efac">产物 / 日志回流</text>
+
+      <!-- footnotes -->
+      <text x="200" y="295" text-anchor="middle" font-size="11" fill="#52525b">内网 / 机房部署</text>
+      <text x="610" y="295" text-anchor="middle" font-size="11" fill="#52525b">mTLS 双向认证</text>
+      <text x="905" y="295" text-anchor="middle" font-size="11" fill="#52525b">私有化 / 公网可选</text>
+    </svg>
+  </div>
+</div>
+
+<section class="block" id="feat"><div class="wrap">
+  <div class="sec-head"><div class="sec-tag">核心能力</div><div class="sec-h">一条流水线，覆盖研发全周期</div><div class="sec-d">从一条 Issue 到一次合并请求，规则由你定义，执行在端侧完成。</div></div>
+  <div class="bento">
+    <div class="bcard ba c1">
+      <div class="bicon b1i" id="f1"></div>
+      <h4>智能准入与分拣</h4>
+      <p>基于服务端知识库自动判定 Issue 是否准入，识别关联项目与代码仓库，命中即生成执行上下文。</p>
+      <div class="bvis"><div class="bvis-in">
+        <svg viewBox="0 0 400 118" fill="none" style="font-family:Inter,system-ui,sans-serif">
+          <circle cx="34" cy="59" r="15" fill="#fff" stroke="#c7d2fe" stroke-width="1.5"/>
+          <circle cx="34" cy="59" r="4.5" fill="#6366f1"/>
+          <path d="M50 59 H 94" stroke="#c7d2fe" stroke-width="1.5" stroke-linecap="round"/>
+          <rect x="96" y="43" width="78" height="32" rx="9" fill="#eef2ff" stroke="#c7d2fe" stroke-width="1.5"/>
+          <text x="135" y="63" text-anchor="middle" font-size="11.5" font-weight="600" fill="#4338ca">AI 判定</text>
+          <path d="M174 52 C 202 52 212 26 244 26" stroke="#c7d2fe" stroke-width="1.5" stroke-linecap="round"/>
+          <path d="M174 59 H 244" stroke="#c7d2fe" stroke-width="1.5" stroke-linecap="round"/>
+          <path d="M174 66 C 202 66 212 92 244 92" stroke="#c7d2fe" stroke-width="1.5" stroke-linecap="round"/>
+          <rect x="246" y="14" width="132" height="24" rx="7" fill="#fff" stroke="#e4e4e7" stroke-width="1.5"/>
+          <circle cx="262" cy="26" r="4" fill="#4f46e5"/><text x="274" y="30" font-size="10.5" fill="#3f3f46">项目 A · 仓库已识别</text>
+          <rect x="246" y="47" width="132" height="24" rx="7" fill="#fff" stroke="#e4e4e7" stroke-width="1.5"/>
+          <circle cx="262" cy="59" r="4" fill="#0e7490"/><text x="274" y="63" font-size="10.5" fill="#3f3f46">项目 B · 仓库已识别</text>
+          <rect x="246" y="80" width="132" height="24" rx="7" fill="#fff" stroke="#e4e4e7" stroke-width="1.5"/>
+          <circle cx="262" cy="92" r="4" fill="#16a34a"/><text x="274" y="96" font-size="10.5" fill="#3f3f46">项目 C · 仓库已识别</text>
+        </svg>
+      </div></div>
+    </div>
+    <div class="bcard bb c3">
+      <div class="bicon b3i" id="f3"></div>
+      <h4>端侧 Coding Agent</h4>
+      <p>同一终端可挂载 Claude Code、Cursor、Codex、CodeBuddy 多后端，配置即下发，执行即回传。</p>
+      <div class="bvis"><div class="bvis-in">
+        <svg viewBox="0 0 240 214" fill="none" style="font-family:Inter,system-ui,sans-serif">
+          <rect x="72" y="8" width="96" height="36" rx="11" fill="#18181b"/>
+          <text x="120" y="30" text-anchor="middle" font-size="11.5" font-weight="600" fill="#fff">Daemon</text>
+          <path d="M120 44 C 78 58 72 76 70 96" stroke="#d4d4d8" stroke-width="1.5" stroke-linecap="round"/>
+          <path d="M120 44 C 162 58 168 76 170 96" stroke="#d4d4d8" stroke-width="1.5" stroke-linecap="round"/>
+          <path d="M120 44 C 52 88 58 132 70 152" stroke="#d4d4d8" stroke-width="1.5" stroke-linecap="round"/>
+          <path d="M120 44 C 188 88 182 132 170 152" stroke="#d4d4d8" stroke-width="1.5" stroke-linecap="round"/>
+          <rect x="24" y="98" width="92" height="40" rx="9" fill="#fff" stroke="#e4e4e7" stroke-width="1.5"/>
+          <text x="70" y="123" text-anchor="middle" font-size="10.5" font-weight="600" fill="#3f3f46">Claude Code</text>
+          <rect x="124" y="98" width="92" height="40" rx="9" fill="#fff" stroke="#e4e4e7" stroke-width="1.5"/>
+          <text x="170" y="123" text-anchor="middle" font-size="10.5" font-weight="600" fill="#3f3f46">Cursor</text>
+          <rect x="24" y="154" width="92" height="40" rx="9" fill="#fff" stroke="#e4e4e7" stroke-width="1.5"/>
+          <text x="70" y="179" text-anchor="middle" font-size="10.5" font-weight="600" fill="#3f3f46">Codex</text>
+          <rect x="124" y="154" width="92" height="40" rx="9" fill="#eef2ff" stroke="#c7d2fe" stroke-width="1.5"/>
+          <text x="170" y="179" text-anchor="middle" font-size="10.5" font-weight="600" fill="#4338ca">CodeBuddy</text>
+        </svg>
+      </div></div>
+    </div>
+    <div class="bcard c2">
+      <div class="bicon b2i" id="f2"></div>
+      <h4>双轨工作流编排</h4>
+      <p>需求与缺陷各自的标准链路可编排，节点按策略自动推进。</p>
+      <div class="bvis"><div class="bvis-in">
+        <svg viewBox="0 0 240 96" fill="none">
+          <path d="M34 30 H 206" stroke="#c7d2fe" stroke-width="1.5"/>
+          <path d="M34 70 H 206" stroke="#fde68a" stroke-width="1.5"/>
+          <circle cx="34" cy="30" r="12" fill="#fff" stroke="#818cf8" stroke-width="1.5"/><circle cx="34" cy="30" r="4" fill="#6366f1"/>
+          <circle cx="120" cy="30" r="12" fill="#fff" stroke="#818cf8" stroke-width="1.5"/><circle cx="120" cy="30" r="4" fill="#6366f1"/>
+          <circle cx="206" cy="30" r="12" fill="#fff" stroke="#818cf8" stroke-width="1.5"/><circle cx="206" cy="30" r="4" fill="#6366f1"/>
+          <circle cx="34" cy="70" r="12" fill="#fff" stroke="#fbbf24" stroke-width="1.5"/><circle cx="34" cy="70" r="4" fill="#f59e0b"/>
+          <circle cx="120" cy="70" r="12" fill="#fff" stroke="#fbbf24" stroke-width="1.5"/><circle cx="120" cy="70" r="4" fill="#f59e0b"/>
+          <circle cx="206" cy="70" r="12" fill="#fff" stroke="#fbbf24" stroke-width="1.5"/><circle cx="206" cy="70" r="4" fill="#f59e0b"/>
+        </svg>
+      </div></div>
+    </div>
+    <div class="bcard c4">
+      <div class="bicon b4i" id="f4"></div>
+      <h4>全链路可观测</h4>
+      <p>Prompt、模型与费用、连接与作业进度，服务端一览无余。</p>
+      <div class="bvis"><div class="bvis-in">
+        <svg viewBox="0 0 240 96" fill="none">
+          <defs><linearGradient id="fga" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#818cf8" stop-opacity=".18"/><stop offset="1" stop-color="#818cf8" stop-opacity="0"/></linearGradient></defs>
+          <path d="M22 30 H 218" stroke="#f0f0f2" stroke-width="1"/>
+          <path d="M22 62 H 218" stroke="#f0f0f2" stroke-width="1"/>
+          <path d="M24 72 L62 54 L100 60 L138 38 L176 46 L214 24 L214 78 L24 78 Z" fill="url(#fga)"/>
+          <path d="M24 72 L62 54 L100 60 L138 38 L176 46 L214 24" stroke="#4f46e5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="138" cy="38" r="3.5" fill="#4f46e5"/>
+          <circle cx="214" cy="24" r="3.5" fill="#fff" stroke="#4f46e5" stroke-width="2"/>
+        </svg>
+      </div></div>
+    </div>
+  </div>
+</div></section>
+
+<section class="block" id="sec" style="padding-top:0"><div class="wrap">
+  <div class="sec-dark">
+    <div><h3>代码不出内网，<br>权限始终在你手里</h3><p>研发终端在防火墙之后，服务端通过反向长连接下发任务；涉及仓库的推理默认走私有化模型，敏感项目可由策略强制。</p></div>
+    <div class="sec-list">
+      <div class="sec-item"><div class="si" id="s1"></div><div><b>反向长连接 · mTLS</b><span>客户端主动建连，服务端签名下发，天然穿透 NAT 与防火墙。</span></div></div>
+      <div class="sec-item"><div class="si" id="s2"></div><div><b>代码私有化推理</b><span>故障分析与编码默认走 CodeBuddy 内网模型，公网后端合规自负。</span></div></div>
+      <div class="sec-item"><div class="si" id="s3"></div><div><b>RBAC 与任务签名</b><span>六类角色按域鉴权，客户端仅执行被指派且服务端签名的任务。</span></div></div>
+    </div>
+  </div>
+</div></section>
+
+<footer><div class="wrap foot-in">
+  <div class="foot-brand"><span class="brand" style="font-size:16px"><span class="mark" id="m2"></span>Talos</span><p>研发周期全自动流程平台。采集、准入、编排、执行——一条可观测的流水线。</p></div>
+  <div class="foot-cols">
+    <div class="foot-col"><h5>产品</h5><a href="#arch">架构</a><a href="#feat">核心能力</a><a href="#sec">安全</a></div>
+    <div class="foot-col"><h5>资源</h5><a href="#">文档</a><a href="#">API 参考</a><a href="#">变更日志</a></div>
+    <div class="foot-col"><h5>公司</h5><a href="#">关于</a><a href="#">联系</a><a href="#">状态</a></div>
+  </div>
+</div><div class="wrap foot-bot"><span>© 2026 Talos. 内部使用.</span><span>内网部署 · 私有化推理</span></div></footer>
+</div>
+
+<!-- ===================== LOGIN ===================== -->
+<div id="view-login" class="hidden">
+  <div class="login">
+    <div class="login-l">
+      <div class="lgrid"></div>
+      <div class="lbrand"><span class="mark" id="m3"></span>Talos</div>
+      <div class="lmid"><div class="q">为研发全流程<br>而生的<em>自动化平台</em></div></div>
+      <div class="lfoot"><span>内网部署</span><span>·</span><span>私有化推理</span><span>·</span><span>mTLS 反向连接</span></div>
+    </div>
+    <div class="login-r">
+      <div class="login-card">
+        <h2>登录</h2>
+        <div class="ld">使用企业内网账号继续。</div>
+        <div class="field"><label>账号</label><div class="inp"><span class="ic" id="i1"></span><input placeholder="name@corp" value="yangde" /></div></div>
+        <div class="field"><label>密码</label><div class="inp"><span class="ic" id="i2"></span><input type="password" placeholder="••••••••" value="••••••••" /></div></div>
+        <div class="login-row"><label><input type="checkbox" checked style="accent-color:var(--accent)" /> 保持登录</label><a href="#">忘记密码</a></div>
+        <button class="btn btn-primary" onclick="login()">登录 <span id="i3"></span></button>
+        <div class="login-div">或</div>
+        <button class="btn btn-outline sso" onclick="login()"><span class="ic" id="i4"></span> 使用企业 SSO 登录</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== APP ===================== -->
+<div id="view-app" class="app hidden">
+  <aside class="side">
+    <div class="side-top"><span class="mark" id="m4"></span>Talos</div>
+    <nav class="side-nav">
+      <div class="nav-group">工作台</div>
+      <div class="nav-i active" data-v="dashboard"><span class="ic" id="n1"></span>总览</div>
+      <div class="nav-i" data-v="issues"><span class="ic" id="n2"></span>Issue</div>
+      <div class="nav-i" data-v="admission"><span class="ic" id="n3"></span>准入判定</div>
+      <div class="nav-i" data-v="workflow"><span class="ic" id="n4"></span>工作流编排</div>
+      <div class="nav-i" data-v="monitor"><span class="ic" id="n5"></span>作业监控</div>
+      <div class="nav-group">资源</div>
+      <div class="nav-i" data-v="clients"><span class="ic" id="n6"></span>客户端</div>
+      <div class="nav-i" data-v="agents"><span class="ic" id="n7"></span>Coding Agent</div>
+      <div class="nav-i" data-v="logs"><span class="ic" id="n8"></span>AI 调用日志</div>
+      <div class="nav-i" data-v="docs"><span class="ic" id="n9"></span>文档中心</div>
+      <div class="nav-i" data-v="kb"><span class="ic" id="n10"></span>知识库</div>
+      <div class="nav-group">系统</div>
+      <div class="nav-i" data-v="settings"><span class="ic" id="n11"></span>权限与用户</div>
+    </nav>
+    <div class="side-bot"><div class="userchip" onclick="go('landing')"><div class="avatar">YD</div><div><div class="un">YangDe</div><div class="ur">平台管理员</div></div><span class="ic" id="n12" style="margin-left:auto;color:var(--ink-4)"></span></div></div>
+  </aside>
+  <div class="main">
+    <div class="topbar">
+      <div class="crumb"><span class="ic" id="c1"></span><span id="crumb-t">总览</span></div>
+      <div class="tools">
+        <div class="search"><span class="ic" id="c2"></span><input placeholder="搜索 Issue、客户端、文档" /></div>
+        <button class="iconbtn" id="c3"></button>
+        <button class="iconbtn" id="c4"></button>
+      </div>
+    </div>
+    <div class="content" id="app-content"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"><span class="ic" id="t1"></span><span id="t2"></span></div>
+
+<script>
+/* ---- inject icons ---- */
+const set=(id,svg)=>{const e=document.getElementById(id);if(e)e.innerHTML=svg;};
+['m1','m2','m3','m4'].forEach(id=>set(id,mark(LOGO)));
+set('a2',ic('arrow'));set('a3',ic('bolt'));
+set('hb1',ic('refresh'));set('hb2',ic('lock'));set('hb3',ic('shield'));
+set('f1',ic('spark'));set('f2',ic('flow'));set('f3',ic('agent'));set('f4',ic('eye'));
+set('s1',ic('shield'));set('s2',ic('lock'));set('s3',ic('key'));
+set('i1',ic('user'));set('i2',ic('lock'));set('i3',ic('arrow'));set('i4',ic('shield'));
+['n1','c1'].forEach(id=>set(id,ic('dash')));
+set('n2',ic('issue'));set('n3',ic('filter'));set('n4',ic('flow'));set('n5',ic('monitor'));
+set('n6',ic('client'));set('n7',ic('agent'));set('n8',ic('logs'));set('n9',ic('doc'));set('n10',ic('kb'));set('n11',ic('users'));set('n12',ic('logout'));
+set('c2',ic('search'));set('c3',ic('bell'));set('c4',ic('refresh'));
+set('t1',ic('check'));
+
+/* ---- view routing ---- */
+function go(v){['landing','login','app'].forEach(x=>document.getElementById('view-'+x).classList.toggle('hidden',x!==v));
+  if(v!=='app')window.scrollTo(0,0);}
+function login(){go('app');render('dashboard');toast('已登录 · 欢迎回来');}
+const CRUMB={dashboard:'总览',issues:'Issue',admission:'准入判定',workflow:'工作流编排',monitor:'作业监控',clients:'客户端',agents:'Coding Agent',logs:'AI 调用日志',docs:'文档中心',kb:'知识库',settings:'权限与用户'};
+document.querySelectorAll('.nav-i').forEach(el=>el.onclick=()=>{document.querySelectorAll('.nav-i').forEach(n=>n.classList.remove('active'));el.classList.add('active');render(el.dataset.v);});
+function render(v){document.getElementById('crumb-t').textContent=CRUMB[v]||'';document.getElementById('app-content').innerHTML=VIEWS[v]();}
+function toast(msg){const t=document.getElementById('toast');document.getElementById('t2').textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2200);}
+
+/* ---- views ---- */
+const VIEWS={
+ dashboard:()=>`<div class="page-h"><div><h2>总览</h2><p>研发流水线的实时健康度。</p></div><div class="acts"><button class="btn btn-outline btn-sm" onclick="render('issues')">查看 Issue</button><button class="btn btn-primary btn-sm" onclick="render('issues');setTimeout(()=>openWizard(),50)">新建 Issue</button></div></div>
+  <div class="grid g4">
+   ${kpi('issue','待处理 Issue','23','近 7 天 +5','up',[8,11,9,14,17,21,23],'a1')}
+   ${kpi('flow','进行中工作流','11','3 个节点阻塞','down',[4,6,5,9,12,10,11],'a2')}
+   ${kpi('client','在线客户端','14','共 16 台 · 2 离线','down',[15,16,15,16,16,15,14],'a3')}
+   ${kpi('bolt','本月 AI 成本','¥ 1,284','较上月 -8%','up',[16,15,14,14,13,13,12],'a4')}
+  </div>
+  <div class="split" style="margin-top:18px">
+   <div class="panel">
+    <div class="panel-h"><div><h3>近期 Issue</h3><div class="sub">按最近更新排序</div></div><button class="btn btn-xs btn-outline" onclick="render('issues')">全部</button></div>
+    <div class="panel-b flush"><table><thead><tr><th>ID</th><th>标题</th><th>类型</th><th>责任人</th><th>状态</th></tr></thead><tbody>
+      <tr><td class="tid">REQ-2041</td><td>行情快照导出支持分页</td><td><span class="tag t-info">需求</span></td><td>王磊</td><td><span class="tag t-prog"><span class="dot"></span>编码中</span></td></tr>
+      <tr><td class="tid">BUG-1987</td><td>夜盘行情偶发丢包</td><td><span class="tag t-err">缺陷</span></td><td>李娜</td><td><span class="tag t-warn"><span class="dot"></span>评审待决</span></td></tr>
+      <tr><td class="tid">REQ-2039</td><td>组合回测接口限流</td><td><span class="tag t-info">需求</span></td><td>陈昊</td><td><span class="tag t-ok"><span class="dot"></span>已验收</span></td></tr>
+      <tr><td class="tid">BUG-1982</td><td>登录态跨域失效</td><td><span class="tag t-err">缺陷</span></td><td>赵敏</td><td><span class="tag t-mut"><span class="dot"></span>准入中</span></td></tr>
+    </tbody></table></div>
+   </div>
+   <div style="display:grid;gap:18px">
+    <div class="panel">
+     <div class="panel-h"><div><h3>客户端健康</h3><div class="sub">在线 14 / 16</div></div><span class="tag t-ok"><span class="dot"></span>全部心跳正常</span></div>
+     <div class="panel-b">
+      ${ringPct(88,'14 / 16','<b>在线率</b><span>2 台离线超 10 分钟</span>')}
+      <div class="topo" style="margin-top:18px;grid-template-columns:1fr 1fr">
+       ${client('on','dev-win-07','王磊')}${client('busy','dev-mac-03','李娜')}
+      </div>
+     </div>
+    </div>
+    <div class="panel">
+     <div class="panel-h"><h3>需要关注</h3></div>
+     <div class="panel-b" style="padding:6px 20px 12px">
+      <div class="row-between"><div class="rl"><b>dev-windows-09</b><span>离线 18 分钟，任务已排队</span></div><span class="tag t-err"><span class="dot"></span>离线</span></div>
+      <div class="row-between"><div class="rl"><b>Claude Code · 李娜</b><span>本月额度使用 92%</span></div><span class="tag t-warn"><span class="dot"></span>预警</span></div>
+      <div class="row-between"><div class="rl"><b>BUG-1987</b><span>设计评审两次未通过</span></div><span class="tag t-warn"><span class="dot"></span>阻塞</span></div>
+      <div class="row-between"><div class="rl"><b>REQ-2033</b><span>护栏拦截：直推主干</span></div><span class="tag t-err"><span class="dot"></span>拦截</span></div>
+     </div>
+    </div>
+   </div>
+  </div>`,
+
+ issues:()=>`<div class="page-h"><div><h2>Issue</h2><p>所有录入的诉求与缺陷，从录入到验收全程可追溯。</p></div><div class="acts"><button class="btn btn-primary btn-sm" onclick="openWizard()">新建 Issue</button></div></div>
+  <div id="wiz-host"></div>
+  <div class="panel" style="margin-top:18px">
+   <div class="panel-h">
+    <div class="chips">
+     <button class="chip on">全部 <span class="n">23</span></button><button class="chip">需求 <span class="n">14</span></button><button class="chip">缺陷 <span class="n">9</span></button><button class="chip">我负责 <span class="n">4</span></button><button class="chip">逾期 <span class="n">2</span></button>
+    </div>
+    <div style="display:flex;gap:10px;align-items:center"><div class="search"><span class="ic" id="i6"></span><input placeholder="搜索标题、ID、责任人" /></div><div class="seg"><button class="on">列表</button><button>看板</button></div></div>
+   </div>
+   <div class="panel-b flush"><table><thead><tr><th>ID</th><th>标题</th><th>业务</th><th>类型</th><th>责任人</th><th>期望完成</th><th>状态</th></tr></thead><tbody>
+    <tr><td class="tid">REQ-2041</td><td>行情快照导出支持分页</td><td>行情</td><td><span class="tag t-info">需求</span></td><td>王磊</td><td>10-02</td><td><span class="tag t-prog"><span class="dot"></span>编码中 · 5/7</span></td></tr>
+    <tr><td class="tid">BUG-1987</td><td>夜盘行情偶发丢包</td><td>行情</td><td><span class="tag t-err">缺陷</span></td><td>李娜</td><td>09-30</td><td><span class="tag t-warn"><span class="dot"></span>评审待决 · 4/7</span></td></tr>
+    <tr><td class="tid">REQ-2039</td><td>组合回测接口限流</td><td>回测</td><td><span class="tag t-info">需求</span></td><td>陈昊</td><td>09-28</td><td><span class="tag t-ok"><span class="dot"></span>已验收 · 7/7</span></td></tr>
+    <tr><td class="tid">BUG-1982</td><td>登录态跨域失效</td><td>账户</td><td><span class="tag t-err">缺陷</span></td><td>赵敏</td><td>10-01</td><td><span class="tag t-mut"><span class="dot"></span>准入中 · —</span></td></tr>
+   </tbody></table></div>
+   <div style="display:flex;align-items:center;justify-content:space-between;padding:13px 20px;border-top:1px solid var(--line);font-size:12.5px;color:var(--ink-4)"><span>共 23 条 · 显示 1–4</span><span>准入通过率 92% · 平均流转 3.2 天</span></div>
+  </div>`,
+
+ admission:()=>`<div class="page-h"><div><h2>准入判定</h2><p>AI 基于服务端知识库给出准入结论与分拣结果，人工可覆写。</p></div><div class="acts"><button class="btn btn-outline btn-sm" onclick="toast('已按当前策略重新判定 6 条')">批量重判</button></div></div>
+  <div class="grid g4" style="margin-bottom:18px">
+   ${kpi('filter','待判定','6','平均耗时 1.4s','',[3,4,5,4,6,5,6],'a1')}
+   ${kpi('check','已准入','184','本周通过率 92%','up',[120,140,152,163,171,178,184],'a3')}
+   ${kpi('x','已驳回','16','多为重复 / 低价值','',[9,11,12,13,14,15,16],'a4')}
+   ${kpi('kb','知识命中率','94%','近 30 天','up',[86,88,89,91,92,93,94],'a2')}
+  </div>
+  <div class="split-l">
+   <div class="panel"><div class="panel-h"><div><h3>判定队列</h3><div class="sub">按提交时间排序</div></div></div><div class="panel-b flush">
+    <div class="qitem on"><span class="tag t-ok"><span class="dot"></span>准入</span><div class="qi"><b>REQ-2041 · 行情快照导出支持分页</b><span>王磊 · 置信度 0.93 · 2 分钟前</span></div></div>
+    <div class="qitem"><span class="tag t-err"><span class="dot"></span>驳回</span><div class="qi"><b>REQ-2030 · 快照导出增加排序</b><span>陈昊 · 置信度 0.88 · 12 分钟前</span></div></div>
+    <div class="qitem"><span class="tag t-warn"><span class="dot"></span>待人工</span><div class="qi"><b>BUG-1987 · 夜盘行情偶发丢包</b><span>李娜 · 置信度 0.61 · 25 分钟前</span></div></div>
+    <div class="qitem"><span class="tag t-mut"><span class="dot"></span>判定中</span><div class="qi"><b>BUG-1982 · 登录态跨域失效</b><span>赵敏 · 检索知识库…</span></div></div>
+   </div></div>
+   <div class="panel"><div class="panel-h"><div><h3>REQ-2041 判定详情</h3><div class="sub">模型 qwen-max · 模板 admission_v3</div></div><span class="tag t-ok"><span class="dot"></span>建议准入</span></div>
+    <div class="panel-b">
+     <div style="display:flex;gap:20px;align-items:center">
+      ${ringPct(93,'0.93','<b>置信度高于阈值 0.75</b><span>系统据此自动准入，无需人工介入</span>')}
+     </div>
+     <div style="margin-top:22px;padding-top:18px;border-top:1px solid var(--line)">
+      <div style="font-size:12.5px;font-weight:600;color:var(--ink-2);margin-bottom:12px">判定依据</div>
+      <div class="row-between"><div class="rl"><b>快照导出规范 v2</b><span>相似度 0.89 · 编码规范</span></div><span class="tag t-info">命中</span></div>
+      <div class="row-between"><div class="rl"><b>分页接口设计约定</b><span>相似度 0.76 · 设计文档</span></div><span class="tag t-info">命中</span></div>
+      <div class="row-between"><div class="rl"><b>无重复 Issue</b><span>与近 90 天需求比对，最大相似 0.31</span></div><span class="tag t-ok">通过</span></div>
+     </div>
+     <div style="margin-top:20px;padding-top:18px;border-top:1px solid var(--line)">
+      <div style="font-size:12.5px;font-weight:600;color:var(--ink-2);margin-bottom:12px">分拣结果</div>
+      <div class="form-row"><div><label class="lbl">关联项目</label><input class="ctrl" value="quote-service" /></div><div><label class="lbl">Git 仓库</label><input class="ctrl" value="git@git.wind:quote/snapshot.git" /></div></div>
+      <div style="margin-top:14px;display:flex;gap:10px"><button class="btn btn-primary btn-sm" onclick="toast('已确认准入并进入工作流')">确认准入</button><button class="btn btn-outline btn-sm" onclick="toast('已人工覆写为驳回')">覆写为驳回</button><button class="btn btn-outline btn-sm" onclick="toast('已转人工复核')">转人工</button></div>
+     </div>
+    </div>
+   </div>
+  </div>`,
+
+ workflow:()=>`<div class="page-h"><div><h2>工作流编排</h2><p>需求与缺陷的标准链路，节点类型与 Coding Agent 后端可逐节点配置。</p></div><div class="acts"><button class="btn btn-outline btn-sm" onclick="toast('已克隆模板')">克隆模板</button><button class="btn btn-primary btn-sm" onclick="toast('已进入编辑器')">新建模板</button></div></div>
+  <div class="wf">
+   <div class="wf-card"><h4><span class="ic" id="wf1"></span> 需求模板</h4><div class="sub">REQ · 7 节点</div><div class="wf-flow">
+     ${wfNode('git','拉取 Git','git',1)}${wfNode('doc','需求分析','doc',2)}${wfNode('doc','详细设计','doc',3)}${wfNode('review','设计评审','rev',4)}${wfNode('code','编码','code',5)}${wfNode('test','测试','test',6)}${wfNode('check','验收','rev',7)}
+   </div><div style="margin-top:26px"><span class="tag t-info">文档 → CodeBuddy</span> <span class="tag t-mut">编码 → 责任人选定</span></div></div>
+   <div class="wf-card"><h4><span class="ic" id="wf2"></span> 缺陷模板</h4><div class="sub">BUG · 7 节点</div><div class="wf-flow">
+     ${wfNode('git','拉取 Git','git',1)}${wfNode('doc','问题分析','doc',2)}${wfNode('doc','方案设计','doc',3)}${wfNode('review','设计评审','rev',4)}${wfNode('code','编码','code',5)}${wfNode('test','测试','test',6)}${wfNode('check','验收','rev',7)}
+   </div><div style="margin-top:26px"><span class="tag t-err">缺陷 → 强制私有化</span> <span class="tag t-warn">评审 → 人工闸门</span></div></div>
+  </div>
+  <div class="panel" style="margin-top:18px">
+   <div class="panel-h"><div><h3>节点配置 · 需求模板</h3><div class="sub">每个节点可单独指定后端、Prompt 模板与是否人工闸门</div></div><button class="btn btn-xs btn-outline" onclick="toast('已保存模板修改')">保存模板</button></div>
+   <div class="panel-b flush"><table><thead><tr><th>#</th><th>节点</th><th>类型</th><th>执行位置</th><th>后端</th><th>Prompt 模板</th><th>闸门</th></tr></thead><tbody>
+    <tr><td class="tid">01</td><td>拉取 Git</td><td><span class="tag t-mut">GIT</span></td><td>客户端</td><td>—</td><td>—</td><td><span class="tag t-mut">自动</span></td></tr>
+    <tr><td class="tid">02</td><td>需求分析</td><td><span class="tag t-info">DOC</span></td><td>客户端</td><td>CodeBuddy</td><td>default / 概要设计</td><td><span class="tag t-mut">自动</span></td></tr>
+    <tr><td class="tid">03</td><td>详细设计</td><td><span class="tag t-info">DOC</span></td><td>客户端</td><td>CodeBuddy</td><td>strict / 详设优先</td><td><span class="tag t-mut">自动</span></td></tr>
+    <tr><td class="tid">04</td><td>设计评审</td><td><span class="tag t-warn">REVIEW</span></td><td>服务端</td><td>qwen-max</td><td>review / 评审要点</td><td><span class="tag t-warn">人工闸门</span></td></tr>
+    <tr><td class="tid">05</td><td>编码</td><td><span class="tag t-prog">CODE</span></td><td>客户端</td><td>责任人选定</td><td>code / 最小改动</td><td><span class="tag t-mut">自动</span></td></tr>
+    <tr><td class="tid">06</td><td>测试</td><td><span class="tag t-ok">TEST</span></td><td>客户端</td><td>CodeBuddy</td><td>test / 覆盖优先</td><td><span class="tag t-ok">测试门禁</span></td></tr>
+    <tr><td class="tid">07</td><td>验收</td><td><span class="tag t-warn">ACCEPT</span></td><td>服务端</td><td>—</td><td>—</td><td><span class="tag t-warn">人工闸门</span></td></tr>
+   </tbody></table></div>
+  </div>`,
+
+ monitor:()=>`<div class="page-h"><div><h2>作业监控</h2><p>按 Issue 跟踪工作流进度，并实时掌握各客户端连接健康。</p></div><div class="acts"><div class="seg"><button class="on">全部</button><button>运行中</button><button>阻塞</button></div></div></div>
+  <div class="split" style="margin-bottom:18px">
+   <div class="panel">
+    <div class="panel-h"><div><div style="display:flex;align-items:center;gap:10px"><b style="font-size:14.5px">REQ-2041 · 行情快照导出支持分页</b><span class="tag t-prog"><span class="dot"></span>编码中 · 5/7</span></div><div class="sub">责任人 王磊 · 客户端 dev-windows-07 · 后端 CodeBuddy</div></div><button class="btn btn-xs btn-outline" onclick="toast('已暂停该实例')">暂停</button></div>
+    <div class="panel-b">
+     <div class="timeline">
+      ${tl('done','拉取 Git','完成','git')}${tl('done','需求分析','完成','doc')}${tl('done','详细设计','完成','doc')}${tl('done','设计评审','通过','review')}${tl('active','编码','进行中','code')}${tl('','测试','待运行','test')}${tl('','验收','未开始','check')}
+     </div>
+    </div>
+   </div>
+   <div class="panel">
+    <div class="panel-h"><div><h3>客户端连接</h3><div class="sub">心跳 10s · 超时 30s 判离线</div></div><span class="tag t-ok"><span class="dot"></span>14 在线</span></div>
+    <div class="panel-b">
+     ${client('on','dev-windows-07','王磊 · 在线')}${client('busy','dev-mac-03','李娜 · 执行中')}${client('on','dev-linux-11','陈昊 · 在线')}${client('off','dev-windows-09','赵敏 · 离线 18m')}
+    </div>
+   </div>
+  </div>
+  <div class="split-l">
+   <div class="panel"><div class="panel-h"><div><h3>执行日志</h3><div class="sub">dev-windows-07 · 实时回传</div></div><span class="tag t-prog"><span class="dot"></span>LIVE</span></div>
+    <div class="panel-b" style="padding:16px">
+     <div class="term">
+      <div><span class="d">22:14:02</span> <span class="b">[dispatch]</span> task=编码 issue=REQ-2041 backend=CodeBuddy</div>
+      <div><span class="d">22:14:03</span> <span class="b">[git]</span> checkout -b feat/REQ-2041-pagination</div>
+      <div><span class="d">22:14:05</span> <span class="b">[agent]</span> prompt.render template=code/最小改动 <span class="g">vars=6/6</span></div>
+      <div><span class="d">22:14:31</span> <span class="b">[agent]</span> modified src/export/snapshot.go <span class="g">+142 -8</span></div>
+      <div><span class="d">22:14:33</span> <span class="y">[guard]</span> 分支隔离校验通过 · 未触碰主干</div>
+      <div><span class="d">22:15:10</span> <span class="b">[agent]</span> 生成单测 cases=17</div>
+      <div><span class="d">22:15:46</span> <span class="g">[test]</span> go test ./... <span class="g">PASS</span> 覆盖率 84%</div>
+      <div><span class="d">22:15:47</span> <span class="b">[upload]</span> 回传文档 详细设计.md <span class="g">2.4 MB</span></div>
+      <div><span class="d">22:15:48</span> <span class="r">[guard]</span> 门禁：覆盖率 &lt; 85%，继续补全用例</div>
+     </div>
+    </div>
+   </div>
+   <div class="panel"><div class="panel-h"><div><h3>运行中实例</h3><div class="sub">按开始时间排序</div></div><div class="seg"><button class="on">全部</button><button>运行中</button><button>阻塞</button></div></div>
+    <div class="panel-b flush">
+     <div class="qitem on"><span class="tag t-prog"><span class="dot"></span>编码</span><div class="qi"><b>REQ-2041 · 行情快照导出支持分页</b><span>王磊 · dev-windows-07 · 5/7 · 已运行 12m</span></div></div>
+     <div class="qitem"><span class="tag t-warn"><span class="dot"></span>评审</span><div class="qi"><b>BUG-1987 · 夜盘行情偶发丢包</b><span>李娜 · dev-mac-03 · 4/7 · 等待人工评审</span></div></div>
+     <div class="qitem"><span class="tag t-ok"><span class="dot"></span>测试</span><div class="qi"><b>REQ-2033 · 组合回测缓存</b><span>陈昊 · dev-linux-11 · 6/7 · 已运行 3m</span></div></div>
+     <div class="qitem"><span class="tag t-err"><span class="dot"></span>排队</span><div class="qi"><b>BUG-1982 · 登录态跨域失效</b><span>赵敏 · 客户端离线，任务已排队</span></div></div>
+    </div>
+   </div>
+  </div>`,
+
+ clients:()=>`<div class="page-h"><div><h2>客户端</h2><p>所有接入 Talos 的研发终端、连接状态与 Agent 配置情况。</p></div><div class="acts"><button class="btn btn-outline btn-sm" onclick="toast('已复制接入命令')">复制接入命令</button><button class="btn btn-primary btn-sm" onclick="toast('已生成接入令牌')">生成令牌</button></div></div>
+  <div class="grid g4" style="margin-bottom:18px">
+   ${kpi('client','在线','14','共 16 台','',[15,16,15,16,16,15,14],'a3')}
+   ${kpi('agent','Coding Agent','52','已配置实例','up',[38,41,44,46,49,51,52],'a1')}
+   ${kpi('clock','平均心跳','2.1s','阈值 30s','up',[3.1,2.8,2.6,2.4,2.3,2.2,2.1],'a2')}
+   ${kpi('x','异常','2','离线 / 超阈','down',[0,1,0,1,2,1,2],'a4')}
+  </div>
+  <div class="grid g4">
+   ${clientCard('on','dev-windows-07','王磊','2s 前','v1.4.2',['CC','Cu','Cx','CB'],4)}
+   ${clientCard('busy','dev-mac-03','李娜','1s 前','v1.4.2',['CC','Cu','CB'],3)}
+   ${clientCard('on','dev-linux-11','陈昊','3s 前','v1.4.1',['CC','Cu','Cx','CB'],4)}
+   ${clientCard('off','dev-windows-09','赵敏','18m 前','v1.3.9',['CC','CB'],2)}
+   ${clientCard('on','dev-win-12','孙悦','4s 前','v1.4.2',['Cu','CB'],2)}
+   ${clientCard('on','dev-mac-05','周涛','2s 前','v1.4.2',['CC','Cu','Cx','CB'],4)}
+  </div>`,
+
+ agents:()=>`<div class="page-h"><div><h2>Coding Agent 配置</h2><p>服务端统一定义，按客户端差异化下发。所有 Prompt 与模板均来自配置，变量由系统注入。</p></div><div class="acts"><button class="btn btn-primary btn-sm" onclick="toast('配置已下发 ConfigPush')"><span class="ic" id="ag1"></span>保存并下发</button></div></div>
+  <div class="panel" style="margin-bottom:18px;padding:16px 20px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+   <span style="font-size:12.5px;color:var(--ink-3)">作用于</span>
+   <div class="chips"><button class="chip on">全局默认</button><button class="chip">dev-windows-07 · 王磊</button><button class="chip">dev-mac-03 · 李娜</button><button class="chip">dev-linux-11 · 陈昊</button></div>
+   <div style="margin-left:auto;display:flex;gap:10px;align-items:center"><span style="font-size:12px;color:var(--ink-4)">上次下发 22:10 · 已生效 14 台</span><button class="btn btn-primary btn-sm" onclick="toast('配置已下发 ConfigPush')">保存并下发</button></div>
+  </div>
+  <div class="split">
+   <div>
+    <div class="acc open"><div class="acc-head" onclick="this.parentElement.classList.toggle('open')"><div class="acc-logo cc">CC</div><b>Claude Code</b><span class="am">claude-opus-4</span><div class="ar"><span class="tag t-ok"><span class="dot"></span>启用</span><div class="switch on"></div></div></div>
+     <div class="acc-body">${agentBody('claude-opus-4','¥ 860','72%')}</div></div>
+    <div class="acc"><div class="acc-head" onclick="this.parentElement.classList.toggle('open')"><div class="acc-logo cu">Cu</div><b>Cursor</b><span class="am">cursor-pro</span><div class="ar"><span class="tag t-ok"><span class="dot"></span>启用</span><div class="switch on"></div></div></div>
+     <div class="acc-body">${agentBody('cursor-pro','¥ 210','18%')}</div></div>
+    <div class="acc"><div class="acc-head" onclick="this.parentElement.classList.toggle('open')"><div class="acc-logo cx">Cx</div><b>Codex</b><span class="am">codex-1</span><div class="ar"><span class="tag t-mut"><span class="dot"></span>停用</span><div class="switch"></div></div></div>
+     <div class="acc-body">${agentBody('codex-1','¥ 0','0%')}</div></div>
+    <div class="acc"><div class="acc-head" onclick="this.parentElement.classList.toggle('open')"><div class="acc-logo cb">CB</div><b>CodeBuddy</b><span class="am">内网私有化</span><div class="ar"><span class="tag t-ok"><span class="dot"></span>启用</span><div class="switch on"></div></div></div>
+     <div class="acc-body">${agentBody('codebuddy-internal','¥ 0','—')}</div></div>
+   </div>
+   <div class="panel"><div class="panel-h"><div><h3>Prompt 模板</h3><div class="sub">全部来自配置，变量由系统注入</div></div><button class="btn btn-xs btn-outline" onclick="toast('已打开模板编辑器')">新建</button></div>
+    <div class="panel-b flush">
+     <div class="qitem"><span class="tag t-info">准入</span><div class="qi"><b>admission_v3</b><span>变量 5 · 近 7 天调用 214</span></div></div>
+     <div class="qitem"><span class="tag t-info">分拣</span><div class="qi"><b>route_v2</b><span>变量 4 · 命中率 94%</span></div></div>
+     <div class="qitem"><span class="tag t-ok">文档</span><div class="qi"><b>default / 概要设计</b><span>变量 6 · 平均 12.4k token</span></div></div>
+     <div class="qitem"><span class="tag t-ok">文档</span><div class="qi"><b>strict / 详设优先</b><span>变量 8 · 强制私有化</span></div></div>
+     <div class="qitem"><span class="tag t-prog">编码</span><div class="qi"><b>code / 最小改动</b><span>变量 6 · 平均 28.1k token</span></div></div>
+    </div>
+   </div>
+  </div>`,
+
+ logs:()=>`<div class="page-h"><div><h2>AI 调用日志</h2><p>每次调用的渲染后 Prompt、变量、模型、Token 与费用，服务端完整留存。</p></div><div class="acts"><div class="seg"><button class="on">全部</button><button>缺失变量</button><button>失败</button></div></div></div>
+  <div class="grid g4" style="margin-bottom:18px">
+   ${kpi('bolt','今日调用','1,284','较昨日 +12%','up',[820,910,980,1050,1120,1200,1284],'a1')}
+   ${kpi('agent','失败率','1.2%','5 次失败 / 412 次','up',[3.1,2.6,2.2,2.0,1.6,1.4,1.2],'a3')}
+   ${kpi('issue','变量缺失','3','模板待补充','down',[1,2,1,3,2,4,3],'a4')}
+   ${kpi('bolt','本月成本','¥ 1,284','预算 ¥ 5,000','up',[16,15,14,14,13,13,12],'a2')}
+  </div>
+  <div class="panel">
+   <div class="panel-h">
+    <div class="chips"><button class="chip on">全部</button><button class="chip">变量缺失 <span class="n">3</span></button><button class="chip">失败 <span class="n">5</span></button><button class="chip">公网后端 <span class="n">86</span></button><button class="chip">私有化 <span class="n">326</span></button></div>
+    <div class="search"><span class="ic" id="i6"></span><input placeholder="按 Issue / 节点 / 模型搜索" /></div>
+   </div>
+   <div class="panel-b flush"><table><thead><tr><th>时间</th><th>Issue</th><th>后端</th><th>节点</th><th>模型</th><th>Token</th><th>耗时</th><th>费用</th><th></th></tr></thead><tbody>
+    <tr><td class="tid">22:14:03</td><td>REQ-2041</td><td>CodeBuddy</td><td>详细设计</td><td>cb-internal</td><td>12.4k</td><td>4.2s</td><td>¥ 0.0</td><td><a class="btn btn-xs btn-outline" onclick="showPrompt('REQ-2041','详细设计')">查看</a></td></tr>
+    <tr><td class="tid">22:09:51</td><td>BUG-1987</td><td>Claude Code</td><td>问题分析</td><td>claude-opus-4</td><td>28.1k</td><td>11.6s</td><td>¥ 3.2</td><td><a class="btn btn-xs btn-outline" onclick="showPrompt('BUG-1987','问题分析')">查看</a></td></tr>
+    <tr><td class="tid">21:58:40</td><td>REQ-2039</td><td>CodeBuddy</td><td>需求分析</td><td>cb-internal</td><td>9.7k</td><td>3.4s</td><td>¥ 0.0</td><td><a class="btn btn-xs btn-outline" onclick="showPrompt('REQ-2039','需求分析')">查看</a></td></tr>
+    <tr><td class="tid">21:40:12</td><td>BUG-1982</td><td>—</td><td>准入判定</td><td>qwen-max</td><td>2.1k</td><td>1.4s</td><td>¥ 0.0</td><td><a class="btn btn-xs btn-outline" onclick="toast('知识库未命中相关条目')"><span class="tag t-warn" style="height:20px">变量缺失</span></a></td></tr>
+   </tbody></table></div>
+  </div>`,
+
+ docs:()=>`<div class="page-h"><div><h2>文档中心</h2><p>工作流各节点生成的过程文档，由客户端回传，服务端集中可见。</p></div><div class="acts"><button class="btn btn-outline btn-sm" onclick="toast('已导出所选文档')">批量导出</button></div></div>
+  <div class="grid g4" style="margin-bottom:18px">
+   ${kpi('doc','过程文档','412','本月 +68','up',[280,300,320,345,368,390,412],'a1')}
+   ${kpi('check','已评审','286','评审通过率 81%','up',[180,205,225,245,262,275,286],'a3')}
+   ${kpi('issue','待评审','38','平均等待 6.2h','down',[22,26,30,28,33,36,38],'a4')}
+   ${kpi('bolt','存储占用','2.4 GB','MinIO · 内网','up',[1.4,1.6,1.8,2.0,2.2,2.3,2.4],'a2')}
+  </div>
+  <div class="panel" style="margin-bottom:18px;padding:14px 20px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+   <div class="chips"><button class="chip on">全部 <span class="n">412</span></button><button class="chip">概要文档 <span class="n">96</span></button><button class="chip">详细设计 <span class="n">88</span></button><button class="chip">故障报告 <span class="n">54</span></button><button class="chip">修复方案 <span class="n">49</span></button><button class="chip">测试报告 <span class="n">125</span></button></div>
+   <div style="margin-left:auto"><select class="ctrl" style="height:32px;font-size:12.5px;width:180px"><option>按最近回传</option><option>按 Issue 分组</option><option>按后端分组</option></select></div>
+  </div>
+  <div class="grid g4">
+   ${docCard('REQ-2041','详细设计.md','CodeBuddy · 详细设计','2.4 MB · 22:14')}
+   ${docCard('BUG-1987','故障报告.md','Claude Code · 问题分析','1.1 MB · 22:09')}
+   ${docCard('REQ-2039','需求概要.md','CodeBuddy · 需求分析','0.8 MB · 21:58')}
+   ${docCard('REQ-2041','需求概要.md','CodeBuddy · 需求分析','0.7 MB · 21:30')}
+   ${docCard('BUG-1987','修复方案.md','Claude Code · 方案设计','0.9 MB · 21:20')}
+   ${docCard('REQ-2033','测试报告.md','CodeBuddy · 测试','0.5 MB · 20:40')}
+   ${docCard('REQ-2033','详细设计.md','CodeBuddy · 详细设计','1.8 MB · 20:12')}
+   ${docCard('BUG-1975','故障报告.md','Cursor · 问题分析','1.3 MB · 19:48')}
+  </div>`,
+
+ kb:()=>`<div class="page-h"><div><h2>知识库</h2><p>准入判定与项目分拣的知识来源，支持上传、切分与检索测试。</p></div><div class="acts"><button class="btn btn-outline btn-sm" onclick="toast('已打开上传')">上传文档</button><button class="btn btn-primary btn-sm" onclick="toast('已触发向量化')">重建索引</button></div></div>
+  <div class="grid g4" style="margin-bottom:18px">
+   ${kpi('doc','文档数','128','切分 1,940 片','up',[96,102,110,116,120,124,128],'a1')}
+   ${kpi('kb','向量化','100%','pgvector','up',[82,88,92,95,97,99,100],'a3')}
+   ${kpi('search','检索命中','94%','近 30 天','up',[86,88,89,91,92,93,94],'a2')}
+   ${kpi('clock','平均检索','42ms','Top-8 召回','up',[88,74,66,58,52,46,42],'a4')}
+  </div>
+  <div class="split">
+   <div class="panel">
+    <div class="panel-h"><div><h3>检索测试</h3><div class="sub">输入问题，验证知识库召回质量</div></div><span class="tag t-info">Top-8</span></div>
+    <div class="panel-b">
+     <div class="search" style="width:100%"><span class="ic" id="kb1"></span><input placeholder="如「快照导出规范」「夜盘丢包处理」" /></div>
+     <div style="margin-top:18px">
+      <div class="qitem" style="padding-left:0;padding-right:0"><span class="tag t-info">0.89</span><div class="qi"><b>快照导出规范 v2 · 切片 #7</b><span>编码规范 · 已索引 · 最近更新 09-18</span></div></div>
+      <div class="qitem" style="padding-left:0;padding-right:0"><span class="tag t-info">0.76</span><div class="qi"><b>分页接口设计约定 · 切片 #2</b><span>设计文档 · 已索引 · 最近更新 08-30</span></div></div>
+      <div class="qitem" style="padding-left:0;padding-right:0"><span class="tag t-mut">0.61</span><div class="qi"><b>行情服务部署手册 · 切片 #14</b><span>运维文档 · 已索引 · 最近更新 07-12</span></div></div>
+     </div>
+    </div>
+   </div>
+   <div class="panel"><div class="panel-h"><div><h3>文档状态</h3><div class="sub">切分与索引进度</div></div></div>
+    <div class="panel-b flush"><table><thead><tr><th>文档</th><th>分类</th><th>切片</th><th>状态</th></tr></thead><tbody>
+     <tr><td>快照导出规范 v2</td><td>编码规范</td><td>14</td><td><span class="tag t-ok"><span class="dot"></span>已索引</span></td></tr>
+     <tr><td>行情接入故障手册</td><td>故障库</td><td>22</td><td><span class="tag t-ok"><span class="dot"></span>已索引</span></td></tr>
+     <tr><td>回测服务设计文档</td><td>设计文档</td><td>31</td><td><span class="tag t-prog"><span class="dot"></span>索引中</span></td></tr>
+     <tr><td>账户体系接口约定</td><td>接口文档</td><td>18</td><td><span class="tag t-ok"><span class="dot"></span>已索引</span></td></tr>
+    </tbody></table></div></div>
+  </div>`,
+
+ settings:()=>`<div class="page-h"><div><h2>权限与用户</h2><p>六类角色按域鉴权，控制谁能查看或操作 Issue、文档与客户端。</p></div><div class="acts"><button class="btn btn-outline btn-sm" onclick="toast('已导出权限审计')">导出审计</button><button class="btn btn-primary btn-sm" onclick="toast('已打开邀请')">邀请用户</button></div></div>
+  <div class="grid g4" style="margin-bottom:18px">
+   ${kpi('users','用户','28','本月 +3','up',[20,22,23,24,25,27,28],'a1')}
+   ${kpi('shield','角色','6','RBAC 域鉴权','up',[6,6,6,6,6,6,6],'a3')}
+   ${kpi('lock','敏感项目','4','强制私有化','up',[2,3,3,4,4,4,4],'a4')}
+   ${kpi('key','接入令牌','16','14 台已激活','up',[8,10,12,13,14,15,16],'a2')}
+  </div>
+  <div class="panel" style="margin-bottom:18px">
+   <div class="panel-h"><div><h3>角色权限矩阵</h3><div class="sub">● 允许 · ◐ 受限 · ○ 禁止</div></div></div>
+   <div class="panel-b flush"><table class="mx"><thead><tr><th>能力</th><th>admin</th><th>pm</th><th>lead</th><th>dev</th><th>qa</th><th>guest</th></tr></thead><tbody>
+    <tr><td>录入 / 编辑 Issue</td><td class="yes">●</td><td class="yes">●</td><td class="yes">●</td><td class="par">◐</td><td class="no">○</td><td class="no">○</td></tr>
+    <tr><td>准入覆写</td><td class="yes">●</td><td class="yes">●</td><td class="par">◐</td><td class="no">○</td><td class="no">○</td><td class="no">○</td></tr>
+    <tr><td>工作流编排</td><td class="yes">●</td><td class="no">○</td><td class="par">◐</td><td class="no">○</td><td class="no">○</td><td class="no">○</td></tr>
+    <tr><td>Coding Agent 配置下发</td><td class="yes">●</td><td class="no">○</td><td class="no">○</td><td class="no">○</td><td class="no">○</td><td class="no">○</td></tr>
+    <tr><td>查看过程文档</td><td class="yes">●</td><td class="yes">●</td><td class="yes">●</td><td class="par">◐</td><td class="yes">●</td><td class="par">◐</td></tr>
+    <tr><td>查看 AI 调用日志</td><td class="yes">●</td><td class="par">◐</td><td class="par">◐</td><td class="par">◐</td><td class="no">○</td><td class="no">○</td></tr>
+    <tr><td>评审 / 验收闸门</td><td class="yes">●</td><td class="par">◐</td><td class="yes">●</td><td class="no">○</td><td class="yes">●</td><td class="no">○</td></tr>
+    <tr><td>客户端与令牌管理</td><td class="yes">●</td><td class="no">○</td><td class="no">○</td><td class="par">◐</td><td class="no">○</td><td class="no">○</td></tr>
+   </tbody></table></div>
+  </div>
+  <div class="panel">
+   <div class="panel-h"><div><h3>用户</h3><div class="sub">共 28 人 · 6 角色</div></div><div class="search"><span class="ic" id="i6"></span><input placeholder="搜索姓名 / 工号" /></div></div>
+   <div class="panel-b flush"><table><thead><tr><th>用户</th><th>工号</th><th>角色</th><th>业务域</th><th>绑定客户端</th><th>最近活跃</th><th></th></tr></thead><tbody>
+    <tr><td>YangDe</td><td class="tid">24988</td><td><span class="tag t-info">admin</span></td><td>全部</td><td>2 台</td><td>刚刚</td><td><a class="btn btn-xs btn-outline" onclick="toast('已打开编辑')">编辑</a></td></tr>
+    <tr><td>王磊</td><td class="tid">24117</td><td><span class="tag t-mut">dev</span></td><td>行情</td><td>1 台</td><td>2 分钟前</td><td><a class="btn btn-xs btn-outline" onclick="toast('已打开编辑')">编辑</a></td></tr>
+    <tr><td>李娜</td><td class="tid">24302</td><td><span class="tag t-mut">lead</span></td><td>行情</td><td>1 台</td><td>8 分钟前</td><td><a class="btn btn-xs btn-outline" onclick="toast('已打开编辑')">编辑</a></td></tr>
+    <tr><td>陈昊</td><td class="tid">24580</td><td><span class="tag t-mut">dev</span></td><td>回测</td><td>1 台</td><td>1 小时前</td><td><a class="btn btn-xs btn-outline" onclick="toast('已打开编辑')">编辑</a></td></tr>
+   </tbody></table></div>
+  </div>`,
+};
+
+/* ---- helpers ---- */
+function stat(icon,label,val,sub,dir){return `<div class="card card-pad"><div class="stat"><span class="sl">${ic(icon)} ${label}</span><span class="sv">${val}</span><span class="sd ${dir||''}">${sub}</span></div></div>`;}
+function kpi(icon,label,val,sub,dir,data,tone){const w=140,h=36;const mx=Math.max.apply(null,data),mn=Math.min.apply(null,data);
+ const pts=data.map((v,i)=>`${(i/(data.length-1))*w},${h-((v-mn)/((mx-mn)||1))*(h-6)-3}`).join(' ');
+ const gid='sp'+Math.random().toString(36).slice(2,8);
+ return `<div class="kpi ${tone||''}"><div class="kt">${ic(icon)}${label}</div><div class="kv">${val}</div><div class="kd ${dir||''}">${sub}</div>
+  <svg class="spark" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" style="width:100%;height:${h}px" fill="none">
+   <defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#c7d2fe"/><stop offset="1" stop-color="#c7d2fe" stop-opacity="0"/></linearGradient></defs>
+   <path d="M${pts} L${w},${h} L0,${h} Z" fill="url(#${gid})"/>
+   <polyline points="${pts}" fill="none" stroke="#6366f1" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/>
+  </svg></div>`;}
+function ringPct(pct,center,label){const r=40,c=2*Math.PI*r;const off=c*(1-pct/100);
+ return `<div style="display:flex;align-items:center;gap:16px"><div class="conf" style="width:96px;height:96px">
+  <svg viewBox="0 0 96 96" width="96" height="96" fill="none">
+   <circle cx="48" cy="48" r="${r}" stroke="#f0f0f2" stroke-width="7"/>
+   <circle cx="48" cy="48" r="${r}" stroke="#4f46e5" stroke-width="7" stroke-linecap="round" stroke-dasharray="${c.toFixed(1)}" stroke-dashoffset="${off.toFixed(1)}" transform="rotate(-90 48 48)"/>
+  </svg><span>${center}</span></div><div style="flex:1;font-size:13px;color:var(--ink-3);line-height:1.55">${label}</div></div>`;}
+function wfNode(icon,txt,tag,step){const map={git:'GIT',doc:'DOC',code:'CODE',test:'TEST',rev:'REVIEW'};return `<div class="wf-node n-${tag}"><div class="ndot">${ic(icon)}</div><div class="nstep">STEP 0${step}</div><div class="ntext">${txt}</div><div class="ntag">${map[tag]}</div></div>`;}
+function wfLink(){return '';}
+function tl(state,name,st,icon){return `<div class="tnode ${state}"><div class="tbar"></div><div class="tdot">${state==='done'||state==='active'||state==='fail'?ic(state==='fail'?'x':state==='active'?'refresh':'check'):ic(icon)}</div><div class="tname">${name}</div><div class="tst">${st}</div></div>`;}
+function client(dot,name,sub){return `<div class="client"><span class="cdot ${dot}"></span><div class="ci"><b>${name}</b><span>${sub}</span></div></div>`;}
+function clientCard(dot,name,owner,hb,ver,agents,cnt){const st={on:['在线','t-ok'],busy:['执行中','t-prog'],off:['离线','t-err']}[dot];
+ return `<div class="ccard"><div class="ch"><div class="cico">${ic('client')}</div><div><b>${name}</b><span>${owner}</span></div><div class="cst"><span class="tag ${st[1]}"><span class="dot"></span>${st[0]}</span></div></div>
+  <div class="chips">${agents.map(a=>`<span class="mini on">${a}</span>`).join('')}</div>
+  <div class="cmeta"><span>心跳 ${hb}</span><span>${ver} · ${cnt} 个后端</span></div></div>`;}
+function agentBody(model,cost,pct){return `<div class="form-row" style="margin-bottom:16px"><div><label class="lbl">模型</label><select class="ctrl"><option>${model}</option><option>${model}-mini</option></select></div><div><label class="lbl">Prompt 模板</label><select class="ctrl"><option>default / 概要设计</option><option>strict / 评审优先</option></select></div></div>
+  <div class="row-between"><div class="rl"><b>费用限额</b><span>本月累计 ${cost}</span></div><div class="usg" style="width:240px"><div style="flex:1"><div class="ub">额度使用</div><div class="bar"><i style="width:${pct}"></i></div></div><span style="font-size:12px;color:var(--ink-3);font-weight:600">${pct}</span></div></div>
+  <div class="row-between"><div class="rl"><b>私有化强制</b><span>涉及仓库代码时禁止公网后端</span></div><div class="switch ${pct==='—'?'on':''}"></div></div>
+  <div class="row-between" style="border:none"><div class="rl"><b>按客户端覆盖</b><span>为个别终端单独设定模型/限额</span></div><button class="btn btn-xs btn-outline" onclick="toast('已切换至按客户端覆盖')">选择客户端</button></div>`;}
+function docCard(id,name,sub,meta){return `<div class="dcard" onclick="toast('预览 '+name)"><div style="display:flex;justify-content:space-between;align-items:flex-start"><div class="dico">${ic('doc')}</div><span class="tag t-mut">${id}</span></div><b>${name}</b><div class="dm">${sub}</div><div class="df"><span>${meta}</span><span style="display:flex;align-items:center;gap:5px;color:var(--accent)">${ic('download')}</span></div></div>`;}
+
+/* ---- wizard ---- */
+let wstep=0;const wdata={};
+function openWizard(){render('issues');const host=document.getElementById('wiz-host');host.innerHTML=wizardHTML();bindWizard();window.scrollTo({top:0,behavior:'smooth'});}
+function wizardHTML(){return `<div class="wiz"><div class="wiz-steps">
+  ${wstepHTML(0,'基本信息','业务与类型')}${wstepHTML(1,'诉求详情','描述与附件')}${wstepHTML(2,'指派与时限','责任人与时间')}${wstepHTML(3,'确认','预览并提交')}
+ </div><div class="wiz-body"><div class="wiz-card" id="wiz-card"></div></div></div>`;}
+function wstepHTML(i,t,s){const cls=i===wstep?'active':i<wstep?'done':'';return `<div class="wstep ${cls}"><div class="num">${i<wstep?ic('check'):i+1}</div><div class="wt"><b>${t}</b><span>${s}</span></div></div>`;}
+function bindWizard(){paintStep();}
+function paintStep(){
+ const card=document.getElementById('wiz-card');if(!card)return;
+ if(wstep===0)card.innerHTML=`<h3>基本信息</h3><div class="wd">选择业务域与诉求类型，系统将据此预填责任人与判定策略。</div>
+   <div class="form-row three" style="margin-bottom:16px"><div><label class="lbl">业务<span class="req">*</span></label><select class="ctrl" id="f-biz" onchange="onBiz()"><option value="">请选择</option><option>行情</option><option>回测</option><option>账户</option><option>资讯</option></select></div>
+   <div><label class="lbl">类型<span class="req">*</span></label><select class="ctrl" id="f-type"><option value="">请选择</option><option>需求</option><option>缺陷</option></select></div>
+   <div><label class="lbl">优先级</label><select class="ctrl" id="f-pri"><option>P0</option><option selected>P1</option><option>P2</option><option>P3</option></select></div></div>
+   <div><label class="lbl">标题<span class="req">*</span></label><input class="ctrl" id="f-title" placeholder="一句话描述诉求" /></div>
+   <div class="wiz-foot"><button class="btn btn-outline" onclick="go('landing')">取消</button><button class="btn btn-primary" onclick="next(1)">下一步 <span id="wx1"></span></button></div>`;
+ if(wstep===1)card.innerHTML=`<h3>诉求详情</h3><div class="wd">越具体，准入判定与分拣越准。可关联已知现象或预期行为。</div>
+   <div style="margin-bottom:16px"><label class="lbl">描述<span class="req">*</span></label><textarea class="ctrl" id="f-desc" placeholder="背景、现象、期望结果……"></textarea></div>
+   <div style="margin-bottom:16px"><label class="lbl">关联项目 / 仓库</label><input class="ctrl" value="${wdata.biz?wdata.biz+'-service':''}" placeholder="自动识别，可修正" /></div>
+   <div class="wiz-foot"><button class="btn btn-outline" onclick="next(0)">上一步</button><button class="btn btn-primary" onclick="next(2)">下一步 <span id="wx2"></span></button></div>`;
+ if(wstep===2)card.innerHTML=`<h3>指派与时限</h3><div class="wd">责任人将决定任务下发到哪台客户端；期望完成时间用于排期与超时预警。</div>
+   <div class="form-row" style="margin-bottom:16px"><div><label class="lbl">责任人<span class="req">*</span></label><select class="ctrl" id="f-owner"><option>王磊</option><option>李娜</option><option>陈昊</option><option>赵敏</option></select><div class="auto-fill" id="af1">${ic('bolt')} 已按业务预填默认责任人</div></div>
+   <div><label class="lbl">期望完成时间<span class="req">*</span></label><input class="ctrl" type="date" id="f-due" value="2026-10-02" /></div></div>
+   <div class="wiz-foot"><button class="btn btn-outline" onclick="next(1)">上一步</button><button class="btn btn-primary" onclick="next(3)">下一步 <span id="wx3"></span></button></div>`;
+ if(wstep===3)card.innerHTML=`<h3>确认提交</h3><div class="wd">提交后将自动触发准入判定，并据类型编排工作流。</div>
+   <div class="preview-box"><div class="preview-row"><div class="pk">业务</div><div class="pv">${wdata.biz||'—'}</div></div><div class="preview-row"><div class="pk">类型 / 优先级</div><div class="pv">${wdata.type||'—'} · ${document.getElementById('f-pri')?.value||'P1'}</div></div><div class="preview-row"><div class="pk">标题</div><div class="pv">${document.getElementById('f-title')?.value||'—'}</div></div><div class="preview-row"><div class="pk">责任人</div><div class="pv">${document.getElementById('f-owner')?.value||'—'}</div></div><div class="preview-row"><div class="pk">期望完成</div><div class="pv">${document.getElementById('f-due')?.value||'—'}</div></div></div>
+   <div class="wiz-foot"><button class="btn btn-outline" onclick="next(2)">上一步</button><button class="btn btn-accent" onclick="submitIssue()"><span class="ic" id="wx4"></span>提交并触发判定</button></div>`;
+ set('wx1',ic('arrow'));set('wx2',ic('arrow'));set('wx3',ic('arrow'));set('wx4',ic('send'));
+}
+function onBiz(){const b=document.getElementById('f-biz').value;wdata.biz=b;const af=document.getElementById('af1');if(af)af.style.display=b?'flex':'none';}
+function next(s){if(s>wstep)wstep=s;else wstep=s;document.querySelectorAll('.wstep').forEach((e,i)=>e.className='wstep '+(i===wstep?'active':i<wstep?'done':''));paintStep();}
+function submitIssue(){const card=document.getElementById('wiz-card');card.innerHTML=`<div class="success"><div class="sring">${ic('check')}</div><h3>已提交</h3><p>准入判定已启动。命中「行情」业务，关联仓库 <b>market-service</b>，工作流 <b>需求模板</b> 将在准入通过后自动编排。</p><div class="meta"><span class="tag t-mut">REQ-2042</span><span class="tag t-prog"><span class="dot"></span>准入中</span></div><div class="wiz-foot" style="justify-content:center;margin-top:24px"><button class="btn btn-outline btn-sm" onclick="go('landing')">返回首页</button><button class="btn btn-primary btn-sm" onclick="render('admission')">查看判定</button></div></div>`;toast('已提交 · 准入判定中');}
+
+/* ---- prompt drawer ---- */
+function showPrompt(issue,node){const card=document.getElementById('wiz-card')||document.getElementById('app-content');
+ document.getElementById('app-content').innerHTML=`<div class="page-h"><div><h2>AI 调用详情 · ${issue}</h2><p>${node} · 渲染后 Prompt 与调用日志（服务端可观测）</p></div><div class="acts"><button class="btn btn-outline btn-sm" onclick="render('logs')">返回日志</button></div></div>
+  <div class="grid g3"><div class="card card-pad"><div class="stat"><span class="sl">${ic('agent')} 后端</span><span class="sv" style="font-size:18px">CodeBuddy</span><span class="sd">内网私有化</span></div></div><div class="card card-pad"><div class="stat"><span class="sl">${ic('bolt')} Token</span><span class="sv" style="font-size:18px">12.4k</span><span class="sd">in 9.1k / out 3.3k</span></div></div><div class="card card-pad"><div class="stat"><span class="sl">${ic('clock')} 耗时</span><span class="sv" style="font-size:18px">8.2s</span><span class="sd">费用 ¥ 0.0</span></div></div></div>
+  <div class="card card-pad" style="margin-top:18px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><h3 style="font-size:14px;font-weight:600">渲染后 Prompt</h3><span class="tag t-ok"><span class="dot"></span>变量完整</span></div>
+   <div class="prompt-code"><span class="c"># 模板: default / 概要设计  (prompt_template.prompts.detailed_design)</span>
+你是一名资深后端工程师，负责 <span class="v">{{business}}</span> 域的需求详细设计。
+当前 Issue: <span class="v">{{issue_id}}</span> — <span class="v">{{issue_title}}</span>
+诉求: <span class="v">{{issue_desc}}</span>
+关联仓库: <span class="v">{{repo}}</span> (分支 <span class="v">{{branch}}</span>)
+知识库检索结果:
+<span class="v">{{kb_top3}}</span>
+请输出：模块划分、接口契约、数据模型、风险与回滚方案。
+<span class="c"># 注入变量: business=行情 / issue_id=REQ-2041 / repo=market-service / kb_top3=快照导出规范v2 …</span></div>
+  </div>`;window.scrollTo({top:0,behavior:'smooth'});}
+
+/* ---- init ---- */
+set('d1',ic('plus'));set('i5',ic('plus'));set('i6',ic('search'));set('wf1',ic('issue'));set('wf2',ic('issue'));set('ag1',ic('send'));set('ag2',ic('agent'));set('kb1',ic('search'));
+go('landing');
+</script>
+</body>
+</html>

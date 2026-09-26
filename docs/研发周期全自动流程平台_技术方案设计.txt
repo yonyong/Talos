@@ -1,0 +1,246 @@
+研发周期全自动流程平台 — 技术方案设计（V0.1）
+================================================================
+
+说明：阶段三（设计/研发评审）产出物。承接《需求规划 V0.3》《PRD V0.1》。
+已锁定决策 D1–D5 全部纳入本设计。本文聚焦：架构拓扑、通信协议、数据模型、工作流引擎、
+coding agent 适配层、配置下发、可观测/监控、安全、技术栈选型、风险与依赖。
+
+
+一、总体架构与部署拓扑
+----------------------------------------------------------------
+[研发电脑]                [内网]                [服务端]
+Client(Go daemon)  ──mTLS gRPC 反向长连接──▶  Server(Spring Boot)
+  · 本地 git/编译/测试                              · issue 录入/准入/分拣
+  · coding agent 适配层(4后端)                      · 工作流编排
+  · 拉取本人配置、回传文档/日志/状态                 · 配置/KB/权限/可观测/监控
+                                                · DB + 对象存储 + 向量库
+
+关键：客户端主动连服务端建持久双向 gRPC 流；服务端经此流"推"任务/配置/指令。
+服务端不主动入站（研发电脑在 NAT/防火墙后）。
+
+部署：
+- 服务端：标准脚本部署（沿用非 Docker 偏好），多实例可前置 LB（流按 client_id 亲和）。
+- 客户端：单文件 Go daemon，开机自启/常驻，一键安装。
+
+
+二、通信协议（gRPC 反向长连接）
+----------------------------------------------------------------
+2.1 Service 定义（proto 概要）
+----------------------------------------------------------------
+service AgentService {
+  // 客户端连入：双向流。客户端发 ClientToServer，服务端推 ServerToClient
+  rpc Connect(stream ClientToServer) returns (stream ServerToClient);
+  // 大文档/产物直传（独立通道，避免占用控制流）
+  rpc UploadArtifact(stream UploadArtifactReq) returns (UploadArtifactResp);
+}
+
+message ClientToServer {
+  oneof msg {
+    RegisterReq      register       = 1;  // 首次连入注册
+    HeartbeatReq     heartbeat      = 2;  // 周期心跳(10s)
+    TaskResultReq    task_result    = 3;  // 节点执行结果
+    AgentCallLogReq  agent_call_log = 4;  // AI 调用日志+渲染prompt
+    StatusReportReq  status_report  = 5;  // 客户端/agent 状态
+    ArtifactMeta     artifact_meta  = 6;  // 文档元数据(内容走 UploadArtifact)
+  }
+}
+
+message ServerToClient {
+  oneof msg {
+    RegisterAck    register_ack = 1;
+    TaskDispatch   task_dispatch= 2;  // 下发节点任务
+    ConfigPush     config_push  = 3;  // 下发/变更配置
+    Command        command      = 4;  // 取消/重试/拉取最新配置
+  }
+}
+
+2.2 关键消息字段
+TaskDispatch:
+  task_id, issue_id, node_id, node_type(枚举: GIT_CLONE/DOC_GEN/CODE/TEST/REVIEW),
+  repo_url, base_branch, feature_branch(由服务端按规则预生成),
+  agent_backend(枚举), model, quota_token,
+  prompt_template_ref(模板ID+版本), variables(map<string,string> 由系统注入),
+  timeout_sec, signature(HMAC 服务端签名)
+
+ConfigPush:
+  client_id,
+  coding_agent_configs[]{ backend, model, enabled, quota_token, quota_cost },
+  prompt_templates[]{ template_id, version, content, scope(GLOBAL/CLIENT) },
+  defaults + overrides(merged 后下发，客户端直接消费)
+
+AgentCallLog:  // 满足 F-20 可观测
+  issue_id, client_id, backend, model,
+  rendered_prompt(完整渲染后文本), prompt_hash,
+  req_summary, resp_summary, tokens, latency_ms, cost, success, ts
+
+2.3 连接可靠
+- 心跳 10s，服务端 30s 无心跳标记 OFFLINE（F-06）。
+- 断线客户端指数退避重连；重连后服务端补推未确认任务（去重 by task_id）。
+- 任务下发后服务端置"已下发/待回执"，超时未回执转重试/告警（F-18）。
+
+
+三、数据模型（关系库，开发 H2 / 生产 PostgreSQL）
+----------------------------------------------------------------
+issue
+  id, biz, type(REQ/BUG), desc, expect_complete_time, owner, priority,
+  status(状态机), created_by, created_at, project_id, git_url,
+  admit_result, admit_reason, admit_confidence, sorted_way(规则/AI)
+
+workflow_template
+  id, name, type(REQ/BUG), nodes(json 有序节点定义), version, enabled
+
+workflow_instance
+  id, issue_id, template_id, current_node_idx, status(执行中/阻塞/完成)
+
+task
+  id, instance_id, issue_id, node_id, node_type, client_id,
+  status(待下发/已下发/执行中/成功/失败/阻塞), dispatched_at, finished_at,
+  result_ref(文档/日志关联), signature
+
+client
+  id, name, owner, status(ONLINE/OFFLINE), last_heartbeat, version,
+  registered_at, ip
+
+coding_agent_config
+  id, client_id, backend(枚举), model, enabled, quota_token, quota_cost,
+  is_default, override_json
+
+prompt_template
+  id, key, content, version, scope(GLOBAL/CLIENT), client_id(nullable)
+
+ai_call_log
+  id, issue_id, client_id, backend, model, rendered_prompt(text),
+  prompt_hash, tokens, latency_ms, cost, success, created_at
+
+document
+  id, issue_id, node_id, type, version, storage_ref, created_at, updated_by
+
+kb_doc
+  id, title, content_ref, embedding_ref, version, source
+
+audit_log
+  id, actor, action, target, before, after, ts
+
+
+四、工作流引擎
+----------------------------------------------------------------
+- 模板：workflow_template.nodes 为有序节点数组，节点含 type 与 handler 绑定。
+- 实例化：分拣完成后按 issue.type 选模板 → 建 workflow_instance。
+- 推进：
+  · GIT_CLONE：服务端指令客户端克隆到本地 workdir，开 feature 分支。
+  · DOC_GEN：服务端拼装 prompt_template + 注入变量 → 下发 TaskDispatch →
+    客户端 coding agent 基于本地仓库生成 → 回传文档(artifact) → 节点置"待确认"。
+  · DESIGN_REVIEW / ACCEPTANCE：人工节点，状态 REVIEW_PENDING，等待回写结论(F-13)。
+  · CODE / TEST：下发任务，客户端 coding agent 执行，受四道护栏约束。
+- 状态机：instance 随 task 结果推进；任一节点失败 → instance 置"阻塞"(F-02)。
+- 编排可配置(F-05)：管理员可调整节点顺序/增删节点，不影响既有实例。
+
+
+五、Coding Agent 适配层（客户端，Go）
+----------------------------------------------------------------
+5.1 统一接口
+----------------------------------------------------------------
+type CodingAgent interface {
+    GenerateDoc(ctx, DocGenReq)  (DocGenResp, error)   // 概要/详设/故障报告/修复方案/评审
+    Analyze(ctx, AnalyzeReq)     (AnalyzeResp, error)  // 故障分析
+    Code(ctx, CodeReq)           (CodeResp, error)    // 编码
+    Test(ctx, TestReq)           (TestResp, error)    // 单测/集成测试
+}
+// 四后端各自实现：ClaudeCode / Cursor / Codex / CodeBuddy
+// CodeBuddy = 内部私有化后端，敏感仓库强制走此(服务端策略下发)
+
+5.2 四道护栏（backend 无关，统一包裹层）
+----------------------------------------------------------------
+Guard 层（所有后端共用，不依赖具体 agent）：
+  (a) 分支隔离：每次 issue 自动 `git checkout -b feature/issue-{id}`；
+  (b) 测试门禁：编码后跑配置化测试命令，失败则禁止 MR；
+  (c) 仅 MR：通过 Git 平台 API 提 Merge Request，绝不直推主干；
+  (d) 失败回滚：`git revert`/reset 并上报服务端。
+合并与验收保留人工闸门（不在 D2 让步范围）。
+
+5.3 后端接入方式
+----------------------------------------------------------------
+- ClaudeCode / Codex / Cursor：调用其本地 CLI/进程，传渲染后 prompt 与仓库路径。
+- CodeBuddy：内部 SDK/接口（需确认能力边界）。
+- 统一适配：backend 选择来自 TaskDispatch.agent_backend；模型/限额来自配置。
+- 合规：公网后端分析代码会出网；敏感仓库由服务端策略强制 backend=CodeBuddy。
+
+
+六、配置统管与差异化下发（D5）
+----------------------------------------------------------------
+- 存储：prompt_template(GLOBAL/CLIENT) + coding_agent_config(按 client_id)。
+- 合并：客户端连入或配置变更时，服务端计算"默认 + 该客户端 override" → ConfigPush。
+- 客户端：缓存合并后配置；执行时按 task 指定的 backend/model/quota 消费。
+- 变更生效：管理员保存即触发 ConfigPush（或客户端下次心跳拉取）。
+- 用量：客户端上报 quota_cost，服务端聚合展示成本(F-19/F-20)。
+
+
+七、可观测与监控（F-20 / F-22）
+----------------------------------------------------------------
+- AI 调用：每次 agent 调用经 ClientToServer.agent_call_log 回传渲染 prompt + 日志 →
+  ai_call_log 表；issue/agent 视图可检索(模型/客户端/issue/token/费用)。
+- 监控视图三区：
+  · 客户端连接：client 表(status/last_heartbeat/version/ip)。
+  · CodingAgent 配置：按 client 聚合 coding_agent_config(后端/模型/限额/启用)。
+  · 作业状态：task + workflow_instance(当前节点/成功/失败/阻塞)，按 issue/客户端维度。
+- 实时刷新：心跳/状态上报/任务状态变更触发视图更新。
+
+
+八、知识库与 RAG（F-03 / F-12）
+----------------------------------------------------------------
+- 入库：kb_doc 上传 → 解析/切分 → 向量化 → 存 embedding_ref。
+- 检索：准入/分拣时检索 top-k → 注入服务端 LLM QA 的 prompt(RAG)。
+- 向量库候选：pgvector(复用 PG) / Milvus / Elasticsearch(你们已有 ES 经验)。推荐 pgvector 降复杂度。
+- 来源待定：内部 wiki / 自建上传 / 混合。
+
+
+九、安全（F-17）
+----------------------------------------------------------------
+- 传输：客户端—服务端 gRPC 走 mTLS（内部 CA 签发）。
+- 认证：Register 带客户端凭证(token)，服务端校验并绑定 client_id/owner。
+- 任务鉴权：TaskDispatch 带 HMAC 签名；客户端仅执行 client_id==自身 的任务。
+- 权限：服务端 RBAC(F-09) 统一鉴权所有 HTTP/gRPC 入口。
+
+
+十、技术栈选型（建议）
+----------------------------------------------------------------
+服务端：Spring Boot 3 + Java 17；grpc-java；React 前端；PostgreSQL(pgvector)；
+        Redis(流/状态/缓存，可选)；MinIO(对象存储，文档落地，可选)。
+客户端：Go 1.22；grpc-go；cobra(配置/状态 CLI)；调用各 agent CLI/SDK；git CLI。
+通信：gRPC over mTLS。
+文档存储：推荐 MinIO(S3 兼容)；或复用现有 SVN/Git(待定)。
+
+
+十一、评审议题 / 关键依赖 / 风险
+----------------------------------------------------------------
+评审议题（待研发/设计确认）：
+T1 反向流在 LB 多实例下的会话亲和与断线续传方案。
+T2 大文档(详设可能很长)走 UploadArtifact 分片阈值与失败重试。
+T3 四后端 CLI 在研发机的可用性与版本兼容性（尤其 CodeBuddy SDK）。
+T4 私有化 coding 模型能力是否满足详设/编码质量（影响 D4 落地）。
+T5 Git 平台 API 选型(工蜂/GitHub/内网GitLab)决定 MR 创建实现。
+
+关键依赖：
+- Git 平台 API（待定）→ 影响 GIT_CLONE/MR/回写(F-16)。
+- 向量库选型 → 影响 KB/RAG。
+- 各 coding agent 后端 SDK/CLI → 影响 F-11 多后端。
+- 私有化模型 → 影响代码相关默认走私有化(D4)。
+
+风险：
+R1 全自主改代码缺陷 → 四护栏+人工合并/验收缓解。
+R2 公网后端出网合规 → 服务端策略强制敏感仓库私有化。
+R3 反向流抖动导致任务丢失 → 去重+重试+心跳兜底。
+R4 prompt 渲染变量缺失 → 客户端上报渲染异常，服务端告警(F-21)。
+
+
+十二、里程碑 ↔ 设计映射
+----------------------------------------------------------------
+M1 服务端骨架：一/三/九(录入/状态机/权限/DB/HTTP) + 反向流骨架(二)。
+M2 客户端 daemon + 反向 gRPC：二/六(Connect/心跳/任务下发/回传)。
+M3 服务端 AI：十(KB) + F-10(LLM QA 准入/分拣/问答)。
+M4 coding agent：五(适配层+四护栏) + F-11 + F-19。
+M5 可观测与监控：七(ai_call_log/监控视图) + F-20/F-22 + 评审/通知/看板。
+
+
+（阶段三产出完毕。下一步：研发评审结论沉淀，或将本文档上传项目资料库，并将技术任务
+ 拆为子事项分配开发同学，附上 PRD 与本设计。）

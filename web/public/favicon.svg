@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" role="img" aria-label="Talos">
+  <defs>
+    <linearGradient id="talos-mark" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#6366f1" />
+      <stop offset="1" stop-color="#a78bfa" />
+    </linearGradient>
+  </defs>
+  <path d="M16 2.5l11 4.2v9.1c0 6.4-4.4 11.3-11 13.7C9.4 27.1 5 22.2 5 15.8V6.7z" fill="url(#talos-mark)" />
+  <path d="M11 16.5l3.2 3.2L21.5 12" fill="none" stroke="#fff" stroke-width="2.4"
+        stroke-linecap="round" stroke-linejoin="round" />
+</svg>

@@ -1,0 +1,53 @@
+# ---------------------------------------------------------------
+# Talos · 仓库忽略规则
+# 原则：源码进仓库，构建产物 / 运行时数据 / 开发辅助产物不进仓库
+# ---------------------------------------------------------------
+
+# ---- 前端 ----
+web/node_modules/
+web/dist/
+web/.vite/
+npm-debug.log*
+yarn-error.log*
+
+# ---- Java / Maven 构建产物 ----
+target/
+client/target/
+server/target/
+*.class
+*.jar
+!.mvn/wrapper/maven-wrapper.jar
+
+# 构建脚本生成：前端静态资源注入到服务端（jar 内同源托管 SPA）
+server/src/main/resources/static/
+
+# ---- 运行时数据（H2 文件库，由服务端首次启动自动生成）----
+data/
+*.mv.db
+*.trace.db
+*.lock.db
+
+# ---- 开发辅助产物 ----
+# 控制台批量截图（tools/capture-console.mjs 输出）
+shots/
+# 工具脚本产出的临时图片
+tools/*.tmp.png
+
+# ---- 日志与备份 ----
+*.log
+*.bak
+
+# ---- IDE / 编辑器 ----
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+.settings/
+.project
+.classpath
+
+# ---- 操作系统 ----
+.DS_Store
+Thumbs.db
+desktop.ini

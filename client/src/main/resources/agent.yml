@@ -1,0 +1,28 @@
+# Talos 客户端配置（安装脚本会写入实际值）
+server:
+  addr: talos.yonyong.dev
+  port: 9443
+client:
+  id: dev-windows-07
+  token: <install 时写入>
+  workspace: C:/Talos/workspace
+  heartbeatSeconds: 10
+agents:
+  - backend: claude
+    enabled: true
+    model: claude-opus-4
+    cmd: claude
+  - backend: cursor
+    enabled: true
+    model: cursor-pro
+    cmd: cursor
+  - backend: codex
+    enabled: false
+    model: codex-1
+    cmd: codex
+  - backend: codebuddy
+    enabled: true
+    model: cb-internal
+    cmd: codebuddy
+log:
+  dir: logs

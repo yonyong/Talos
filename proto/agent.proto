@@ -1,0 +1,46 @@
+syntax = "proto3";
+
+package talos.agent.v1;
+
+option java_multiple_files = true;
+option java_package = "com.yonyong.talos.grpc";
+option java_outer_classname = "AgentProto";
+
+// 客户端位于 NAT 之后，服务端不主动入站。
+// 由客户端 daemon 主动建立 Connect 双向流，服务端顺流推送任务与配置。
+service AgentService {
+  // 反向长连接：客户端 → 注册/心跳/回执/日志；服务端 → 任务/配置/指令
+  rpc Connect(stream ClientMessage) returns (stream ServerMessage);
+
+  // 大文档回传（过程文档、测试报告等）
+  rpc UploadArtifact(ArtifactRequest) returns (ArtifactResponse);
+}
+
+message ClientMessage {
+  // REGISTER / HEARTBEAT / TASK_RESULT / CALL_LOG
+  string type = 1;
+  // 承载具体字段的 JSON，便于跨语言客户端与后续扩展
+  string payload_json = 2;
+}
+
+message ServerMessage {
+  // TASK_DISPATCH / CONFIG_PUSH / COMMAND
+  string type = 1;
+  string payload_json = 2;
+  // HMAC 签名，客户端校验指令来源
+  string signature = 3;
+}
+
+message ArtifactRequest {
+  string client_id = 1;
+  string issue_code = 2;
+  string name = 3;
+  string kind = 4;
+  string content = 5;
+  string size_text = 6;
+}
+
+message ArtifactResponse {
+  bool ok = 1;
+  string message = 2;
+}
