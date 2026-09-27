@@ -1,0 +1,9 @@
+Talos Server 1.4.2
+built      : 2026-09-27 22:59:46 +08:00
+package    : talos-server-1.4.2-linux.tar.gz
+jar        : app\talos-server-1.4.2.jar
+jar bytes  : 69970984
+jar sha256 : 180e38c2919cf9be556cce79593a7a557727059049b43559147a085fb306b9fe
+source     : 087e6ca
+target dir : /opt/applications/talos
+docs       : README.txt

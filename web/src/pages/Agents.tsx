@@ -1,71 +1,43 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useState } from 'react'
 import { Icon } from '../icons'
-import { PageH, Panel, Progress, Switch, Tag, useToast } from '../ui'
-import { fetchAgents, fetchPrompts, saveAgent, pushAllAgents, useAsync } from '../api'
-import type { AgentBackend, PromptTemplate } from '../types'
+import { BrandMark } from '../brands'
+import { Modal, PageH, Panel, Tag, useToast } from '../ui'
+import { fetchAgentUsers, pushAllAgents, useAsync } from '../api'
+// 与「设置面板 → Coding Agent」共用同一份编辑器：管理员改任意用户 == 用户改自己，逻辑完全一致
+import { AgentConfigEditor, BACKEND_NAMES } from '../components/AgentConfigEditor'
 
-const SCOPES = ['全局默认', 'dev-windows-07', 'dev-mac-03', 'dev-linux-11']
-
-const LOGO_KEY: Record<string, string> = { claude: 'cc', cursor: 'cu', codex: 'cx', codebuddy: 'cb' }
+type UserAgents = {
+  empNo: string
+  name: string
+  clientId: string
+  online: boolean
+  agents: { backend: string; execPath: string; model: string; enabled: boolean }[]
+}
 
 export default function Agents() {
   const { toast } = useToast()
-  const [scope, setScope] = useState('全局默认')
-  const [enabled, setEnabled] = useState<Record<string, boolean>>({})
-  const [configs, setConfigs] = useState<Record<string, Partial<AgentBackend>>>({})
-  const [open, setOpen] = useState('')
-  const [saving, setSaving] = useState(false)
+  const [pushing, setPushing] = useState(false)
+  /** 正在配置的用户：弹框里复用设置面板同款编辑器 */
+  const [editing, setEditing] = useState<UserAgents | null>(null)
+  const { data, loading, error, reload } = useAsync<UserAgents[]>(fetchAgentUsers, [])
 
-  const { data: agents, loading, reload } = useAsync<AgentBackend[]>(() => fetchAgents(scope), [scope])
-  const { data: prompts } = useAsync<PromptTemplate[]>(() => fetchPrompts(), [])
+  // 已配置后端的用户排在前面，避免"配了却看不见"
+  const users = [...(data ?? [])].sort(
+    (a, b) => Number(b.agents.length > 0) - Number(a.agents.length > 0) || a.empNo.localeCompare(b.empNo),
+  )
 
-  useEffect(() => {
-    if (agents) {
-      setEnabled(Object.fromEntries(agents.map((a) => [a.key, a.enabled])))
-      setConfigs(Object.fromEntries(agents.map((a) => [a.key, {
-        httpEndpoint: a.httpEndpoint, apiKey: a.apiKey, temperature: a.temperature,
-      }])))
-    }
-  }, [agents])
-
-  const list = agents ?? []
-  const promptList = prompts ?? []
-
-  const changed = useMemo(() => {
-    if (!agents) return false
-    return agents.some((a) =>
-      enabled[a.key] !== a.enabled ||
-      configs[a.key]?.httpEndpoint !== a.httpEndpoint ||
-      configs[a.key]?.apiKey !== a.apiKey ||
-      configs[a.key]?.temperature !== a.temperature
-    )
-  }, [agents, enabled, configs])
-
-  const save = async () => {
-    setSaving(true)
+  const push = async () => {
+    setPushing(true)
     try {
-      for (const a of list) {
-        const cfg = configs[a.key]
-        if (
-          enabled[a.key] !== a.enabled ||
-          cfg?.httpEndpoint !== a.httpEndpoint ||
-          cfg?.apiKey !== a.apiKey ||
-          cfg?.temperature !== a.temperature
-        ) {
-          await saveAgent({
-            id: a.id, scope: a.scope ?? 'GLOBAL', backend: a.key,
-            model: a.model === '—' ? undefined : a.model, enabled: enabled[a.key], privateOnly: a.privateOnly,
-            httpEndpoint: cfg?.httpEndpoint, apiKey: cfg?.apiKey, temperature: cfg?.temperature,
-          })
-        }
-      }
       const r = await pushAllAgents()
       reload()
-      toast(`配置已保存并下发（${r.pushed} 个在线客户端）`)
+      toast(r.pushed > 0
+        ? `已向 ${r.pushed} 个在线客户端下发（每人以其本人配置为准）`
+        : '无在线客户端，配置已保存，将在其下次心跳/上线时补齐')
     } catch (e) {
-      toast(`保存失败：${e instanceof Error ? e.message : e}`)
+      toast(`下发失败：${e instanceof Error ? e.message : e}`)
     } finally {
-      setSaving(false)
+      setPushing(false)
     }
   }
 
@@ -73,138 +45,138 @@ export default function Agents() {
     <div>
       <PageH
         title="Coding Agent 配置"
-        desc="服务端统一定义，按客户端差异化下发。所有 Prompt 与模板均来自配置，变量由系统注入。"
-        actions={<button className="btn btn-primary btn-sm" onClick={save} disabled={saving || !changed}><Icon name="send" size={15} />{saving ? '下发中…' : '保存并下发'}</button>}
+        desc="按用户采集的 Coding Agent 配置，统一查看与下发。每个用户的后端可在本页直接配置，也可由用户本人在「设置面板 → Coding Agent」中自行配置，服务端不再预设任何默认后端。"
+        actions={<button className="btn btn-primary btn-sm" onClick={push} disabled={pushing}>
+          <Icon name="send" size={15} />{pushing ? '下发中…' : '保存并下发'}
+        </button>}
       />
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 18, flexWrap: 'wrap' }}>
-        <span style={{ fontSize: 12.5, color: 'var(--ink-3)' }}>作用于</span>
-        <div className="seg">
-          {SCOPES.map((s) => (
-            <button key={s} className={scope === s ? 'on' : ''} onClick={() => setScope(s)}>{s}</button>
-          ))}
-        </div>
-        <span style={{ fontSize: 12.5, color: 'var(--ink-4)' }}>
-          {scope === '全局默认' ? '所有客户端继承默认配置' : `仅覆盖 ${scope} 的配置，未覆盖项继承全局`}
-        </span>
-      </div>
-
-      {loading && list.length === 0 && <div style={{ fontSize: 13, color: 'var(--ink-4)', padding: 16 }}>加载中…</div>}
-      {!loading && agents === null && <div style={{ fontSize: 13, color: 'var(--ink-4)', padding: 16 }}>接口请求失败，请确认后端已启动（:8080）</div>}
-
-      {list.map((a) => {
-        const lk = LOGO_KEY[a.key] ?? a.key.slice(0, 2)
-        const cfg = configs[a.key] ?? {}
-        return (
-          <div key={a.key} className={`acc ${open === a.key ? 'open' : ''}`}>
-            <div className="acc-head" onClick={() => setOpen(open === a.key ? '' : a.key)}>
-              <div className={`acc-logo ${lk}`}>{a.logo}</div>
-              <b>{a.name}</b>
-              <span className="am">{a.model}</span>
-              <div className="ar">
-                {a.privateOnly && <Tag tone="info">私有化</Tag>}
-                <Tag tone={enabled[a.key] ? 'ok' : 'mut'}>{enabled[a.key] ? '启用' : '停用'}</Tag>
-                <Switch on={enabled[a.key]} onClick={() => setEnabled({ ...enabled, [a.key]: !enabled[a.key] })} />
-                <Icon name="chevron" size={16} />
-              </div>
+      <Panel title="用户配置汇总" sub={`共 ${users.length} 个用户 · 后端顺序即各人设置的优先级`} flush>
+        {loading && <div style={{ fontSize: 13, color: 'var(--ink-4)', padding: 16 }}>加载中…</div>}
+        {!loading && error && (
+          <div style={{
+            margin: 16, padding: '10px 12px', borderRadius: 8,
+            background: 'var(--err-soft)', color: 'var(--err)',
+            fontSize: 12.5, lineHeight: 1.7,
+          }}>
+            <div style={{ fontWeight: 550, marginBottom: 2 }}>读取用户配置失败</div>
+            <div style={{ fontFamily: 'var(--mono)', fontSize: 11.5, opacity: 0.9 }}>{error}</div>
+            <div style={{ marginTop: 6, color: 'var(--ink-3)' }}>
+              若提示接口不存在，说明服务端仍是旧版本（未包含按用户采集接口），请重新构建并重启服务端后刷新。
             </div>
-            <div className="acc-body">
-              <div className="grid g3">
-                <div>
-                  <div style={{ fontSize: 12.5, color: 'var(--ink-4)' }}>本月费用</div>
-                  <div style={{ fontSize: 18, fontWeight: 620, marginTop: 6 }}>{a.cost}</div>
-                </div>
-                <div>
-                  <div style={{ fontSize: 12.5, color: 'var(--ink-4)' }}>额度使用</div>
-                  <div style={{ fontSize: 18, fontWeight: 620, marginTop: 6 }}>{a.usage}%</div>
-                  <Progress pct={a.usage} tone={a.usage > 90 ? 'err' : a.usage > 70 ? 'warn' : undefined} />
-                </div>
-                <div>
-                  <div style={{ fontSize: 12.5, color: 'var(--ink-4)' }}>单任务限额</div>
-                  <div style={{ fontSize: 18, fontWeight: 620, marginTop: 6 }}>{a.privateOnly ? '不限' : '200k tokens'}</div>
-                </div>
-              </div>
-
-              <div style={{ marginTop: 18 }}>
-                <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 12 }}>HTTP LLM 配置</div>
-                <div className="grid g2" style={{ gap: 14 }}>
-                  <div className="field" style={{ margin: 0 }}>
-                    <label>接入地址 (baseUrl)</label>
-                    <input
-                      value={cfg.httpEndpoint ?? ''}
-                      onChange={(e) => setConfigs({ ...configs, [a.key]: { ...cfg, httpEndpoint: e.target.value } })}
-                      placeholder="https://api.openai.com/v1"
-                    />
-                  </div>
-                  <div className="field" style={{ margin: 0 }}>
-                    <label>API Key</label>
-                    <input
-                      type="password"
-                      value={cfg.apiKey ?? ''}
-                      onChange={(e) => setConfigs({ ...configs, [a.key]: { ...cfg, apiKey: e.target.value } })}
-                      placeholder="sk-..."
-                    />
-                  </div>
-                  <div className="field" style={{ margin: 0 }}>
-                    <label>温度 (temperature)</label>
-                    <input
-                      type="number" step="0.1" min="0" max="2"
-                      value={cfg.temperature ?? ''}
-                      onChange={(e) => setConfigs({ ...configs, [a.key]: { ...cfg, temperature: e.target.value ? parseFloat(e.target.value) : undefined } })}
-                    />
-                  </div>
-                  <div className="field" style={{ margin: 0 }}>
-                    <label>模型</label>
-                    <input value={a.model} readOnly style={{ background: 'var(--bg-muted)' }} />
-                  </div>
-                </div>
-                <div style={{ marginTop: 10, fontSize: 12, color: 'var(--ink-4)' }}>
-                  留空表示使用客户端本地默认配置；保存后通过 gRPC 下发到在线客户端。
-                </div>
-              </div>
-
-              <div style={{ marginTop: 18, fontSize: 12.5, color: 'var(--ink-3)', lineHeight: 1.65 }}>
-                {a.privateOnly
-                  ? 'CodeBuddy 为内网私有化后端，涉及代码的文档生成与编码默认走该通道，不出内网。'
-                  : '公网后端由责任人自选，敏感仓库会被服务端策略强制切换到私有化通道。'}
-              </div>
-            </div>
+            <button className="btn btn-ghost btn-sm" style={{ marginTop: 8 }} onClick={reload}>重试</button>
           </div>
-        )
-      })}
-
-      <div style={{ marginTop: 18 }}>
-        <Panel
-          title="Prompt 模板"
-          sub="全部来自配置，变量由系统注入，禁止硬编码"
-          flush
-          actions={<button className="btn btn-xs btn-outline" onClick={() => toast('已打开模板编辑器')}>新建</button>}
-        >
-          {promptList.length === 0 ? (
-            <div style={{ fontSize: 13, color: 'var(--ink-4)', padding: 16 }}>暂无模板</div>
-          ) : (
-            <table>
-              <thead><tr><th>模板</th><th>场景</th><th>默认后端</th><th>注入变量</th><th>更新</th><th></th></tr></thead>
-              <tbody>
-                {promptList.map((t) => (
-                  <tr key={t.name}>
-                    <td style={{ fontFamily: 'var(--mono)', fontSize: 12 }}>{t.name}</td>
-                    <td>{t.scene}</td>
-                    <td>{t.backend}</td>
-                    <td style={{ fontFamily: 'var(--mono)', fontSize: 11.5, color: 'var(--ink-3)' }}>{t.vars}</td>
-                    <td style={{ fontFamily: 'var(--mono)', fontSize: 12 }}>{t.updated}</td>
-                    <td><button className="btn btn-xs btn-outline" onClick={() => toast(`编辑 ${t.name}`)}>编辑</button></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </Panel>
-      </div>
+        )}
+        {!loading && !error && users.length === 0 && (
+          <div style={{ fontSize: 13, color: 'var(--ink-4)', padding: 16 }}>
+            暂无用户。在「用户管理」登记用户后，即可在此为其配置 Coding Agent。
+          </div>
+        )}
+        {!error && users.length > 0 && (
+          <table>
+            <thead>
+              <tr>
+                <th>用户</th>
+                <th>绑定客户端</th>
+                <th>在线</th>
+                <th>已配置后端</th>
+                <th style={{ textAlign: 'right' }}>操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              {users.map((u) => (
+                <tr key={u.empNo}>
+                  <td>
+                    <div style={{ fontWeight: 550, fontSize: 13 }}>{u.name || '—'}</div>
+                    <div style={{ fontSize: 11.5, color: 'var(--ink-4)', fontFamily: 'var(--mono)' }}>{u.empNo}</div>
+                  </td>
+                  <td>
+                    <span style={{ fontFamily: 'var(--mono)', fontSize: 12.5 }}>{u.clientId || '未绑定'}</span>
+                  </td>
+                  <td>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5 }}>
+                      <span style={{
+                        width: 7, height: 7, borderRadius: '50%',
+                        background: u.online ? 'var(--ok, #16a34a)' : 'var(--ink-4)',
+                      }} />
+                      {u.online ? '在线' : '离线'}
+                    </span>
+                  </td>
+                  <td>
+                    {u.agents.length === 0
+                      ? <span style={{ fontSize: 12.5, color: 'var(--ink-4)' }}>未配置</span>
+                      : (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                          {u.agents.map((a, i) => (
+                            <span key={i} title={`${a.execPath || a.backend}${a.model ? ' · ' + a.model : ''}`}
+                              style={{
+                                display: 'inline-flex', alignItems: 'center', gap: 5,
+                                fontSize: 12, padding: '3px 9px 3px 7px', borderRadius: 6,
+                                border: '1px solid var(--line)',
+                                background: a.enabled ? 'var(--surface)' : 'transparent',
+                                color: a.enabled ? 'var(--ink-1)' : 'var(--ink-4)',
+                                opacity: a.enabled ? 1 : 0.55,
+                                textDecoration: a.enabled ? 'none' : 'line-through',
+                              }}>
+                              <BrandMark backend={a.backend} size={13} />
+                              {BACKEND_NAMES[a.backend] ?? a.backend}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                  </td>
+                  <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                    <button className="btn btn-sm btn-outline" onClick={() => setEditing(u)}>
+                      <Icon name={u.agents.length > 0 ? 'settings' : 'plus'} size={13} />配置
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </Panel>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 14, fontSize: 12.5, color: 'var(--ink-4)' }}>
-        <Icon name="info" size={14} /> 保存后通过 gRPC ConfigPush 实时下发到在线客户端；离线客户端在下次心跳时补齐。
+        <Icon name="info" size={14} />
+        每行「配置」可直接编辑该用户的 Coding Agent，与用户本人在「设置面板 → Coding Agent」里配置完全等价：保存即写入并重推给其绑定的客户端。
+        「保存并下发」做一次性全量下发，各客户端仍各取本人配置。未配置任何后端的用户，其客户端退化为本地 agent.yml 兜底。
       </div>
+
+      {editing && (
+        <Modal
+          title={`配置 Coding Agent · ${editing.name || editing.empNo}`}
+          width={1000}
+          onClose={() => setEditing(null)}
+        >
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
+            paddingBottom: 14, marginBottom: 16, borderBottom: '1px solid var(--line)',
+          }}>
+            <Icon name="agent" size={15} />
+            <b style={{ fontSize: 13 }}>{editing.name || '—'}</b>
+            <span style={{ fontFamily: 'var(--mono)', fontSize: 11.5, color: 'var(--ink-4)' }}>{editing.empNo}</span>
+            <span style={{ width: 1, height: 14, background: 'var(--line)' }} />
+            <span style={{ fontSize: 12.5, color: 'var(--ink-3)' }}>绑定客户端</span>
+            <span style={{ fontFamily: 'var(--mono)', fontSize: 12.5 }}>{editing.clientId || '未绑定'}</span>
+            <Tag tone={editing.online ? 'ok' : 'mut'} dot>{editing.online ? '在线' : '离线'}</Tag>
+          </div>
+
+          {(!editing.clientId || !editing.online) && (
+            <div style={{
+              padding: '9px 11px', borderRadius: 8, marginBottom: 14,
+              background: 'var(--warn-soft)', color: 'var(--warn)',
+              fontSize: 12.5, lineHeight: 1.7,
+            }}>
+              {!editing.clientId
+                ? '该用户还没有绑定客户端：配置会保存，但需先在「用户管理」为其绑定客户端才能下发与测试。'
+                : '该用户客户端当前离线：保存仍会写入，并会在其上线时自动下发；「测试」需客户端在线才能执行。'}
+            </div>
+          )}
+
+          <AgentConfigEditor empNo={editing.empNo} onSaved={() => reload()} />
+        </Modal>
+      )}
     </div>
   )
 }

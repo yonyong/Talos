@@ -40,9 +40,13 @@ public class IssueEntity {
     @Column(length = 8)
     private String priority;
 
-    /** admitting / admitted / rejected / sorting / running / blocked / reviewing / done */
+    /** admitting / admitted / rejected / sorting / running / blocked / reviewing / done / closed */
     @Column(length = 24)
     private String status;
+
+    /** 关闭原因（人工关闭时填写） */
+    @Column(length = 500)
+    private String closeReason;
 
     @Column(length = 4000)
     private String description;
@@ -53,6 +57,26 @@ public class IssueEntity {
 
     @Column(length = 256)
     private String repoUrl;
+
+    /** 业务域编码（分拣第一依据，对应 t_biz_domain.code） */
+    @Column(length = 32)
+    private String bizCode;
+
+    /** 工作分支：由仓库的 branchPrefix + code 生成 */
+    @Column(length = 128)
+    private String branch;
+
+    /** 分拣方式：auto（关键词唯一命中）/ llm（歧义裁决）/ manual（人工指定）/ none（待人工） */
+    @Column(length = 16)
+    private String sortMethod;
+
+    /** 分拣依据说明，供人工复核 */
+    @Column(length = 2000)
+    private String sortReason;
+
+    /** 歧义候选业务域编码，逗号分隔 */
+    @Column(length = 512)
+    private String candidateBiz;
 
     @Column(length = 64)
     private String clientId;

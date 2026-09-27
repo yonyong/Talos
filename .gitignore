@@ -37,6 +37,9 @@ tools/*.tmp.png
 *.log
 *.bak
 
+# 客户端运行时痕迹（单实例锁 + 运行日志，部署在目标终端上）
+client/logs/
+
 # ---- IDE / 编辑器 ----
 .idea/
 .vscode/

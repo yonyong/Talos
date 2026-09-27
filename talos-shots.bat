@@ -8,7 +8,7 @@ rem  be reviewed without opening a browser by hand.
 rem
 rem  Prereq: the server must be running on the base URL (default
 rem          8080). Start it with talos.bat start, or directly:
-rem          java -jar server\target\talos-server-1.4.2.jar
+rem          java -jar server\target\talos-server-1.4.3.jar
 rem
 rem  Usage:
 rem    talos-shots.bat                        capture all pages

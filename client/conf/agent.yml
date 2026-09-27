@@ -1,0 +1,56 @@
+# ============================================================
+# Talos Agent 客户端配置
+# 位置：<安装目录>/conf/agent.yml
+# 由 scripts/install.bat 写入，也可手工修改后重启客户端生效
+# ============================================================
+
+server:
+  # Talos 服务端地址与 gRPC 端口（HTTP 控制台是 8080，gRPC 是 9443）
+  addr: localhost
+  port: 9443
+  # 控制台 HTTP 端口：静默升级从这里下载新版本安装包
+  httpPort: 8080
+
+client:
+  # 客户端唯一标识：服务端「客户端」页、配置下发、任务路由均以它为准
+  id: my-dev-machine
+  # 一次性接入凭证：由平台管理员在控制台「客户端」页生成后填入
+  token: ""
+  # 节点任务在本机的执行目录（代码检出、产物输出都放这里）
+  workspace: C:/Talos/workspace
+  # 心跳周期（秒）；服务端 30 秒收不到心跳即判定离线
+  heartbeatSeconds: 10
+  # 与服务端 talos.security.task-sign-secret 保持一致；留空则不校验任务签名
+  signSecret: ""
+  # 是否接受服务端下发的静默升级（后台下载 → 校验 SHA256 → 自动替换重启）
+  # 置为 false 后本机不会被远程替换，升级需手工执行 scripts\upgrade.bat
+  allowUpgrade: true
+
+# 本机可用的 Coding Agent 后端
+# 服务端可在「Coding Agent」页按 clientId 覆盖后端与模型，覆盖优先级高于此处
+agents:
+  - backend: claude
+    enabled: true
+    model: claude-opus-4
+    cmd: claude
+    # 自定义启动参数；{{prompt}} 注入渲染后的提示词，{{promptFile}} 注入提示词文件路径
+    # 留空时客户端会把提示词作为最后一个参数直接传给 cmd
+    args: []
+  - backend: cursor
+    enabled: true
+    model: cursor-pro
+    cmd: cursor
+    args: []
+  - backend: codex
+    enabled: false
+    model: codex-1
+    cmd: codex
+    args: []
+  - backend: codebuddy
+    enabled: true
+    model: cb-internal
+    cmd: codebuddy
+    args: []
+
+log:
+  dir: logs

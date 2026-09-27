@@ -23,21 +23,31 @@ spring:
       path: /h2-console
   servlet:
     multipart:
-      max-file-size: 50MB
-      max-request-size: 50MB
+      # 客户端安装包（shade jar / 带 JRE 的 zip）体积可观，放宽到 1GB
+      max-file-size: 1GB
+      max-request-size: 1GB
 
 # 客户端反向长连接端口（gRPC）
 grpc:
   server:
     port: 9443
+    # 客户端在 NAT 后，用 30s keepAlive 保活长连接；gRPC 默认只允许 >=5min 的 ping，
+    # 不放行会被服务端 GOAWAY(ENHANCE_YOUR_CALM too_many_pings) 掐断，表现为客户端反复掉线
+    permit-keep-alive-time: 30s
+    permit-keep-alive-without-calls: true
 
 talos:
   # 服务端 LLM：准入判定 / 项目分拣 / 通用 QA（可走公网）
+  # 注意：这里的值只作为首次启动的初始种子，之后以控制台「模型配置」页落库的配置为准
   llm:
     provider: qwen                 # qwen | zhipu | private
     api-key: ${TALOS_LLM_KEY:}
     model: qwen-max
     base-url: https://dashscope.aliyuncs.com/compatible-mode/v1
+    # 未配置模型时的降级应答是否默认准入。
+    # true  = 保持流程可跑通（准入判定按规则放行，标注建议人工复核）
+    # false = 严格 fail-safe，未配置模型时一律不放行、转人工
+    fallback-allow-admit: ${TALOS_FALLBACK_ALLOW_ADMIT:true}
   # 私有化推理：涉及代码的场景强制走内网
   private-model:
     enabled: true
@@ -48,6 +58,15 @@ talos:
     task-sign-secret: ${TALOS_SIGN_SECRET:talos-dev-secret}
   client:
     heartbeat-timeout-seconds: 30
+  agent:
+    # 原始材料（Issue 附件）落盘目录：按 Issue 分目录存放，数据库只留相对路径
+    doc-dir: ${TALOS_DOC_DIR:./data/docs}
+    # 服务端进程的工作目录是项目根目录（数据库 ./data 也在那里），因此默认 client/target
+    release-dir: ${TALOS_AGENT_RELEASE_DIR:client/target}
+    # 对客户端可达的服务端根地址（用于拼下载链接）；留空时客户端使用自身配置的 server.addr:httpPort
+    public-base-url: ${TALOS_PUBLIC_BASE_URL:}
+    # 客户端上线时发现版本落后是否自动静默升级
+    auto-upgrade: ${TALOS_AUTO_UPGRADE:true}
 
 logging:
   level:

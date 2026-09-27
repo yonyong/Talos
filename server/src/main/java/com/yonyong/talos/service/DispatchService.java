@@ -26,6 +26,7 @@ import java.util.Map;
 public class DispatchService {
 
     private final ClientRegistry registry;
+    private final ClientLogService clientLog;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Value("${talos.security.task-sign-secret:talos-dev-secret}")
@@ -65,6 +66,8 @@ public class DispatchService {
         if (sink == null) return false;
         sink.send(task);
         node.setStatus("dispatched");
+        clientLog.info(clientId, "server", "下发任务 · " + node.getName() + " · 后端 " + node.getBackend()
+                + " · Issue " + issue.getCode());
         log.info("已下发任务: {} → {}", node.getName(), clientId);
         return true;
     }
@@ -80,8 +83,32 @@ public class DispatchService {
         return true;
     }
 
+    /**
+     * 下发运维/升级指令（COMMAND）。
+     * 与任务下发同样带 HMAC 签名，客户端可校验来源，防止伪造升级包地址。
+     */
+    public boolean sendCommand(String clientId, Map<String, Object> command) {
+        ClientSink sink = registry.get(clientId);
+        if (sink == null) return false;
+        Map<String, Object> msg = new LinkedHashMap<>(command);
+        msg.put("type", "COMMAND");
+        msg.put("issuedAt", LocalDateTime.now().toString());
+        try {
+            msg.put("signature", hmac(objectMapper.writeValueAsString(msg)));
+        } catch (Exception e) {
+            log.error("指令序列化失败", e);
+            return false;
+        }
+        sink.send(msg);
+        return true;
+    }
+
     private String branchOf(IssueEntity issue) {
-        return (issue.getType() == null ? "req" : issue.getType().toLowerCase()) + "/" + issue.getCode();
+        // 分拣时已按仓库的 branchPrefix 算好工作分支（如 feature/req-2251）并快照在 issue.branch 上，
+        // 下发必须沿用同一个值。这里原来自己拼 type/code（req/REQ-2251），既忽略 branchPrefix
+        // 又不转小写，客户端切出来的分支和 Issue 详情里显示的分支对不上。
+        if (issue.getBranch() != null && !issue.getBranch().isBlank()) return issue.getBranch();
+        return (issue.getType() == null ? "req" : issue.getType().toLowerCase()) + "/" + issue.getCode().toLowerCase();
     }
 
     private String hmac(String payload) {

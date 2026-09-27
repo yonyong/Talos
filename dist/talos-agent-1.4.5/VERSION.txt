@@ -1,0 +1,9 @@
+Talos Agent 1.4.5
+built      : 2026-09-27 22:59:53 +08:00
+jar        : talos-agent.jar
+jar bytes  : 21117721
+jar sha256 : 9a016ae6cff8b5b2fd0750496b03426a5d38ff9b9e48cfeed49cdfe73fb28fe8
+source     : 087e6ca
+windows    : scripts\       install with setup.bat
+linux      : scripts-linux\ install.sh
+server dir : appears in the console release dir

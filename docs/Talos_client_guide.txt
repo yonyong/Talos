@@ -1,0 +1,402 @@
+Talos 客户端接入指南
+================================================================
+
+适用版本：talos-agent 1.4.6 · 服务端 1.4.3
+控制台同内容页面：控制台 → 资源 → 接入指南
+脚本目录：<安装目录>\scripts\
+
+
+一、它是怎么连上的（反向长连接）
+----------------------------------------------------------------
+
+研发终端通常位于 NAT 或防火墙之后，没有被服务端直接访问的入口。
+因此接入方向是「反向」的：
+
+  1. 终端上常驻一个 Talos Agent 进程
+  2. 进程启动后，主动向服务端的 gRPC 端口（默认 9443）发起双向流 Connect()
+  3. 建流后的第一帧发送 REGISTER，服务端据此登记该连接并绑定 clientId
+  4. 服务端收到注册后，立即沿这条流回推一次完整配置（CONFIG_PUSH）
+  5. 若客户端版本落后于服务端发布版，服务端随即下发静默升级指令（见第七节）
+  6. 此后每 10 秒发一次心跳；服务端 30 秒收不到心跳即判定离线
+  7. 断线后客户端按 1s → 2s → 4s ... → 60s 指数退避自动重连
+
+关键点：**服务端从不主动连客户端**。所有下发（任务、配置、指令）都复用
+客户端已经建立的那条连接。
+
+注意端口分工：控制台是 HTTP 8080，客户端接入是 gRPC 9443，两者不是同一个端口。
+
+
+二、一键安装与启动
+----------------------------------------------------------------
+
+STEP 01  解压并双击 setup.bat
+
+  把安装包解压到目标目录（例如 C:\Talos），双击 setup.bat，按提示输入：
+
+    服务端地址     默认 localhost:9443
+    一次性凭证     可留空
+    客户端 ID      默认取本机 hostname
+
+  不想交互也可以直接带参数运行（以管理员身份，才能注册保活任务）：
+
+    setup.bat --server talos.yonyong.dev:9443 --token <一次性凭证> --id <客户端ID>
+
+  等价写法（脚本本体）：
+
+    scripts\install.bat --server talos.yonyong.dev:9443 --token <凭证> --id <ID>
+
+  无人值守批量部署加 --silent：全程不提问、不暂停，可直接放进装机脚本：
+
+    scripts\install.bat --server HOST:9443 --token <凭证> --silent
+
+  参数说明：
+    --server      服务端地址与 gRPC 端口，如 talos.yonyong.dev:9443
+    --http-port   控制台 HTTP 端口，默认 8080（静默升级下载用）
+    --token       一次性接入凭证，由平台管理员在控制台生成
+    --id          客户端唯一标识，默认取本机 hostname
+    --silent      静默模式：不问、不等回车
+
+  脚本会生成 conf\agent.yml；若该文件已存在，会先备份为 conf\agent.yml.bak。
+
+STEP 02  脚本自动完成安装与启动
+
+  同一次执行内依次完成：
+    · 校验 java 与 talos-agent.jar
+    · 生成 conf\agent.yml（服务端地址、端口、客户端 ID、凭证、执行参数）
+    · 注册 Windows 计划任务 TalosAgentWatchdog（每 5 分钟检查一次）
+    · 立即启动一次客户端，日志写入 logs\agent.log
+
+  单实例由客户端自身保证：进程启动时对 logs\.talos-agent.lock 加文件锁，
+  已在运行则新进程直接退出。因此计划任务重复触发不会产生多份 agent 进程。
+
+STEP 03  控制台确认在线
+
+  打开控制台「客户端」页，应看到该终端状态为在线、心跳持续刷新。
+  点该终端卡片上的「查看日志」可实时看到链路事件；随后到「Coding Agent」页
+  为其配置后端、可执行路径与参数模板。
+
+
+三、一键脚本一览
+----------------------------------------------------------------
+
+    脚本                          作用
+    ----------------------------  ------------------------------------------------
+    setup.bat                     一键安装并启动。双击即可；带参数则跳过问答
+    scripts\install.bat           写配置 + 注册保活 + 立即启动；支持 --silent
+    scripts\start.bat             一键启动，幂等：已在运行则直接返回
+    scripts\stop.bat              一键停止客户端进程并清理实例锁
+    scripts\status.bat            打印配置、进程状态、保活任务与最近 15 行日志
+    scripts\upgrade.bat           一键升级到服务端当前发布版
+    scripts\uninstall.bat         删除保活任务并停止客户端，保留 conf / logs
+    scripts\apply-upgrade.bat     手工兜底：直接替换 jar 并重启
+
+  说明：
+    · stop.bat 只是停进程；保活任务会在 5 分钟内把它拉起来。
+      要长期停机请先跑 uninstall.bat。
+    · status.bat 是排障第一入口，一屏看清「配置对不对、进程在不在、日志在报什么」。
+
+  手动运行（调试用，可看清日志）：
+
+    cd /d C:\Talos
+    java -jar talos-agent.jar                    # 使用 conf/agent.yml
+    java -jar talos-agent.jar --conf X:\a.yml    # 指定配置文件
+
+
+四、客户端配置文件 conf/agent.yml
+----------------------------------------------------------------
+
+server.addr / server.port
+    服务端地址与 gRPC 端口。控制台是 8080，接入是 9443。
+
+server.httpPort
+    控制台 HTTP 端口，默认 8080。静默升级从这里下载新版本安装包。
+
+client.id
+    客户端唯一标识。决定配置覆盖范围与任务路由；重装请保持一致。
+
+client.token
+    一次性接入凭证。
+
+client.workspace
+    工作区根目录，代码检出与产物输出都落在这里。
+    每个 Issue 在其下占一个独立子目录，实际检出路径为
+        <workspace>/<issueCode>/<仓库名>/
+    例如 D:/opt/applications/talos/workspace/REQ-2251/Talos。
+    不按仓库共享一份克隆，是为了让多个需求并行时互不污染：共享一份时，A 需求的未提交
+    改动会在 B 需求切分支时被带走（切分支失败还会走 -B 兜底，把改动搬到 B 的分支上）。
+    代价是同一仓库每个 Issue 各克隆一次，磁盘与首次 clone 的带宽按 Issue 数线性增长。
+
+client.heartbeatSeconds
+    心跳周期，默认 10 秒。服务端 30 秒无心跳判离线。
+
+client.signSecret
+    与服务端 talos.security.task-sign-secret 保持一致；留空则不校验任务与升级指令签名。
+
+client.allowUpgrade
+    是否接受服务端下发的静默升级，默认 true。
+    置为 false 后本机不会被远程替换，升级需手工执行 scripts\upgrade.bat。
+
+agents[].backend
+    后端类型：claude / cursor / codex / codebuddy
+
+agents[].enabled
+    是否启用。客户端上报的 agentSummary 只包含已启用的后端。
+
+agents[].model
+    模型标识，用于日志与展示。
+
+agents[].cmd / args
+    本地兜底的可执行命令与参数。当服务端下发了 execPath / argsTemplate 时，
+    以服务端配置为准。
+
+log.dir
+    日志目录，相对安装目录。
+
+
+五、服务端下发的执行参数（优先级高于客户端本地配置）
+----------------------------------------------------------------
+
+在控制台「Coding Agent」页配置，随 CONFIG_PUSH 下发到客户端：
+
+transport      执行方式：CLI（本地命令行）/ SDK（内部私有化）
+execPath       可执行文件路径或命令名，如 claude、Cursor.exe
+argsTemplate   启动参数模板，占位符由客户端在收到任务时注入
+workDir        执行工作目录（相对仓库根，默认 .）
+envVars        附加环境变量，格式 KEY=VALUE;KEY2=VALUE2
+minVersion     客户端最低版本，低于此值客户端拒绝执行并回执说明原因；留空 = 不限制
+               （不要填高于客户端当前发布版的值，否则该通道下所有节点都会被执行拒绝）
+tokenLimit     单日 token 限额（0 = 不限）
+privateOnly    是否仅允许私有化后端（敏感仓库）
+
+argsTemplate 可用占位符：
+    {prompt}    渲染后的完整提示词
+    {repo}      代码仓库本地路径
+    {branch}    目标分支
+    {model}     模型标识
+    {issueCode} Issue 编号
+    {node}      节点名称
+
+示例：-p {prompt} --cwd {repo} --model {model}
+
+服务端只下发路径与模板，不持有也不下发任何模型密钥。
+
+
+六、消息契约
+----------------------------------------------------------------
+
+上行（客户端 → 服务端）
+
+    REGISTER        建流后首帧
+                    clientId · token · ip · version · agents
+    HEARTBEAT       每 10 秒
+                    state
+    TASK_RESULT     节点任务结束
+                    instanceCode · step · success · log
+    CALL_LOG        每次 AI 调用
+                    issueCode · node · backend · model · renderedPrompt
+                    · missingVars · latencyMs · tokenUsed · cost
+    LOG_DATA        响应 PULL_LOG 指令，回传本机日志尾部
+                    file · host · size · sizeText · lines[]
+    UPGRADE_STATE   升级各阶段与失败原因
+                    stage · version · message
+                    stage 取值：STARTED / DOWNLOADED / RESTARTING / FAILED
+    UploadArtifact  产物回传（独立 unary 通道，不占用控制流）
+                    clientId · issueCode · name · kind · content · sizeText
+
+下行（服务端 → 客户端）
+
+    CONFIG_PUSH     注册后立即推送 / 配置变更时推送
+                    scope · agents[] · prompts[]
+    TASK_DISPATCH   有节点任务待执行（报文带 HMAC-SHA256 签名）
+                    taskId · instanceCode · step · node · kind · backend
+                    · promptTemplate · issueCode · issueTitle · repoUrl
+                    · branch · issuedAt · signature
+    COMMAND         运维 / 升级指令（同样带 HMAC-SHA256 签名）
+
+COMMAND 的 command 取值：
+
+    RECONNECT       断开当前流并按退避策略重建连接
+    PULL_LOG        回传本机 logs/agent.log 尾部（控制台「查看日志」触发）
+                    lines
+    UPGRADE         静默升级
+                    version · url · sha256 · size · restart
+    CANCEL_TASK     取消正在执行的节点任务
+                    taskId
+    RELOAD_CONFIG   提示客户端等待下一次配置下发
+
+
+七、静默升级
+----------------------------------------------------------------
+
+服务端的「当前发布版」来自发布目录 talos.agent.release-dir（默认 client/target）
+内的 talos-agent*.jar：读取 jar 内 MANIFEST 的 Implementation-Version 作为版本号，
+并计算 SHA256。客户端的 REGISTER.version 与之逐位比对。
+
+完整链路：
+
+  1. 发现
+     客户端注册时上报版本；版本落后且服务端 talos.agent.auto-upgrade=true
+     时，服务端自动下发 COMMAND UPGRADE { version, url, sha256 }
+     控制台「客户端」页会把这些终端标为「可升级」。
+
+  2. 下载校验
+     客户端在后台把安装包下载到 <安装目录>\upgrade\，逐字节比对 SHA256。
+     不一致立即中止、删除下载文件，并回传 UPGRADE_STATE FAILED 及原因。
+     升级指令本身也校验 HMAC 签名，防止被引到非受信源替换 jar。
+
+  3. 替换重启
+     运行中的 JVM 会锁住自己的 jar，进程内无法自我替换，所以客户端在退出前
+     用 ProcessBuilder 调 cmd 拉起 scripts\apply-upgrade.bat，由它完成替换与重启：
+
+       等待旧进程退出    最多 60 秒，等 talos-agent.jar 与 logs\agent.log 的
+                         句柄释放
+       备份              旧版本存到 upgrade\backup-talos-agent.jar
+       覆盖 jar          被占用时每秒重试，最多 90 次
+       拉起新版本        前台 call run-agent.bat，agent 成为脚本子进程，
+                         旧进程退出后依然存活
+
+     刻意不用 start / PowerShell：两者都要控制台，而这条链路运行在无控制台的
+     上下文里（计划任务、RMM、被 agent 自己拉起的进程），start 会静默失败、
+     PowerShell 会直接卡住——那正是「升级成功但客户端再也没起来」的成因。
+     替换失败不会「先自杀再失败」：旧版本继续运行，原因回传服务端。
+
+     关于 logs\agent.log：这个文件由 run-agent.bat 的重定向持有，而派生它的
+     cmd 可能比 JVM 多活几百毫秒，新会话的重定向就会直接失败并中断整个脚本
+     （cmd 的重定向失败不会设置 errorlevel，因此改用 ren 探测）。run-agent.bat
+     启动时先探测一次，确实拿不到就本次会话改写 logs\agent-<id>.log，下次重启
+     再回到 agent.log。控制台读的始终是「最新的 agent*.log」，两种情况都能看到
+     实时日志。实测一次完整升级的停机窗口约 1.3 秒。
+
+  4. 回报
+     每个阶段都回传 UPGRADE_STATE，控制台「查看日志」的服务端事件视图里可看到
+     「升级[STARTED] → 1.4.3」这类记录，升级不是黑盒：
+
+       STARTED     开始下载
+       APPLYING    校验通过，替换安装包
+       RESTARTING  替换完成，拉起新版本
+       FAILED      失败原因（下载 / 校验 / 替换 / 重启）
+
+触发方式：
+
+    自动    客户端上线时版本落后，服务端自动下发
+    手工   终端侧：scripts\upgrade.bat
+    手工   控制台：单台「升级」按钮 / 顶部「升级 N 台」
+
+拒绝远程替换：
+
+  conf\agent.yml 中 client.allowUpgrade: false。
+  此时服务端只会记录「发现新版本」，不会下发指令。
+
+
+八、运行日志（控制台「客户端」页 → 查看日志）
+----------------------------------------------------------------
+
+弹框内三个视图，对应三个层次的问题：
+
+    服务端事件
+        平台侧观测到的链路事件：上线、配置下发、任务下发、任务回执、
+        AI 调用、离线、升级状态。用于判断「指令有没有发出去」「客户端有没有回执」。
+
+    客户端日志
+        点「拉取本地日志」后，客户端回传 logs/agent.log 尾部（最多 2000 行，
+        大文件只读末尾 512KB）。用于看终端上的真实堆栈：连接失败、CLI 拉起失败、
+        签名校验不通过等。
+
+    AI 调用
+        该客户端上报的 AI 调用记录，含渲染后的 Prompt、模型、耗时与变量缺失。
+
+细节：
+
+  · 「实时」开关打开时每 3 秒自动刷新，可随时关闭；
+  · 服务端只保留每个客户端最近 800 条链路事件（内存缓冲，服务端重启清空），
+    定位的是「当前这条连接发生了什么」；
+  · 客户端离线时无法拉取其本地日志——这类问题先看服务端事件里的心跳与离线时间点；
+  · 「清空」只清服务端缓冲，不动终端上的日志文件。
+
+
+九、一个节点任务在客户端经历了什么
+----------------------------------------------------------------
+
+  1. 收到 TASK_DISPATCH，校验 HMAC 签名（配置了 signSecret 时）
+  2. 准备仓库：在 <workspace>/<issueCode>/<仓库名>/ 下首次 git clone，已存在则 fetch；
+     再切到服务端指定的分支（本地/远端同名分支 → 远端新建 → 基于 HEAD 新建，三级兜底）
+  3. 取出服务端下发的 Prompt 模板，注入变量完成渲染
+  4. 按生效配置拉起本地 Coding Agent CLI
+     （execPath + argsTemplate 优先，回退 agent.yml 的 cmd + args）
+  5. 回 TASK_RESULT 推进工作流
+  6. 回 CALL_LOG 上报本次调用的渲染后 Prompt、耗时与变量缺失情况
+  7. 执行输出经 UploadArtifact 归档到控制台「文档中心」
+
+节点执行记录 = 仓库准备痕迹 + CLI 输出（机械节点只有前者），可在控制台「作业监控」页
+点节点在右侧面板查看。每条命令以 [HH:mm:ss] 标注「开始时刻」，相邻两条的差即上一条的耗时；
+命令输出块保持原样不加戳，避免打乱多行输出、进度条与 diff。注释类行（远端可达、第 N 次
+重试等）不带时间戳，它们的时刻由前后两条命令夹出。
+
+任务串行执行，避免多个任务并发改动同一工作区。
+
+
+十、常见故障
+----------------------------------------------------------------
+
+控制台看不到该客户端
+    服务端地址或端口填错；或 9443 被防火墙拦截。
+    先跑 scripts\status.bat 核对配置，再确认 gRPC 端口可达。
+
+启动后立刻退出
+    已有实例在运行（文件锁生效），属正常行为。
+    需要重启请先执行 scripts\stop.bat。
+
+客户端状态长期显示离线
+    进程被杀且保活任务未注册（安装时未以管理员身份运行）。
+    以管理员身份重跑 install.bat，再用 scripts\status.bat 确认保活任务存在。
+
+状态反复掉线
+    网络抖动导致心跳超过 30 秒未达。客户端会自动指数退避重连，
+    请检查网络稳定性。
+
+「查看日志」里没有内容
+    刚接入、尚无链路事件；本机日志则需要主动拉取。
+    等一次心跳，或点「拉取本地日志」拿到 logs/agent.log 尾部。
+
+任务签名校验失败
+    client.signSecret 与服务端 talos.security.task-sign-secret 不一致。
+    两边对齐密钥，或先留空以关闭校验。
+
+提示 Prompt 变量缺失
+    模板里的变量名与系统注入的不一致。
+    到「AI 调用日志」页查看渲染后的 Prompt 定位。
+
+任务不下发
+    目标后端未启用，或客户端处于离线状态。
+    在「Coding Agent」页确认该后端已启用。
+
+点「升级」提示未找到客户端安装包
+    服务端发布目录里没有 talos-agent*.jar。
+    执行 client\build-package.bat 打包，或把包放进 talos.agent.release-dir。
+
+升级后版本没变
+    jar 被占用导致替换失败，或客户端拒绝远程升级。
+    看「查看日志」里 UPGRADE_STATE 的 FAILED 原因；
+    必要时手工执行 scripts\stop.bat 后再跑 scripts\apply-upgrade.bat。
+
+升级提示签名校验失败
+    client.signSecret 与服务端 task-sign-secret 不一致。
+    注意对齐前客户端会拒绝所有远程指令（含任务与升级）。
+
+产物没有出现在文档中心
+    产物回传走独立通道，失败不影响任务回执。
+    查看 logs\agent.log 中的「产物回传失败」记录。
+
+
+十一、日志文件
+----------------------------------------------------------------
+
+logs\agent.log              运行日志：连接、注册、心跳、任务执行、AI 调用、产物回传
+logs\agent-<id>.log         升级重启后的会话日志（agent.log 尚未释放时启用）
+logs\upgrade.log            升级日志：下载、校验、替换、重启的每一步
+logs\.talos-agent.lock      单实例锁文件（不要手工删除）
+upgrade\                    升级包暂存目录与上一版本备份 backup-talos-agent.jar
+conf\agent.yml.bak          安装时对旧配置的自动备份
+
+「查看日志」与 scripts\status.bat 都读 logs 下最新的 agent*.log，无需手工判断
+本次会话写到了哪个文件。

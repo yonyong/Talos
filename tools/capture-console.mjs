@@ -5,10 +5,11 @@
  * 适用场景：改完前端后跑一遍，肉眼核对每个页面的渲染效果。
  *
  * 用法：
- *   node tools/capture-console.mjs [--base http://localhost:8080] [--out-dir shots] [--only dashboard,roles] [--no-full] [--width 1600] [--height 1000] [--wait 1500]
+ *   node tools/capture-console.mjs [--base http://localhost:8080] [--out-dir shots] [--only dashboard,roles] [--no-full] [--width 1600] [--height 1000] [--wait 1500] [--template 缺陷]
  *
- *   --only 可用 ASCII 键：dashboard issues admission workflow monitor clients agents logs docs kb users roles
+ *   --only 可用 ASCII 键：dashboard issues admission workflow monitor clients agents logs docs kb biz repos users roles
  *          （也接受页面中文名，如 --only 总览,权限管理）
+ *   --template 仅对工作流编排页生效，切换模板后再截图（文件名追加模板后缀）
  *
  * 需要 NODE_PATH 指向包含 playwright-core 的目录。
  */
@@ -23,12 +24,17 @@ const PAGES = [
   { key: 'workflow', label: '工作流编排', file: '04-workflow.png' },
   { key: 'monitor', label: '作业监控', file: '05-monitor.png' },
   { key: 'clients', label: '客户端', file: '06-clients.png' },
-  { key: 'agents', label: 'Coding Agent', file: '07-agents.png' },
-  { key: 'logs', label: 'AI 调用日志', file: '08-logs.png' },
-  { key: 'docs', label: '文档中心', file: '09-docs.png' },
-  { key: 'kb', label: '知识库', file: '10-kb.png' },
-  { key: 'users', label: '用户管理', file: '11-users.png' },
-  { key: 'roles', label: '权限管理', file: '12-roles.png' },
+  { key: 'guide', label: '接入指南', file: '07-guide.png' },
+  { key: 'agents', label: 'Coding Agent', file: '08-agents.png' },
+  { key: 'prompts', label: 'Prompt 模板', file: '08b-prompts.png' },
+  { key: 'models', label: '模型配置', file: '08c-models.png' },
+  { key: 'logs', label: '调用日志', file: '09-logs.png' },
+  { key: 'docs', label: '文档中心', file: '10-docs.png' },
+  { key: 'kb', label: '知识库', file: '11-kb.png' },
+  { key: 'biz', label: '业务域', file: '12-biz.png' },
+  { key: 'repos', label: '仓库管理', file: '13-repos.png' },
+  { key: 'users', label: '用户管理', file: '14-users.png' },
+  { key: 'roles', label: '权限管理', file: '15-roles.png' },
 ]
 
 const argv = process.argv.slice(2)
@@ -40,6 +46,7 @@ const opt = {
   width: 1600,
   height: 1000,
   wait: 1500,
+  template: null,
 }
 for (let i = 0; i < argv.length; i++) {
   const a = argv[i]
@@ -50,6 +57,7 @@ for (let i = 0; i < argv.length; i++) {
   else if (a === '--width') opt.width = +argv[++i]
   else if (a === '--height') opt.height = +argv[++i]
   else if (a === '--wait') opt.wait = +argv[++i]
+  else if (a === '--template') opt.template = argv[++i]
 }
 
 const targets = opt.only
@@ -74,6 +82,12 @@ try {
   await page.locator('button:has-text("进入控制台")').first().click({ timeout: 15000 })
   await page.locator('.login-card .btn-primary').first().click({ timeout: 15000 })
   await page.waitForSelector('.app', { timeout: 20000 })
+  // 隔离实例首次进入会弹「初始配置」向导（.mask 挡所有点击）→ 先完成进入控制台
+  const wizardDone = page.locator('button:has-text("完成并进入控制台")').first()
+  if (await wizardDone.isVisible({ timeout: 2000 }).catch(() => false)) {
+    await wizardDone.click()
+    await page.waitForTimeout(600)
+  }
   await page.waitForTimeout(800)
   console.log('[cap] 已进入控制台')
 
@@ -83,7 +97,14 @@ try {
     try {
       await page.locator('.nav-i', { hasText: p.label }).first().click({ timeout: 15000 })
       await page.waitForTimeout(opt.wait)
-      const out = join(opt.outDir, p.file)
+      // 工作流页可指定模板（REQ / BUG），切换后再截图
+      let file = p.file
+      if (opt.template && p.key === 'workflow') {
+        await page.locator(`button:has-text("${opt.template}模板")`).first().click({ timeout: 10000 })
+        await page.waitForTimeout(700)
+        file = p.file.replace(/\.png$/, `-${opt.template}.png`)
+      }
+      const out = join(opt.outDir, file)
       await page.screenshot({ path: out, fullPage: opt.full })
       const active = await page.locator('.nav-i.active').first().innerText().catch(() => '?')
       console.log(`[cap] OK  ${p.label} (active=${active.trim()})  ->  ${out}`)

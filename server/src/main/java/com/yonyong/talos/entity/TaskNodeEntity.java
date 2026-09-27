@@ -38,7 +38,17 @@ public class TaskNodeEntity {
     @Column(length = 64)
     private String gate;
 
-    /** waiting / dispatched / running / success / failed / blocked */
+    /**
+     * 闸门判定结论：pass / blocked / null（无闸门或未判定）。
+     * 条件边据此选路，与执行结果 status 分离，避免「执行成功但评审驳回」无法表达。
+     */
+    @Column(length = 16)
+    private String gateResult;
+
+    /** 实例内第几轮执行（回退边重做时递增），从 1 开始 */
+    private Integer round;
+
+    /** waiting / dispatched / running / success / failed / skipped / cancelled */
     @Column(length = 24)
     private String status;
 

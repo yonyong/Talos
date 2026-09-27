@@ -6,7 +6,7 @@
 
   <groupId>com.yonyong.talos</groupId>
   <artifactId>talos-agent</artifactId>
-  <version>1.4.2</version>
+  <version>1.4.6</version>
   <packaging>jar</packaging>
   <name>talos-agent</name>
   <description>Talos 客户端：常驻研发终端，反向连接服务端并执行工作流节点</description>
@@ -111,6 +111,11 @@
               <transformers>
                 <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
                   <mainClass>com.yonyong.talos.agent.AgentApplication</mainClass>
+                  <!-- 版本号写入 MANIFEST：客户端 REGISTER 上报、服务端比对升级都以它为准 -->
+                  <manifestEntries>
+                    <Implementation-Title>talos-agent</Implementation-Title>
+                    <Implementation-Version>${project.version}</Implementation-Version>
+                  </manifestEntries>
                 </transformer>
                 <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
               </transformers>

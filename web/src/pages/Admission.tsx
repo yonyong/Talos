@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react'
 import { Icon } from '../icons'
 import { Kpi, PageH, Panel, Ring, Tag, useToast } from '../ui'
-import { fetchAdmissions, fetchIssues, overrideAdmission, judgeAdmission, useAsync } from '../api'
+import { fetchAdmissions, fetchIssues, overrideAdmission, judgeAdmission, reopenIssue, useAsync } from '../api'
 import type { Admission, Issue } from '../types'
 
 export default function Admission() {
   const { toast } = useToast()
   const { data: admissions, loading, reload } = useAsync<Admission[]>(() => fetchAdmissions(), [])
-  const { data: issues } = useAsync<Issue[]>(() => fetchIssues(), [])
+  const { data: issues, reload: reloadIssues } = useAsync<Issue[]>(() => fetchIssues(), [])
   const [cur, setCur] = useState<Admission | null>(null)
   const [override, setOverride] = useState<Record<string, 'admit' | 'reject'>>({})
   const [busy, setBusy] = useState(false)
@@ -18,7 +18,8 @@ export default function Admission() {
 
   const queue = admissions ?? []
   const admitted = (issues ?? []).filter((i) => i.status === 'admitted').length
-  const rejected = (issues ?? []).filter((i) => i.status === 'rejected').length
+  const rejected = (issues ?? []).filter((i) => i.status === 'rejected')
+  const rejectedCount = rejected.length
 
   const resultOf = (a: Admission) => override[a.issueId] ?? a.result
 
@@ -49,6 +50,20 @@ export default function Admission() {
       setBusy(false)
     }
   }
+  /** 已驳回的 Issue 重新走一遍准入（不带补充描述；要补材料去 Issue 详情） */
+  const doReopen = async (code: string) => {
+    setBusy(true)
+    try {
+      const r = await reopenIssue(code)
+      reload()
+      reloadIssues()
+      toast(r.admissionResult === 'admit' ? `${code} 已重新准入` : `${code} 重新判定仍未通过`)
+    } catch (e) {
+      toast(`操作失败：${e instanceof Error ? e.message : e}`)
+    } finally {
+      setBusy(false)
+    }
+  }
 
   return (
     <div>
@@ -57,7 +72,7 @@ export default function Admission() {
       <div className="grid g3" style={{ marginBottom: 18 }}>
         <Kpi icon="clock" label="待判定" value={String(queue.length)} delta="队列实时" dir="flat" />
         <Kpi icon="check" label="已准入" value={String(admitted)} delta="历史累计" dir="up" color="#16a34a" glow="rgba(22,163,74,.2)" />
-        <Kpi icon="x" label="已驳回" value={String(rejected)} delta="重复 / 低价值" dir="down" color="#b91c1c" glow="rgba(185,28,28,.18)" />
+        <Kpi icon="x" label="已驳回" value={String(rejectedCount)} delta="重复 / 低价值" dir="down" color="#b91c1c" glow="rgba(185,28,28,.18)" />
       </div>
 
       {loading && <div style={{ fontSize: 13, color: 'var(--ink-4)', padding: 16 }}>加载中…</div>}
@@ -65,7 +80,8 @@ export default function Admission() {
 
       {!loading && admissions !== null && (
         <div className="split">
-          <Panel title="判定队列" sub={`${queue.length} 条待处理`} flush>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+            <Panel title="判定队列" sub={`${queue.length} 条待处理`} flush>
             {queue.length === 0 ? (
               <div style={{ fontSize: 13, color: 'var(--ink-4)', padding: 16 }}>队列为空</div>
             ) : (
@@ -87,6 +103,27 @@ export default function Admission() {
               })
             )}
           </Panel>
+
+          {rejected.length > 0 && (
+            <Panel title={`已驳回 · ${rejected.length}`} sub="补充材料后可重新处理" flush>
+              <div style={{ fontSize: 12, color: 'var(--ink-4)', padding: '10px 16px', borderBottom: '1px solid var(--line)', lineHeight: 1.6 }}>
+                驳回不是终态：按当前描述重新判定一次；若仍不通过，到 Issue 详情补充材料后再处理。
+              </div>
+              {rejected.map((i) => (
+                <div key={i.id} style={{ borderBottom: '1px solid var(--line)', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div className="qt">
+                      <span style={{ fontFamily: 'var(--mono)', fontSize: 12, color: 'var(--ink-3)' }}>{i.id}</span>
+                      <Tag tone="err">驳回</Tag>
+                    </div>
+                    <div className="qs" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{i.title} · {i.owner}</div>
+                  </div>
+                  <button className="btn btn-outline btn-xs" disabled={busy} onClick={() => doReopen(i.id)}>重新处理</button>
+                </div>
+              ))}
+            </Panel>
+          )}
+          </div>
 
           {cur && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>

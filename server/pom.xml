@@ -13,7 +13,7 @@
 
   <groupId>com.yonyong.talos</groupId>
   <artifactId>talos-server</artifactId>
-  <version>1.4.2</version>
+  <version>1.4.3</version>
   <name>talos-server</name>
   <description>Talos 研发周期全自动流程平台 · 服务端</description>
 

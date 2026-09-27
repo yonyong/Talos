@@ -1,0 +1,80 @@
+# ============================================================
+#  Talos Server - production overrides
+#
+#  Spring Boot loads ./config/application.yml automatically and
+#  it takes precedence over the copy embedded in the jar, so only
+#  the keys listed here are overridden - everything else keeps the
+#  built-in default.
+#
+#  Values in ${VAR:default} form are resolved from the environment,
+#  which bin/start.sh loads out of config/env.sh. Change ports and
+#  secrets there, not here.
+# ============================================================
+
+server:
+  port: ${TALOS_HTTP_PORT:8080}
+  # Production: no directory listing, no stack traces in responses
+  error:
+    include-message: never
+    include-stacktrace: never
+
+spring:
+  datasource:
+    # Absolute path keeps the database inside the install dir no matter
+    # which directory the process was launched from.
+    url: jdbc:h2:file:${TALOS_DB_PATH:/opt/applications/talos/data/talosdb};AUTO_SERVER=TRUE;DB_CLOSE_DELAY=-1;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE
+    username: ${TALOS_DB_USER:sa}
+    password: ${TALOS_DB_PASSWORD:talos}
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: false
+  h2:
+    console:
+      # SECURITY: the H2 web console grants full access to the database.
+      # Keep it disabled in production; enable only for a short debug window.
+      enabled: ${TALOS_H2_CONSOLE:false}
+  servlet:
+    multipart:
+      max-file-size: 1GB
+      max-request-size: 1GB
+
+grpc:
+  server:
+    port: ${TALOS_GRPC_PORT:9443}
+    permit-keep-alive-time: 30s
+    permit-keep-alive-without-calls: true
+
+talos:
+  llm:
+    provider: ${TALOS_LLM_PROVIDER:qwen}
+    api-key: ${TALOS_LLM_KEY:}
+    model: ${TALOS_LLM_MODEL:qwen-max}
+    base-url: ${TALOS_LLM_BASE_URL:https://dashscope.aliyuncs.com/compatible-mode/v1}
+    fallback-allow-admit: ${TALOS_FALLBACK_ALLOW_ADMIT:true}
+  private-model:
+    enabled: ${TALOS_PRIVATE_MODEL_ENABLED:true}
+    base-url: ${TALOS_PRIVATE_MODEL_BASE_URL:http://codebuddy.internal/v1}
+    model: ${TALOS_PRIVATE_MODEL_NAME:cb-internal}
+  security:
+    # HMAC key for task dispatch. Every agent must carry the same value
+    # in conf/agent.yml (signSecret), otherwise it rejects the task.
+    task-sign-secret: ${TALOS_SIGN_SECRET:talos-dev-secret}
+  client:
+    heartbeat-timeout-seconds: 30
+  agent:
+    doc-dir: ${TALOS_DOC_DIR:/opt/applications/talos/data/docs}
+    # Directory the console serves agent release packages from.
+    # Drop talos-agent.jar here (see the agent package README).
+    release-dir: ${TALOS_AGENT_RELEASE_DIR:/opt/applications/talos/releases}
+    public-base-url: ${TALOS_PUBLIC_BASE_URL:}
+    auto-upgrade: ${TALOS_AUTO_UPGRADE:true}
+
+logging:
+  level:
+    com.wind.talos: ${TALOS_LOG_LEVEL:INFO}
+  file:
+    name: ${TALOS_LOG_FILE:/opt/applications/talos/logs/server.log}

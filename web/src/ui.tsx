@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { Icon } from './icons'
 
 /* ============ Toast ============ */
@@ -73,14 +73,23 @@ export function Sparkline({ points, color = '#4f46e5', id }: { points: number[];
 }
 
 export function Kpi({
-  icon, label, value, delta, dir = 'up', series, color = '#4f46e5', glow = 'rgba(79,70,229,.25)',
+  icon, label, value, delta, dir = 'up', series, color = '#4f46e5', glow = 'rgba(79,70,229,.25)', onClick, hint,
 }: {
   icon: string; label: string; value: string; delta?: string; dir?: 'up' | 'down' | 'flat'
   series?: number[]; color?: string; glow?: string
+  /** 传入后卡片可点击下钻，鼠标悬停显示 hint */
+  onClick?: () => void; hint?: string
 }) {
   const id = label.replace(/\W/g, '')
   return (
-    <div className="card card-pad kpi">
+    <div
+      className={`card card-pad kpi ${onClick ? 'clickable' : ''}`}
+      onClick={onClick}
+      title={hint}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick() } } : undefined}
+    >
       <span className="glow" style={{ background: glow, top: -50, right: -40 }} />
       <div className="kpi-in">
         <div className="kl"><Icon name={icon} size={15} />{label}</div>
@@ -88,6 +97,7 @@ export function Kpi({
         {delta && <div className={`kd ${dir}`}>{dir === 'up' ? '↑' : dir === 'down' ? '↓' : '·'} {delta}</div>}
         {series && <Sparkline points={series} color={color} id={id} />}
       </div>
+      {onClick && <span className="kpi-go"><Icon name="arrow" size={14} /></span>}
     </div>
   )
 }
@@ -161,6 +171,146 @@ export function Chips<T extends string>({ value, items, onChange }: { value: T; 
   )
 }
 
+/* ============ Dropdown（自绘下拉，替代原生 select 的浏览器默认外观） ============ */
+export function Dropdown<T extends string>({ value, options, onChange, width, style, disabled, placeholder }: {
+  value: T
+  options: { v: T; l: string; i?: React.ReactNode }[]
+  onChange: (v: T) => void
+  /** 宽度（数字 px 或 '100%' 等字符串） */
+  width?: number | string
+  style?: React.CSSProperties
+  disabled?: boolean
+  placeholder?: string
+}) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!open) return
+    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false) }
+    window.addEventListener('mousedown', h)
+    return () => window.removeEventListener('mousedown', h)
+  }, [open])
+  const cur = options.find((o) => o.v === value)
+  return (
+    <div className={`dd ${open ? 'open' : ''}`} ref={ref}
+      style={width != null ? { width, ...style } : style}>
+      <button type="button" className={`dd-btn ${open ? 'on' : ''}`} disabled={disabled} onClick={() => setOpen(!open)}>
+        {cur?.i}
+        <span className="dd-l">{cur?.l ?? placeholder ?? '请选择'}</span>
+        <Icon name="chevron" size={13} />
+      </button>
+      {open && (
+        <div className="dd-menu">
+          {options.map((o) => (
+            <button key={o.v} type="button" className={`dd-i ${o.v === value ? 'on' : ''}`}
+              onClick={() => { onChange(o.v); setOpen(false) }}>
+              {o.i}
+              <span className="dd-i-l">{o.l}</span>
+              {o.v === value && <Icon name="check" size={13} />}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/**
+ * 人员单选器：自绘下拉（与 Dropdown 同视觉体系）+ 搜索 + 手输兜底。
+ * 触发按钮显示圆形首字母头像与姓名，展开后顶部搜索，候选按关键词过滤；
+ * 无精确匹配时可直接选用手输值（代他人录入 / 名单外人员）。
+ */
+export function PersonSelect({ value, options, onChange, placeholder, width }: {
+  value: string
+  options: { name: string; sub?: string }[]
+  onChange: (v: string) => void
+  placeholder?: string
+  width?: number | string
+}) {
+  const [open, setOpen] = useState(false)
+  const [q, setQ] = useState('')
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false) }
+    window.addEventListener('mousedown', h)
+    return () => window.removeEventListener('mousedown', h)
+  }, [open])
+
+  const kw = q.trim()
+  const klc = kw.toLowerCase()
+  const hits = useMemo(
+    () => options.filter((o) => o.name.toLowerCase().includes(klc)).slice(0, 8),
+    [options, klc],
+  )
+  /** 手输值：与现有候选不精确同名时，作为「自定义」项置顶 */
+  const custom = kw && !options.some((o) => o.name.toLowerCase() === klc) ? kw : ''
+
+  const pick = (name: string) => { onChange(name); setQ(''); setOpen(false) }
+
+  return (
+    <div className={`dd ${open ? 'open' : ''}`} ref={ref} style={{ width: width ?? '100%' }}>
+      <button
+        type="button"
+        className={`dd-btn ${open ? 'on' : ''}`}
+        onClick={() => { setOpen(!open); setQ('') }}
+      >
+        {value
+          ? <span className="pa">{initials(value)}</span>
+          : <span className="pa muted"><Icon name="users" size={12} /></span>}
+        <span className="dd-l">{value || placeholder || '请选择'}</span>
+        <Icon name="chevron" size={13} />
+      </button>
+      {open && (
+        <div className="dd-menu pick">
+          <div className="dd-search">
+            <Icon name="search" size={13} />
+            <input
+              autoFocus
+              value={q}
+              placeholder="搜索姓名或工号"
+              onChange={(e) => setQ(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') setOpen(false)
+                if (e.key === 'Enter') { e.preventDefault(); pick(custom || hits[0]?.name || kw) }
+              }}
+            />
+          </div>
+          <div className="dd-opts">
+            {custom && (
+              <button type="button" className="dd-i person" onMouseDown={(e) => { e.preventDefault(); pick(custom) }}>
+                <span className="pa">{initials(custom)}</span>
+                <span className="pn">{custom}</span>
+                <span className="ps">手输</span>
+              </button>
+            )}
+            {hits.map((o) => (
+              <button
+                type="button" key={o.name}
+                className={`dd-i person ${o.name === value ? 'on' : ''}`}
+                onMouseDown={(e) => { e.preventDefault(); pick(o.name) }}
+              >
+                <span className="pa">{initials(o.name)}</span>
+                <span className="pn">{o.name}</span>
+                {o.sub && <span className="ps">{o.sub}</span>}
+                {o.name === value && <Icon name="check" size={13} />}
+              </button>
+            ))}
+            {!custom && hits.length === 0 && <div className="dd-empty">无匹配人员，可直接回车使用手输值</div>}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+/** 姓名首字母（中文取前两字，英文取首字母） */
+function initials(name: string): string {
+  const s = (name || '?').trim()
+  return /^[A-Za-z]/.test(s) ? s.slice(0, 2).toUpperCase() : s.slice(0, 2).toUpperCase()
+}
+
 export function Switch({ on, onClick }: { on: boolean; onClick?: () => void }) {
   return <div className={`switch ${on ? 'on' : ''}`} onClick={onClick} />
 }
@@ -169,24 +319,108 @@ export function Progress({ pct, tone }: { pct: number; tone?: 'warn' | 'err' }) 
   return <div className={`pbar ${tone ?? ''}`} style={{ marginTop: 8 }}><i style={{ width: `${pct}%` }} /></div>
 }
 
-/* ============ Modal ============ */
-export function Modal({
-  title, onClose, children, footer, width,
-}: { title: string; onClose: () => void; children: React.ReactNode; footer?: React.ReactNode; width?: number }) {
-  useEffect(() => {
-    const h = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
-    window.addEventListener('keydown', h)
-    return () => window.removeEventListener('keydown', h)
-  }, [onClose])
+/* ============ Stepper（分步表单） ============ */
+export function Stepper({
+  steps, current, onSelect,
+}: { steps: { label: string; hint?: string }[]; current: number; onSelect: (i: number) => void }) {
   return (
-    <div className="mask" onClick={onClose}>
-      <div className="modal" style={width ? { maxWidth: width } : undefined} onClick={(e) => e.stopPropagation()}>
+    <div className="stepper">
+      {steps.map((s, i) => (
+        <button
+          key={s.label} type="button"
+          className={`step ${i === current ? 'on' : ''} ${i < current ? 'done' : ''}`}
+          onClick={() => onSelect(i)}
+        >
+          <span className="step-dot">{i < current ? <Icon name="check" size={11} /> : i + 1}</span>
+          <span className="step-txt">
+            <b>{s.label}</b>
+            {s.hint && <i>{s.hint}</i>}
+          </span>
+        </button>
+      ))}
+    </div>
+  )
+}
+
+/* ============ Modal ============ */
+/** 打开中的 Modal 栈：嵌套弹框（如设置面板里再开配置弹框）时 Esc 只关最上层 */
+const modalStack: symbol[] = []
+
+export function Modal({
+  title, onClose, children, footer, width, height, size,
+}: {
+  title: string; onClose: () => void; children: React.ReactNode; footer?: React.ReactNode
+  /** 显式宽度上限（默认 620px）；size="full" 时忽略 */
+  width?: number
+  /** 显式高度（数字 px 或 '90vh' 等字符串）；不传则按内容自适应（上限 86vh） */
+  height?: number | string
+  /** 'full' = 近乎铺满视口的详情大窗（95vw × 94vh，上限 1600px） */
+  size?: 'full'
+}) {
+  const id = useMemo(() => Symbol('modal'), [])
+  useEffect(() => {
+    modalStack.push(id)
+    const h = (e: KeyboardEvent) => { if (e.key === 'Escape' && modalStack[modalStack.length - 1] === id) onClose() }
+    window.addEventListener('keydown', h)
+    return () => {
+      const i = modalStack.indexOf(id)
+      if (i >= 0) modalStack.splice(i, 1)
+      window.removeEventListener('keydown', h)
+    }
+  }, [onClose, id])
+  const full = size === 'full'
+  return (
+    <div className={`mask ${full ? 'mask-full' : ''}`} onClick={onClose}>
+      <div
+        className={`modal ${full ? 'full' : ''}`}
+        style={!full && (width || height)
+          ? { maxWidth: width, height, maxHeight: height ? '94vh' : undefined }
+          : undefined}
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="modal-h">
           <h3>{title}</h3>
           <button className="iconbtn" onClick={onClose}><Icon name="x" size={16} /></button>
         </div>
         <div className="modal-b">{children}</div>
         {footer && <div className="modal-f">{footer}</div>}
+      </div>
+    </div>
+  )
+}
+
+/* ============ Drawer（右侧滑出面板） ============ */
+/**
+ * 从视口右侧滑入的全高面板：适合就地查看长内容（节点执行日志等），
+ * 不像模态框那样遮死上下文，看日志时左侧时间线仍可见。
+ */
+export function Drawer({
+  title, sub, nav, onClose, children, width = 720,
+}: {
+  title: React.ReactNode; sub?: React.ReactNode; onClose: () => void
+  children: React.ReactNode
+  /** 头部导航区（如上一个/下一个节点切换按钮） */
+  nav?: React.ReactNode
+  /** 面板宽度上限（默认 720px），窄屏自动收窄到 92vw */
+  width?: number
+}) {
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', h)
+    return () => window.removeEventListener('keydown', h)
+  }, [onClose])
+  return (
+    <div className="mask mask-right" onClick={onClose}>
+      <div className="drawer" style={{ maxWidth: width }} onClick={(e) => e.stopPropagation()}>
+        <div className="drawer-h">
+          <div className="drawer-t">
+            <h3>{title}</h3>
+            {sub && <div className="sub">{sub}</div>}
+          </div>
+          {nav && <div className="drawer-nav">{nav}</div>}
+          <button className="iconbtn" onClick={onClose}><Icon name="x" size={16} /></button>
+        </div>
+        <div className="drawer-b">{children}</div>
       </div>
     </div>
   )

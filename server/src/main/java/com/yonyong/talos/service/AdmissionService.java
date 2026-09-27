@@ -1,7 +1,6 @@
 package com.yonyong.talos.service;
 
 import com.yonyong.talos.entity.IssueEntity;
-import com.yonyong.talos.entity.KbDocEntity;
 import com.yonyong.talos.repository.IssueRepository;
 import com.yonyong.talos.repository.UserRepository;
 import com.yonyong.talos.service.PromptRenderService.RenderResult;
@@ -37,6 +36,8 @@ public class AdmissionService {
     private final PromptRenderService promptRenderService;
     private final LlmService llmService;
     private final AiLogService aiLogService;
+    private final SortService sortService;
+    private final AutoStartService autoStartService;
 
     /** 判定入口 */
     public IssueEntity judge(String issueCode) {
@@ -79,32 +80,42 @@ public class AdmissionService {
 
         finish(issue, result, confidence, out, hits);
 
-        // 5) 分拣（准入通过才分拣）
-        if ("admit".equals(result)) sort(issue, hits);
+        // 5) 分拣（准入通过才分拣）；分拣成功后按提出人设置自动启动工作流
+        boolean resolved = "admit".equals(result) && sort(issue);
 
-        return issueRepository.save(issue);
+        IssueEntity saved = issueRepository.save(issue);
+        if (resolved) autoStartService.tryAutoStart(saved.getCode(), "准入通过自动启动");
+        return saved;
     }
 
-    /** 项目分拣：命中知识库与关键词映射，得到项目与仓库 */
-    private void sort(IssueEntity issue, List<KnowledgeService.Hit> hits) {
-        String text = (issue.getTitle() + " " + issue.getDescription());
-        if (!hits.isEmpty()) {
-            KbDocEntity top = hits.get(0).doc();
-            issue.setProject(guessProject(text, top.getName()));
-        } else {
-            issue.setProject(guessProject(text, null));
+    /**
+     * 项目分拣：由 SortService 查业务域表与仓库表得出，不再使用关键词硬编码。
+     * 分拣未定时状态停留在 sorting，由人工在 Issue 详情指定业务域后重新分拣。
+     *
+     * @return 分拣是否落到明确业务域（resolved）
+     */
+    private boolean sort(IssueEntity issue) {
+        // 人工指定的业务域编码优先作为分拣提示，其次才是自由文本业务名
+        String hint = (issue.getBizCode() != null && !issue.getBizCode().isBlank())
+                ? issue.getBizCode() : issue.getBiz();
+        SortService.Result r = sortService.sort(issue.getCode(), issue.getTitle(), issue.getDescription(), hint);
+
+        issue.setSortMethod(r.method());
+        issue.setSortReason(r.reason());
+        issue.setCandidateBiz(r.candidates().isEmpty() ? null
+                : r.candidates().stream().map(SortService.Candidate::code).reduce((a, b) -> a + "," + b).orElse(null));
+
+        if (r.resolved()) {
+            issue.setBizCode(r.bizCode());
+            issue.setBiz(r.bizName());
+            issue.setProject(r.project());
+            issue.setRepoUrl(r.repoUrl());
+            issue.setBranch(r.branch());
+            issue.setClientId(r.clientId());
+            if (issue.getOwner() == null || issue.getOwner().isBlank()) issue.setOwner(r.owner());
         }
-        issue.setRepoUrl("git@git.yonyong.dev:" + issue.getProject() + "/" + issue.getProject() + ".git");
         issue.setStatus("sorting");
-    }
-
-    private String guessProject(String text, String kbName) {
-        String t = (text + " " + (kbName == null ? "" : kbName)).toLowerCase();
-        if (t.contains("行情") || t.contains("快照") || t.contains("quote")) return "quote-service";
-        if (t.contains("回测") || t.contains("backtest")) return "backtest-api";
-        if (t.contains("账户") || t.contains("登录")) return "account-center";
-        if (t.contains("研报") || t.contains("资讯")) return "research-search";
-        return "unknown-project";
+        return r.resolved();
     }
 
     /** 人工覆写 */

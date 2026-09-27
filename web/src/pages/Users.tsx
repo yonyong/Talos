@@ -1,18 +1,18 @@
 import { useMemo, useState } from 'react'
 import { Icon } from '../icons'
 import { Chips, Empty, Kpi, Modal, PageH, Panel, Search, Tag, useToast } from '../ui'
-import { deleteUser, fetchUsers, saveUser, useAsync } from '../api'
+import { deleteUser, fetchBizTree, fetchClients, fetchUsers, saveUser, useAsync } from '../api'
 import { ROLES, roleLabel } from '../constants'
-import type { UserRow } from '../types'
+import type { BizTreeNode, UserRow } from '../types'
+import { BizTreeSelect, flatBiz } from '../components/BizTreeSelect'
 
 const ROLE_TONE: Record<string, 'info' | 'ok' | 'warn' | 'mut'> = {
   admin: 'info', pm: 'info', lead: 'ok', dev: 'mut', qa: 'mut', guest: 'mut',
 }
-const BIZ_OPTIONS = ['全部', '行情', '回测/指标', '账户', '资讯', '交易', '风控']
 
-type Draft = { id?: number; name: string; no: string; role: string; biz: string; client: string }
-const EMPTY_DRAFT: Draft = { name: '', no: '', role: 'dev', biz: '行情', client: '' }
-
+/** 归属业务域与仓库一致：多选编码列表，来自业务树 */
+type Draft = { id?: number; name: string; no: string; role: string; bizCodes: string[]; client: string }
+const EMPTY_DRAFT: Draft = { name: '', no: '', role: 'dev', bizCodes: [], client: '' }
 export default function Users() {
   const { toast } = useToast()
   const { data, loading, reload } = useAsync<UserRow[]>(() => fetchUsers(), [])
@@ -21,14 +21,30 @@ export default function Users() {
   const [draft, setDraft] = useState<Draft | null>(null)
   const [pendingDelete, setPendingDelete] = useState<UserRow | null>(null)
   const [saving, setSaving] = useState(false)
+  /** 编辑时的原始绑定：已绑定的用户不允许在此改绑，只能到「客户端」页解绑 */
+  const [boundOrig, setBoundOrig] = useState('')
 
   const list = data ?? []
+  const clients = useAsync(() => fetchClients(), [])
+  const clientIds = useMemo(() => (clients.data ?? []).map((c) => c.id).filter(Boolean), [clients.data])
+  const { data: treeData } = useAsync<BizTreeNode[]>(() => fetchBizTree(), [])
+  const bizList = useMemo(() => flatBiz(treeData ?? []), [treeData])
+  const bizName = (code: string) => bizList.find((b) => b.code === code)?.name ?? code
+  /** 展示用业务域：优先按编码取名称，存量单值（名称）兜底 */
+  const bizText = (u: UserRow) => {
+    const codes = u.bizCodes ?? []
+    return codes.length ? codes.map(bizName).join('、') : (u.biz || '全部')
+  }
   const shown = useMemo(() => {
     const kw = q.trim().toLowerCase()
     return list
       .filter((u) => (role === 'all' ? true : u.role === role))
-      .filter((u) => !kw || u.name.toLowerCase().includes(kw) || u.no.includes(kw) || u.biz.includes(kw) || u.client.includes(kw))
-  }, [list, role, q])
+      .filter((u) => !kw || u.name.toLowerCase().includes(kw) || u.no.includes(kw)
+        || bizText(u).toLowerCase().includes(kw)
+        || (u.bizCodes ?? []).some((c) => c.toLowerCase().includes(kw))
+        || u.client.includes(kw))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [list, role, q, bizList])
 
   const chips = useMemo(() => [
     { v: 'all', l: '全部', n: list.length },
@@ -42,7 +58,7 @@ export default function Users() {
     try {
       await saveUser({
         id: draft.id, name: draft.name.trim(), empNo: draft.no.trim(),
-        role: draft.role, bizDomain: draft.biz, clientId: draft.client.trim() || undefined,
+        role: draft.role, bizCodes: draft.bizCodes, clientId: draft.client.trim() || undefined,
       })
       setDraft(null)
       reload()
@@ -111,11 +127,14 @@ export default function Users() {
                   <td style={{ fontWeight: 550 }}>{u.name}</td>
                   <td className="tid">{u.no}</td>
                   <td><Tag tone={ROLE_TONE[u.role] ?? 'mut'}>{roleLabel[u.role] ?? u.role}</Tag></td>
-                  <td>{u.biz}</td>
+                  <td>{bizText(u)}</td>
                   <td className="tid">{u.client}</td>
                   <td style={{ textAlign: 'right', paddingRight: 14, whiteSpace: 'nowrap' }}>
                     <button className="btn btn-xs btn-outline" style={{ marginRight: 6 }}
-                      onClick={() => setDraft({ id: u.id, name: u.name, no: u.no, role: u.role, biz: u.biz, client: u.client === '—' ? '' : u.client })}>
+                      onClick={() => {
+                        setBoundOrig(u.client === '—' ? '' : u.client)
+                        setDraft({ id: u.id, name: u.name, no: u.no, role: u.role, bizCodes: u.bizCodes ?? [], client: u.client === '—' ? '' : u.client })
+                      }}>
                       <Icon name="edit" size={13} />编辑
                     </button>
                     <button className="btn btn-xs btn-outline" onClick={() => setPendingDelete(u)}>
@@ -132,7 +151,7 @@ export default function Users() {
       {draft && (
         <Modal
           title={draft.id ? `编辑用户 · ${draft.name}` : '新增用户'}
-          width={520}
+          width={620}
           onClose={() => setDraft(null)}
           footer={
             <>
@@ -152,13 +171,48 @@ export default function Users() {
               <select value={draft.role} onChange={(e) => setDraft({ ...draft, role: e.target.value })}>
                 {ROLES.map((r) => <option key={r} value={r}>{roleLabel[r]}</option>)}
               </select></div>
-            <div className="field"><label>业务域</label>
-              <select value={draft.biz} onChange={(e) => setDraft({ ...draft, biz: e.target.value })}>
-                {BIZ_OPTIONS.map((b) => <option key={b} value={b}>{b}</option>)}
-              </select></div>
+            <div className="field" style={{ gridColumn: '1 / -1' }}><label>归属业务域</label>
+              <BizTreeSelect
+                tree={treeData ?? []}
+                value={draft.bizCodes}
+                onChange={(codes) => setDraft({ ...draft, bizCodes: codes })}
+              />
+              <div className="fhelp">与仓库一致：可勾选多个业务域，用于数据可见范围与派发；不选表示不限（全部）</div>
+            </div>
           </div>
           <div className="field"><label>绑定客户端（可选，研发角色必填才能领任务）</label>
-            <input value={draft.client} placeholder="如 dev-windows-07" onChange={(e) => setDraft({ ...draft, client: e.target.value })} /></div>
+            {boundOrig ? (
+              <>
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: 8,
+                  border: '1px solid var(--line)', borderRadius: 8, padding: '8px 10px',
+                  background: 'var(--bg-subtle)', fontSize: 13,
+                }}>
+                  <Icon name="lock" size={14} className="t-mut" />
+                  <span className="tid">{boundOrig}</span>
+                  <Tag tone="ok" dot>已绑定</Tag>
+                </div>
+                <div className="fhelp">绑定后不可在此更改；如需更换，请到「客户端」页对该用户解除绑定后重新绑定。</div>
+              </>
+            ) : clientIds.length > 0 ? (
+              <select value={draft.client}
+                onChange={(e) => setDraft({ ...draft, client: e.target.value })}>
+                <option value="">（不绑定）</option>
+                {clientIds.map((c) => {
+                  const st = (clients.data ?? []).find((x) => x.id === c)?.state
+                  const tag = st === 'on' ? '在线' : st === 'busy' ? '执行中' : '离线'
+                  return <option key={c} value={c}>{c}{st ? ` · ${tag}` : ''}</option>
+                })}
+                {draft.client && !clientIds.includes(draft.client) && (
+                  <option value={draft.client}>{draft.client} · 已失效</option>
+                )}
+              </select>
+            ) : (
+              <input value={draft.client} placeholder="如 dev-windows-07"
+                onChange={(e) => setDraft({ ...draft, client: e.target.value })} />
+            )}
+            {!boundOrig && <div className="fhelp">候选为已注册客户端，标注在线状态；绑定后个人设置测试与配置下发到该机器。</div>}
+          </div>
           <div style={{ fontSize: 12, color: 'var(--ink-4)', marginTop: 14, lineHeight: 1.7 }}>
             角色决定该用户在工作台可见的能力范围，可在「权限管理」中调整。
           </div>

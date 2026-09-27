@@ -22,10 +22,21 @@ public class WorkflowInstance {
     @Column(length = 16)
     private String templateCode;
 
+    /**
+     * 启动时固化的图定义快照（nodes + edges）。
+     * 模板后续被编辑不影响已在跑的实例，回退边判定也依赖它。
+     */
+    @Column(columnDefinition = "TEXT")
+    private String definitionJson;
+
+    /** 已完成终结的节点数（图结构下 currentStep 不再等于「当前步骤」） */
     private Integer currentStep;
     private Integer totalSteps;
 
-    /** pending / running / blocked / done / failed */
+    /** 回退重做轮次，从 1 开始；超过上限则实例阻塞待人工介入 */
+    private Integer round;
+
+    /** pending / running / blocked / done / failed / cancelled */
     @Column(length = 24)
     private String status;
 
@@ -40,6 +51,7 @@ public class WorkflowInstance {
         this.startedAt = LocalDateTime.now();
         this.updatedAt = this.startedAt;
         if (this.status == null) this.status = "pending";
+        if (this.round == null) this.round = 1;
     }
 
     @PreUpdate

@@ -9,6 +9,7 @@ export const statusMeta: Record<string, { l: string; tone: 'ok' | 'warn' | 'err'
   blocked: { l: '阻塞', tone: 'warn' },
   reviewing: { l: '评审待决', tone: 'warn' },
   done: { l: '已验收', tone: 'ok' },
+  closed: { l: '已关闭', tone: 'mut' },
 }
 
 /* 角色展示元数据（角色权限矩阵本身来自后端 /api/roles） */

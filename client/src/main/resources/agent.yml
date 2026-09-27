@@ -1,28 +1,44 @@
-# Talos 客户端配置（安装脚本会写入实际值）
+# ============================================================
+# Talos Agent 客户端配置模板（打包内置，实际运行时读 <安装目录>/conf/agent.yml）
+# 完整字段说明见 client/conf/agent.yml
+# ============================================================
+
 server:
-  addr: talos.yonyong.dev
+  addr: localhost
   port: 9443
+  # 控制台 HTTP 端口：静默升级从这里下载新版本安装包
+  httpPort: 8080
+
 client:
-  id: dev-windows-07
-  token: <install 时写入>
+  id: my-dev-machine
+  token: ""
   workspace: C:/Talos/workspace
   heartbeatSeconds: 10
+  signSecret: ""
+  # 是否接受服务端下发的静默升级；false = 只允许手工执行 scripts\upgrade.bat
+  allowUpgrade: true
+
 agents:
   - backend: claude
     enabled: true
     model: claude-opus-4
     cmd: claude
+    args: []
   - backend: cursor
     enabled: true
     model: cursor-pro
     cmd: cursor
+    args: []
   - backend: codex
     enabled: false
     model: codex-1
     cmd: codex
+    args: []
   - backend: codebuddy
     enabled: true
     model: cb-internal
     cmd: codebuddy
+    args: []
+
 log:
   dir: logs

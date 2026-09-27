@@ -1,14 +1,15 @@
 import { useState } from 'react'
 import { Icon } from '../icons'
-import { Chips, Kpi, PageH, Tag, useToast } from '../ui'
+import { Chips, Kpi, PageH, Tag } from '../ui'
+import { DocPreview } from '../attach'
 import { fetchDocs, useAsync } from '../api'
-import type { DocItem } from '../types'
+import type { DocItem, PageFocus, PageKey } from '../types'
 
-const KINDS = ['概要', '详设', '故障报告', '修复方案', '测试报告']
+const KINDS = ['概要', '详设', '故障报告', '修复方案', '测试报告', '原始材料']
 
-export default function Docs() {
-  const { toast } = useToast()
+export default function Docs({ nav }: { nav: (p: PageKey, f?: PageFocus) => void }) {
   const [kind, setKind] = useState('all')
+  const [open, setOpen] = useState<DocItem | null>(null)
   const { data: docs, loading } = useAsync<DocItem[]>(() => fetchDocs(kind === 'all' ? {} : { kind }), [kind])
 
   const list = docs ?? []
@@ -16,7 +17,22 @@ export default function Docs() {
 
   return (
     <div>
-      <PageH title="文档中心" desc="工作流各节点生成的过程文档，由客户端回传，服务端集中可见。" />
+      <PageH title="文档中心" desc="工作流产出的过程文档与 Issue 提出时上传的原始材料，服务端集中可见。" />
+
+      <div
+        className="card card-pad"
+        style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 18, cursor: 'pointer' }}
+        onClick={() => nav('guide')}
+      >
+        <div className="dicon"><Icon name="network" size={19} /></div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 14, fontWeight: 620 }}>接入指南</div>
+          <div style={{ fontSize: 12.5, color: 'var(--ink-4)', marginTop: 4 }}>
+            客户端安装、连接机制、消息契约、配置字段与常见故障 —— 平台级说明文档，非工作流产出的过程文档。
+          </div>
+        </div>
+        <Icon name="arrow" size={15} />
+      </div>
 
       <div className="grid g3" style={{ marginBottom: 18 }}>
         <Kpi icon="doc" label="文档总数" value={String(list.length)} delta="服务端归档" dir="up" />
@@ -44,19 +60,21 @@ export default function Docs() {
         ) : (
           <div className="grid g3">
             {list.map((d, i) => (
-              <div key={i} className="card doccard" onClick={() => toast(`预览 ${d.name}`)}>
+              <div key={i} className="card doccard" onClick={() => setOpen(d)}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                   <div className="dicon"><Icon name="doc" size={19} /></div>
                   <Tag tone="mut">{d.issue}</Tag>
                 </div>
                 <b>{d.name}</b>
-                <span className="dsub">{d.from}</span>
+                <span className="dsub">{d.category === 'RAW' ? `原始材料 · ${d.uploader || d.from}` : d.from}</span>
                 <div className="dmeta"><Icon name="clock" size={13} /> {d.time} · {d.size}</div>
               </div>
             ))}
           </div>
         )
       )}
+
+      {open && <DocPreview doc={open} onClose={() => setOpen(null)} />}
 
       <div style={{ marginTop: 16, fontSize: 12.5, color: 'var(--ink-4)' }}>
         文档由端侧 Coding Agent 生成（需读取本地代码），经 UploadArtifact 通道回传服务端，按 Issue 维度归档。

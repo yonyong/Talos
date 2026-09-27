@@ -4,13 +4,14 @@ import com.yonyong.talos.entity.*;
 import com.yonyong.talos.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-/** 首次启动初始化：两套工作流模板、Prompt 模板、知识库、用户与默认 Agent 配置 */
+/** 首次启动初始化：两套工作流模板、Prompt 模板、知识库、用户、LLM 通道与默认 Agent 配置 */
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -22,6 +23,18 @@ public class DataInitializer implements CommandLineRunner {
     private final UserRepository userRepository;
     private final AgentConfigRepository agentConfigRepository;
     private final RolePermissionRepository rolePermissionRepository;
+    private final BizDomainRepository bizDomainRepository;
+    private final RepoRepository repoRepository;
+    private final LlmConfigRepository llmConfigRepository;
+
+    // LLM 通道的初始值来自 application.yml；一旦在控制台改过就以库里的为准
+    @Value("${talos.llm.provider:qwen}") private String dftPublicProvider;
+    @Value("${talos.llm.base-url:}") private String dftPublicBaseUrl;
+    @Value("${talos.llm.api-key:}") private String dftPublicApiKey;
+    @Value("${talos.llm.model:qwen-max}") private String dftPublicModel;
+    @Value("${talos.private-model.enabled:true}") private boolean dftPrivateEnabled;
+    @Value("${talos.private-model.base-url:}") private String dftPrivateBaseUrl;
+    @Value("${talos.private-model.model:cb-internal}") private String dftPrivateModel;
 
     @Override
     public void run(String... args) {
@@ -30,49 +43,121 @@ public class DataInitializer implements CommandLineRunner {
         initKb();
         initUsers();
         initRolePermissions();
+        initLlmConfigs();
         initAgentConfigs();
-        log.info("初始化完成：模板 {} 套 · Prompt {} 个 · 知识库 {} 篇 · 用户 {} 个 · 角色权限 {} 条",
+        initBizDomains();
+        initRepos();
+        migrateRepoBizBinding();
+        log.info("初始化完成：模板 {} 套 · Prompt {} 个 · 知识库 {} 篇 · 用户 {} 个 · 角色权限 {} 条 · LLM 通道 {} 条 · 业务域 {} 个 · 仓库 {} 个",
                 templateRepository.count(), promptTemplateRepository.count(),
-                kbDocRepository.count(), userRepository.count(), rolePermissionRepository.count());
+                kbDocRepository.count(), userRepository.count(), rolePermissionRepository.count(),
+                llmConfigRepository.count(),
+                bizDomainRepository.count(), repoRepository.count());
     }
 
     private void initTemplates() {
-        if (templateRepository.count() > 0) return;
-        templateRepository.save(tpl("REQ", "需求工作流", """
-                [
-                  {"step":1,"name":"拉取 Git","kind":"git","execLocation":"客户端","backend":"—","promptTemplate":"—","gate":"—"},
-                  {"step":2,"name":"需求分析","kind":"doc","execLocation":"客户端","backend":"codebuddy","promptTemplate":"requirement_outline.md","gate":"—"},
-                  {"step":3,"name":"详细设计","kind":"doc","execLocation":"客户端","backend":"codebuddy","promptTemplate":"detail_design.md","gate":"—"},
-                  {"step":4,"name":"设计评审","kind":"rev","execLocation":"服务端","backend":"—","promptTemplate":"review_checklist.md","gate":"人工闸门"},
-                  {"step":5,"name":"编码","kind":"code","execLocation":"客户端","backend":"责任人选定","promptTemplate":"coding_task.md","gate":"分支隔离"},
-                  {"step":6,"name":"测试","kind":"test","execLocation":"客户端","backend":"责任人选定","promptTemplate":"test_plan.md","gate":"覆盖率门禁"},
-                  {"step":7,"name":"验收","kind":"rev","execLocation":"服务端","backend":"—","promptTemplate":"—","gate":"人工闸门"}
-                ]"""));
-        templateRepository.save(tpl("BUG", "缺陷工作流", """
-                [
-                  {"step":1,"name":"拉取 Git","kind":"git","execLocation":"客户端","backend":"—","promptTemplate":"—","gate":"—"},
-                  {"step":2,"name":"问题分析","kind":"doc","execLocation":"客户端","backend":"codebuddy","promptTemplate":"fault_report.md","gate":"—"},
-                  {"step":3,"name":"方案设计","kind":"doc","execLocation":"客户端","backend":"codebuddy","promptTemplate":"fix_design.md","gate":"—"},
-                  {"step":4,"name":"设计评审","kind":"rev","execLocation":"服务端","backend":"—","promptTemplate":"review_checklist.md","gate":"人工闸门"},
-                  {"step":5,"name":"编码","kind":"code","execLocation":"客户端","backend":"责任人选定","promptTemplate":"fix_coding.md","gate":"分支隔离"},
-                  {"step":6,"name":"测试","kind":"test","execLocation":"客户端","backend":"责任人选定","promptTemplate":"regression_test.md","gate":"覆盖率门禁"},
-                  {"step":7,"name":"验收","kind":"rev","execLocation":"服务端","backend":"—","promptTemplate":"—","gate":"人工闸门"}
-                ]"""));
+        // 旧版种子是「节点数组」的线性链；图引擎要求 {nodes, edges}。检测到旧形态即整体重建，
+        // 否则老库里的模板跑不出条件边与并行分支。
+        if (templateRepository.count() > 0) {
+            boolean stale = false;
+            for (String code : new String[]{"REQ", "BUG"}) {
+                WorkflowTemplate t = templateRepository.findByCode(code);
+                if (t == null || t.getDefinitionJson() == null || !t.getDefinitionJson().trim().startsWith("{")) {
+                    stale = true;
+                    break;
+                }
+            }
+            if (!stale) {
+                migrateDocNodeBackend();
+                return;
+            }
+            log.warn("检测到旧版线性模板定义，重建为 DAG 图定义");
+            templateRepository.deleteAll();
+        }
+
+        templateRepository.save(tpl("REQ", "需求工作流", 7, """
+                {
+                  "version": 2,
+                  "nodes": [
+                    {"step":1,"name":"拉取 Git","kind":"git","execLocation":"客户端","backend":"—","promptTemplate":"—","gate":"—"},
+                    {"step":2,"name":"需求分析","kind":"doc","execLocation":"客户端","backend":"责任人选定","promptTemplate":"requirement_outline.md","gate":"—"},
+                    {"step":3,"name":"详细设计","kind":"doc","execLocation":"客户端","backend":"责任人选定","promptTemplate":"detail_design.md","gate":"—"},
+                    {"step":4,"name":"设计评审","kind":"rev","execLocation":"服务端","backend":"—","promptTemplate":"review_checklist.md","gate":"人工闸门"},
+                    {"step":5,"name":"编码","kind":"code","execLocation":"客户端","backend":"责任人选定","promptTemplate":"coding_task.md","gate":"分支隔离"},
+                    {"step":6,"name":"测试","kind":"test","execLocation":"客户端","backend":"责任人选定","promptTemplate":"test_plan.md","gate":"覆盖率门禁"},
+                    {"step":7,"name":"验收","kind":"rev","execLocation":"服务端","backend":"—","promptTemplate":"—","gate":"人工闸门"}
+                  ],
+                  "edges": [
+                    {"from":1,"to":2,"condition":"always","label":"","kind":"forward"},
+                    {"from":2,"to":3,"condition":"expr:issue.priority != P2","label":"常规流程 · 先详设","kind":"forward"},
+                    {"from":2,"to":4,"condition":"expr:issue.priority == P2","label":"P2 简化 · 跳过详设","kind":"forward"},
+                    {"from":3,"to":4,"condition":"always","label":"","kind":"forward"},
+                    {"from":4,"to":5,"condition":"gate:pass","label":"评审通过","kind":"forward"},
+                    {"from":4,"to":3,"condition":"gate:blocked","label":"评审驳回 · 打回重做","kind":"loopback"},
+                    {"from":5,"to":6,"condition":"always","label":"","kind":"forward"},
+                    {"from":6,"to":7,"condition":"always","label":"","kind":"forward"},
+                    {"from":6,"to":5,"condition":"failed","label":"回归失败 · 回编码","kind":"loopback"}
+                  ]
+                }"""));
+        templateRepository.save(tpl("BUG", "缺陷工作流", 7, """
+                {
+                  "version": 2,
+                  "nodes": [
+                    {"step":1,"name":"拉取 Git","kind":"git","execLocation":"客户端","backend":"—","promptTemplate":"—","gate":"—"},
+                    {"step":2,"name":"问题分析","kind":"doc","execLocation":"客户端","backend":"责任人选定","promptTemplate":"fault_report.md","gate":"—"},
+                    {"step":3,"name":"方案设计","kind":"doc","execLocation":"客户端","backend":"责任人选定","promptTemplate":"fix_design.md","gate":"—"},
+                    {"step":4,"name":"设计评审","kind":"rev","execLocation":"服务端","backend":"—","promptTemplate":"review_checklist.md","gate":"人工闸门"},
+                    {"step":5,"name":"编码","kind":"code","execLocation":"客户端","backend":"责任人选定","promptTemplate":"fix_coding.md","gate":"分支隔离"},
+                    {"step":6,"name":"测试","kind":"test","execLocation":"客户端","backend":"责任人选定","promptTemplate":"regression_test.md","gate":"覆盖率门禁"},
+                    {"step":7,"name":"验收","kind":"rev","execLocation":"服务端","backend":"—","promptTemplate":"—","gate":"人工闸门"}
+                  ],
+                  "edges": [
+                    {"from":1,"to":2,"condition":"always","label":"","kind":"forward"},
+                    {"from":2,"to":3,"condition":"always","label":"","kind":"forward"},
+                    {"from":3,"to":4,"condition":"always","label":"","kind":"forward"},
+                    {"from":4,"to":5,"condition":"gate:pass","label":"评审通过","kind":"forward"},
+                    {"from":4,"to":3,"condition":"gate:blocked","label":"评审驳回 · 打回重做","kind":"loopback"},
+                    {"from":5,"to":6,"condition":"always","label":"","kind":"forward"},
+                    {"from":6,"to":7,"condition":"always","label":"","kind":"forward"},
+                    {"from":6,"to":5,"condition":"failed","label":"回归失败 · 回编码","kind":"loopback"},
+                    {"from":7,"to":5,"condition":"gate:blocked","label":"验收不通过 · 回编码","kind":"loopback"}
+                  ]
+                }"""));
     }
 
-    private WorkflowTemplate tpl(String code, String name, String json) {
+    /**
+     * 一次性迁移：早期模板把文档节点写死 {@code backend=codebuddy}（源自杀掉了的"服务端默认后端"）。
+     * 现已取消任何预设默认后端，这类节点应改为「责任人选定」——执行时按该用户本人配置的优先级解析。
+     * 幂等：definitionJson 内 {@code "backend":"codebuddy"} 只可能出现在节点上，替换安全。
+     */
+    private void migrateDocNodeBackend() {
+        for (String code : new String[]{"REQ", "BUG"}) {
+            WorkflowTemplate t = templateRepository.findByCode(code);
+            if (t == null || t.getDefinitionJson() == null) continue;
+            String json = t.getDefinitionJson();
+            String patched = json.replace("\"backend\":\"codebuddy\"", "\"backend\":\"责任人选定\"");
+            if (!patched.equals(json)) {
+                t.setDefinitionJson(patched);
+                t.setUpdatedAt(LocalDateTime.now());
+                templateRepository.save(t);
+                log.info("迁移工作流 {}：文档节点 backend codebuddy → 责任人选定", code);
+            }
+        }
+    }
+
+    private WorkflowTemplate tpl(String code, String name, int nodeCount, String json) {
         WorkflowTemplate t = new WorkflowTemplate();
         t.setCode(code);
         t.setName(name);
-        t.setNodeCount(7);
+        t.setNodeCount(nodeCount);
         t.setDefinitionJson(json);
         t.setEnabled(true);
         t.setUpdatedAt(LocalDateTime.now());
         return t;
     }
 
+    /** Prompt 模板：逐条按名称补齐，已存在的库也能增量加入新模板 */
     private void initPrompts() {
-        if (promptTemplateRepository.count() > 0) return;
         prompt("admission_judge.md", "准入判定", "服务端LLM",
                 "issue.code,issue.type,issue.title,issue.desc,issue.priority,kb.hits",
                 """
@@ -192,9 +277,27 @@ public class DataInitializer implements CommandLineRunner {
                         输出格式：
                         结论：pass 或 blocked
                         理由：一句话说明""");
+
+        prompt("biz_sort.md", "业务域分拣 · 歧义裁决", "服务端LLM",
+                "issue.code,issue.title,issue.desc,biz.candidates", """
+                        你是研发 Issue 分拣助手。一条 Issue 只能归属一个业务域。
+
+                        【编号】{{issue.code}}
+                        【标题】{{issue.title}}
+                        【描述】{{issue.desc}}
+
+                        【候选业务域】
+                        {{biz.candidates}}
+
+                        请从候选中选出最匹配的一个。若确实无法判断，输出 unknown。
+
+                        输出格式（严格遵守）：
+                        结论：<业务域编码>
+                        理由：一句话说明""");
     }
 
     private void prompt(String name, String scene, String backend, String vars, String content) {
+        if (promptTemplateRepository.findByName(name) != null) return;
         PromptTemplateEntity p = new PromptTemplateEntity();
         p.setName(name);
         p.setScene(scene);
@@ -300,26 +403,179 @@ public class DataInitializer implements CommandLineRunner {
         rolePermissionRepository.save(rp);
     }
 
-    private void initAgentConfigs() {
-        if (agentConfigRepository.count() > 0) return;
-        cfg(ConfigService.GLOBAL, "claude", "claude-opus-4", true, 200_000L, new BigDecimal("1200"), 72, false);
-        cfg(ConfigService.GLOBAL, "cursor", "cursor-pro", true, 200_000L, new BigDecimal("400"), 18, false);
-        cfg(ConfigService.GLOBAL, "codex", "codex-1", false, 100_000L, new BigDecimal("300"), 0, false);
-        cfg(ConfigService.GLOBAL, "codebuddy", "cb-internal", true, 0L, BigDecimal.ZERO, 0, true);
+    /**
+     * LLM 通道：公网（准入 / 分拣 / QA）与私有化（涉代码场景）。
+     * 按 channel 逐条补齐，已存在的记录不覆盖 —— 控制台上改过的配置优先级高于 yml 默认值。
+     */
+    private void initLlmConfigs() {
+        llmChannel(LlmConfigEntity.PUBLIC, "公网通道", dftPublicProvider, dftPublicBaseUrl, dftPublicApiKey,
+                dftPublicModel, 0.2, 60, true, false);
+        llmChannel(LlmConfigEntity.PRIVATE, "私有化通道", "openai-compatible", dftPrivateBaseUrl, null,
+                dftPrivateModel, 0.1, 120, dftPrivateEnabled, true);
     }
 
-    private void cfg(String scope, String backend, String model, boolean enabled,
-                     Long tokenLimit, BigDecimal quota, int usage, boolean privateOnly) {
-        AgentConfigEntity c = new AgentConfigEntity();
-        c.setScope(scope);
-        c.setBackend(backend);
+    private void llmChannel(String channel, String label, String provider, String baseUrl, String apiKey,
+                            String model, Double temperature, Integer timeout, boolean enabled, boolean privateOnly) {
+        if (llmConfigRepository.findByChannel(channel) != null) return;
+        LlmConfigEntity c = new LlmConfigEntity();
+        c.setChannel(channel);
+        c.setLabel(label);
+        c.setProvider(provider);
+        c.setBaseUrl(baseUrl);
+        c.setApiKey(apiKey);
         c.setModel(model);
+        c.setTemperature(temperature);
+        c.setTimeoutSeconds(timeout);
         c.setEnabled(enabled);
-        c.setTokenLimit(tokenLimit);
-        c.setMonthlyQuota(quota);
-        c.setUsagePercent(usage);
         c.setPrivateOnly(privateOnly);
         c.setUpdatedAt(LocalDateTime.now());
-        agentConfigRepository.save(c);
+        c.setUpdatedBy("init");
+        llmConfigRepository.save(c);
+    }
+
+    /**
+     * Agent 配置不再由服务端预设默认目录。
+     *
+     * 旧版在此种 GLOBAL 的 claude/cursor/codex/codebuddy 四条记录，merged() 永远先叠它们，
+     * 导致管理端「Coding Agent 配置」页在每个客户端作用域都显示 4 个"默认后端"，与用户实际配置脱节。
+     * 新模型：每个用户（设置面板）自行配置自己的 Coding Agent，服务端只采集、汇总、下发；
+     * agent_config 这张"全局/客户端覆盖"表已废弃，这里清空残留数据，避免旧默认继续生效。
+     */
+    private void initAgentConfigs() {
+        long n = agentConfigRepository.count();
+        if (n > 0) {
+            log.info("清空已废弃的 agent_config 表（{} 条）；Coding Agent 改由用户个人配置驱动", n);
+            agentConfigRepository.deleteAll();
+        }
+    }
+
+    /** 业务域：分拣的第一依据，业务/开发双负责人 / 优先级 / 敏感等级都在这里 */
+    private void initBizDomains() {
+        if (bizDomainRepository.count() == 0) {
+            biz(null, "quote", "行情", "行情,quote,K线,盘口,组播,延迟,丢包,订阅,分发",
+                    "杨德,王磊", "王磊,李娜", "P1", null, "普通", 8,
+                    "实时行情接入、订阅分发与主备通道切换");
+            biz(null, "backtest", "回测·指标", "回测,backtest,策略,夏普,回撤,胜率,绩效,因子,指标",
+                    "杨德", "陈昊,王磊", "P1", "dev-linux-11", "普通", 16,
+                    "回测引擎、绩效分析与指标计算");
+            biz(null, "account", "账户", "账户,登录,资金,持仓,委托,入金,资产,密码,MFA",
+                    "李娜", "赵敏,陈昊", "P0", "dev-windows-09", "核心", 4,
+                    "账户中心与资金变动；核心业务，仅走私有化后端");
+            biz(null, "research", "资讯", "研报,资讯,新闻,公告,披露,舆情",
+                    "孙悦", "孙悦", "P2", "dev-mac-15", "普通", 24,
+                    "研报检索、公告与资讯采集");
+        }
+        initBizHierarchy();
+    }
+
+    /**
+     * 业务域层级示例：行情下挂「快照导出」「逐笔链路」两个子域。
+     *
+     * <p>子域只配编码 / 关键词 / 负责人与 SLA，仓库、优先级、敏感等级全部继承父域 ——
+     * 演示「细分到子业务域，但共用同一套工程配置」。同时把「快照 / 逐笔」这类更具体的关键词
+     * 从父域下放到子域，配合分拣引擎的「子域优先」收敛，避免父子同时命中造成伪歧义。
+     */
+    private void initBizHierarchy() {
+        if (bizDomainRepository.findByCode("quote-snapshot") != null) return;
+
+        BizDomainEntity parent = bizDomainRepository.findByCode("quote");
+        if (parent != null && parent.getKeywords() != null && parent.getKeywords().contains("快照")) {
+            parent.setKeywords("行情,quote,K线,盘口,组播,延迟,丢包,订阅,分发");
+            parent.setUpdatedAt(LocalDateTime.now());
+            bizDomainRepository.save(parent);
+        }
+
+        biz("quote", "quote-snapshot", "行情·快照导出",
+                "快照,snapshot,导出,分页,offset,limit,CSV",
+                "王磊", "王磊,李娜", null, null, null, 8,
+                "快照导出接口与批量落盘；复用行情工程，仅关键词与负责人独立");
+        biz("quote", "quote-tick", "行情·逐笔链路",
+                "逐笔,tick,成交明细,委托队列,seq,补录",
+                "李娜", "李娜,王磊", null, null, null, 12,
+                "逐笔回放与补录链路；复用行情工程");
+    }
+
+    private void biz(String parentCode, String code, String name, String keywords, String bizOwners,
+                     String devOwners, String priority, String clientId, String level, int sla, String desc) {
+        BizDomainEntity d = new BizDomainEntity();
+        d.setCode(code);
+        d.setParentCode(parentCode);
+        d.setName(name);
+        d.setKeywords(keywords);
+        d.setBizOwners(bizOwners);
+        d.setDevOwners(devOwners);
+        d.setDefaultPriority(priority);
+        d.setDefaultClientId(clientId);
+        d.setSensitiveLevel(level);
+        d.setSlaHours(sla);
+        d.setEnabled(true);
+        d.setDescription(desc);
+        d.setUpdatedAt(LocalDateTime.now());
+        bizDomainRepository.save(d);
+    }
+
+    /** 仓库：承载 git 地址、分支策略与构建/测试命令；与业务域的绑定写在业务域侧（repoProject） */
+    private void initRepos() {
+        if (repoRepository.count() > 0) return;
+        repo("quote-service", "quote", "git@git.yonyong.dev:quote/quote-service.git", "feature/",
+                "mvn -DskipTests package", false, null, "dev-windows-07",
+                "行情快照、逐笔与订阅分发服务");
+        repo("backtest-api", "backtest", "git@git.yonyong.dev:backtest/backtest-api.git", "feature/",
+                "mvn -DskipTests package", false, null, "dev-linux-11",
+                "回测引擎与绩效分析 API");
+        repo("account-center", "account", "git@git.yonyong.dev:account/account-center.git", "fix/",
+                "mvn -DskipTests package", true, "codebuddy", "dev-windows-09",
+                "账户中心；敏感仓库，仅允许内网客户端与私有化后端执行");
+        repo("research-search", "research", "git@git.yonyong.dev:research/research-search.git", "feature/",
+                "mvn -DskipTests package", false, null, "dev-mac-15",
+                "研报检索与资讯采集服务");
+    }
+
+    private void repo(String project, String bizCode, String url, String prefix, String build,
+                      boolean sensitive, String requiredBackend, String clientId, String desc) {
+        RepoEntity r = new RepoEntity();
+        r.setProject(project);
+        r.setRepoUrl(url);
+        r.setBaselineBranch("main");
+        r.setBranchPrefix(prefix);
+        r.setLanguage("Java");
+        r.setBuildCmd(build);
+        r.setTestCmd("mvn test");
+        r.setSensitive(sensitive);
+        r.setRequiredBackend(requiredBackend);
+        r.setDefaultClientId(clientId);
+        r.setEnabled(true);
+        r.setDescription(desc);
+        r.setUpdatedAt(LocalDateTime.now());
+        repoRepository.save(r);
+
+        // 绑定写在业务域侧：bizCode 参数语义为「该仓库默认服务的业务域」
+        BizDomainEntity d = bizDomainRepository.findByCode(bizCode);
+        if (d != null) {
+            d.setRepoProject(project);
+            d.setUpdatedAt(LocalDateTime.now());
+            bizDomainRepository.save(d);
+        }
+    }
+
+    /**
+     * 旧版把「业务域 ↔ 仓库」绑定存在仓库表（t_repo.bizCode，唯一），只能一仓一域；
+     * 新版绑定存在业务域侧（t_biz_domain.repoProject），一仓可服务多域。
+     * 每次启动幂等迁移：有旧值就搬到对应业务域并清空旧列。
+     */
+    private void migrateRepoBizBinding() {
+        for (RepoEntity r : repoRepository.findAll()) {
+            String bc = r.getBizCode();
+            if (bc == null || bc.isBlank()) continue;
+            r.setBizCode(null);
+            BizDomainEntity d = bizDomainRepository.findByCode(bc.trim());
+            if (d != null && (d.getRepoProject() == null || d.getRepoProject().isBlank())) {
+                d.setRepoProject(r.getProject());
+                d.setUpdatedAt(LocalDateTime.now());
+                bizDomainRepository.save(d);
+            }
+            repoRepository.save(r);
+            log.info("仓库绑定迁移：{} 的业务域 {} 迁至 t_biz_domain.repoProject", r.getProject(), bc.trim());
+        }
     }
 }

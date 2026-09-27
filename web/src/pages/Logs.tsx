@@ -1,15 +1,31 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Icon } from '../icons'
-import { Kpi, Modal, PageH, Panel, Tag, useToast } from '../ui'
+import { Kpi, Modal, PageH, Panel, Search, Tag, useToast } from '../ui'
 import { fetchLogs, useAsync } from '../api'
-import type { AiCallLog } from '../types'
+import type { AiCallLog, PageFocus } from '../types'
 
-export default function Logs() {
+/**
+ * AI 调用日志：服务端 LLM 调用的唯一明细查看处。
+ * 可从作业监控带 issueCode 深链进来（focus），也支持关键字过滤（Issue / 节点 / 后端 / 模型）。
+ */
+export default function Logs({ focus }: { focus?: PageFocus }) {
   const { toast } = useToast()
   const { data: logs, loading } = useAsync<AiCallLog[]>(() => fetchLogs(), [])
   const [cur, setCur] = useState<AiCallLog | null>(null)
+  const [q, setQ] = useState('')
 
-  const list = logs ?? []
+  // 从作业监控等页面深链过来时，按 Issue 预置过滤
+  useEffect(() => {
+    if (focus?.issueCode) setQ(focus.issueCode)
+  }, [focus?.issueCode])
+
+  const list = useMemo(() => {
+    const kw = q.trim().toLowerCase()
+    if (!kw) return logs ?? []
+    return (logs ?? []).filter((l) =>
+      [l.issue, l.node, l.backend, l.model].some((v) => String(v ?? '').toLowerCase().includes(kw)))
+  }, [logs, q])
+  const filtered = !!q.trim()
   const stats = useMemo(() => {
     const tokenSum = list.reduce((s, l) => s + (parseFloat(l.token) || 0), 0)
     const latSum = list.reduce((s, l) => s + (parseFloat(l.latency) || 0), 0)
@@ -24,20 +40,30 @@ export default function Logs() {
 
   return (
     <div>
-      <PageH title="AI 调用日志" desc="每次调用的渲染后 Prompt、模型、用量与耗时，全部可观测。" />
+      <PageH title="调用日志" desc="每次调用的渲染后 Prompt、模型、用量与耗时，全部可观测。仅统计真正调用模型的节点——拉取 Git 等机械节点不计入，其过程见节点执行日志。" />
 
       <div className="grid g4" style={{ marginBottom: 18 }}>
-        <Kpi icon="spark" label="调用记录" value={String(stats.count)} delta="来自服务端" dir="up" />
+        <Kpi icon="spark" label="调用记录" value={String(stats.count)} delta={filtered ? '当前过滤' : '来自服务端'} dir="up" />
         <Kpi icon="bolt" label="Token 消耗" value={stats.token} delta="累计" dir="up" color="#16a34a" glow="rgba(22,163,74,.2)" />
         <Kpi icon="clock" label="平均耗时" value={stats.avgLatency} delta="P95 参考" dir="flat" color="#0891b2" glow="rgba(8,145,178,.2)" />
         <Kpi icon="warn" label="变量缺失" value={String(stats.missing)} delta="需修模板" dir={stats.missing > 0 ? 'down' : 'up'} color="#b45309" glow="rgba(180,83,9,.2)" />
       </div>
 
+      {!loading && logs !== null && (
+        <div style={{ maxWidth: 380, marginBottom: 14 }}>
+          <Search placeholder="过滤：Issue / 节点 / 后端 / 模型" value={q} onChange={setQ} />
+        </div>
+      )}
+
       {loading && <div style={{ fontSize: 13, color: 'var(--ink-4)', padding: 16 }}>加载中…</div>}
       {!loading && logs === null && <div style={{ fontSize: 13, color: 'var(--ink-4)', padding: 16 }}>接口请求失败，请确认后端已启动（:8080）</div>}
 
       {!loading && logs !== null && (
-        <Panel title="调用明细" sub="点击「查看」可看到变量替换后的最终 Prompt 与模型输出" flush>
+        <Panel
+          title="调用明细"
+          sub={filtered ? `按「${q.trim()}」过滤出 ${list.length} 条 · 点击「查看」看最终 Prompt 与模型输出` : '点击「查看」可看到变量替换后的最终 Prompt 与模型输出'}
+          flush
+        >
           {list.length === 0 ? (
             <div style={{ fontSize: 13, color: 'var(--ink-4)', padding: 16 }}>暂无调用日志</div>
           ) : (
