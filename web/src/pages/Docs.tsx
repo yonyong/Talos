@@ -17,22 +17,22 @@ export default function Docs({ nav }: { nav: (p: PageKey, f?: PageFocus) => void
 
   return (
     <div>
-      <PageH title="文档中心" desc="工作流产出的过程文档与 Issue 提出时上传的原始材料，服务端集中可见。" />
+      <PageH title="过程文档" desc="工作流产出的过程文档与 Issue 提出时上传的原始材料，服务端集中可见。" />
 
-      <div
+      <a
         className="card card-pad"
-        style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 18, cursor: 'pointer' }}
-        onClick={() => nav('guide')}
+        href="#/docs"
+        style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 18, textDecoration: 'none', color: 'inherit' }}
       >
         <div className="dicon"><Icon name="network" size={19} /></div>
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 14, fontWeight: 620 }}>接入指南</div>
+          <div style={{ fontSize: 14, fontWeight: 620 }}>产品文档中心</div>
           <div style={{ fontSize: 12.5, color: 'var(--ink-4)', marginTop: 4 }}>
-            客户端安装、连接机制、消息契约、配置字段与常见故障 —— 平台级说明文档，非工作流产出的过程文档。
+            接入指南、客户端下载与架构说明 —— 官网文档，不在本页。
           </div>
         </div>
         <Icon name="arrow" size={15} />
-      </div>
+      </a>
 
       <div className="grid g3" style={{ marginBottom: 18 }}>
         <Kpi icon="doc" label="文档总数" value={String(list.length)} delta="服务端归档" dir="up" />

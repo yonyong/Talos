@@ -14,7 +14,6 @@ import Admission from './Admission'
 import Workflow from './Workflow'
 import Monitor from './Monitor'
 import Clients from './Clients'
-import Guide from './Guide'
 import Agents from './Agents'
 import Logs from './Logs'
 import Docs from './Docs'
@@ -44,7 +43,7 @@ const NAV: { group: string; items: { k: PageKey; l: string; icon: string }[] }[]
       { k: 'dashboard', l: '总览', icon: 'dashboard' },
       { k: 'issues', l: 'Issue', icon: 'issue' },
       { k: 'monitor', l: '作业监控', icon: 'terminal' },
-      { k: 'docs', l: '文档中心', icon: 'doc' },
+      { k: 'docs', l: '过程文档', icon: 'doc' },
     ],
   },
   {
@@ -70,7 +69,6 @@ const NAV: { group: string; items: { k: PageKey; l: string; icon: string }[] }[]
     items: [
       { k: 'clients', l: '客户端', icon: 'client' },
       { k: 'agents', l: 'Coding Agent', icon: 'agent' },
-      { k: 'guide', l: '接入指南', icon: 'network' },
     ],
   },
   {
@@ -85,7 +83,7 @@ const NAV: { group: string; items: { k: PageKey; l: string; icon: string }[] }[]
 const TITLE: Record<PageKey, string> = {
   dashboard: '总览', issues: 'Issue', admission: '准入判定', workflow: '工作流编排',
   monitor: '作业监控', clients: '客户端', guide: '接入指南', agents: 'Coding Agent', logs: '调用日志',
-  docs: '文档中心', kb: '知识库', users: '用户管理', roles: '权限管理',
+  docs: '过程文档', kb: '知识库', users: '用户管理', roles: '权限管理',
   biz: '业务域', repos: '仓库管理', prompts: 'Prompt 模板', models: '模型配置',
 }
 
@@ -214,7 +212,6 @@ export default function Console({ page, focus, onLogout }: {
       case 'workflow': return <Workflow />
       case 'monitor': return <Monitor focus={focus} onNav={nav} />
       case 'clients': return <Clients focus={focus} nav={nav} />
-      case 'guide': return <Guide />
       case 'agents': return <Agents />
       case 'prompts': return <Prompts />
       case 'models': return <Models />

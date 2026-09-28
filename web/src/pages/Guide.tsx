@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Icon } from '../icons'
 import { PageH, Panel, Tag, useToast } from '../ui'
-import { activateAgentRelease, deleteAgentReleaseFile, fetchAgentReleaseList, uploadAgentRelease } from '../api'
-import type { AgentReleaseList } from '../types'
+import { fetchAgentRelease } from '../api'
+import type { AgentRelease } from '../types'
 
 const INSTALL = `# 1. 解压安装包到目标目录，例如 C:\\Talos
 # 2. 一键安装并启动（双击 setup.bat 亦可，无参数时进入交互式问答）
@@ -66,88 +66,42 @@ scripts\\upgrade.bat
 # 拒绝被远程替换的机器
 conf\\agent.yml 中 client.allowUpgrade: false`
 
-function sizeText(bytes?: number): string {
-  if (!bytes) return '—'
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-  return `${(bytes / 1024 / 1024).toFixed(1)} MB`
-}
-function shortSha(sha?: string): string {
-  if (!sha) return '—'
-  return sha.length <= 20 ? sha : `${sha.slice(0, 8)}…${sha.slice(-6)}`
-}
-
-export default function Guide() {
+export default function Guide({ section }: { section?: string }) {
   const { toast } = useToast()
+  const [release, setRelease] = useState<AgentRelease | null>(null)
   const copy = (text: string, msg: string) => {
     navigator.clipboard?.writeText(text).catch(() => {})
     toast(msg)
   }
 
-  /* ---------------- 客户端版本管理 ---------------- */
-  const [rel, setRel] = useState<AgentReleaseList | null>(null)
-  const [busy, setBusy] = useState('')
-  const fileRef = useRef<HTMLInputElement>(null)
+  useEffect(() => { fetchAgentRelease().then(setRelease).catch(() => setRelease(null)) }, [])
 
-  const loadRel = () => fetchAgentReleaseList().then(setRel).catch(() => setRel(null))
-  useEffect(() => { loadRel() }, [])
-
-  const onUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0]
-    e.target.value = ''
-    if (!f) return
-    setBusy('upload')
-    try {
-      const r = await uploadAgentRelease(f)
-      setRel(r)
-      toast(`已上传 ${r.current?.fileName ?? f.name}，当前生效版本 ${r.current?.version ?? '—'}`)
-    } catch (err: any) {
-      toast(err?.message ?? '上传失败')
-    } finally {
-      setBusy('')
+  useEffect(() => {
+    if (!section) {
+      window.scrollTo(0, 0)
+      return
     }
-  }
+    const t = window.setTimeout(() => {
+      document.getElementById(section)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 60)
+    return () => window.clearTimeout(t)
+  }, [section])
 
-  const activate = async (version: string) => {
-    setBusy('act-' + version)
-    try {
-      setRel(await activateAgentRelease(version))
-      toast(`当前生效版本已切换为 ${version}`)
-    } catch (err: any) {
-      toast(err?.message ?? '操作失败')
-    } finally {
-      setBusy('')
-    }
-  }
-
-  const removeFile = async (it: { fileName: string; version: string; current?: boolean }) => {
-    if (!window.confirm(`确认删除 ${it.fileName}（${it.version}）？${it.current ? '它是当前生效版本，删除后将自动回落到版本最高的安装包。' : ''}`)) return
-    setBusy('del-' + it.fileName)
-    try {
-      setRel(await deleteAgentReleaseFile(it.fileName))
-      toast(`已删除 ${it.fileName}`)
-    } catch (err: any) {
-      toast(err?.message ?? '删除失败')
-    } finally {
-      setBusy('')
-    }
-  }
-
-  const cur = rel?.current ?? null
-  const curUrl = cur?.downloadUrl ?? '/api/agent/release/download'
+  const curUrl = release?.downloadUrl ?? '/api/agent/release/download'
 
   return (
-    <div>
+    <div className="docs-article">
       <PageH
         title="接入指南"
-        desc="客户端接入 Talos 的完整说明：版本管理、连接机制、消息契约、配置字段与常见故障。"
+        desc="客户端接入 Talos 的完整说明：连接机制、消息契约、配置字段与常见故障。发布包管理请到控制台「客户端」页。"
         actions={
           <>
-            {cur && (
-              <a className="btn btn-primary btn-sm" href={curUrl} download onClick={() => toast(`开始下载 ${cur.fileName}`)}>
-                <Icon name="download" size={15} />下载客户端 {cur.version}
+            {release?.available && (
+              <a className="btn btn-primary btn-sm" href={curUrl} download onClick={() => toast(`开始下载 ${release.fileName}`)}>
+                <Icon name="download" size={15} />下载客户端 {release.version}
               </a>
             )}
+            <a className="btn btn-outline btn-sm" href="#/download">客户端下载页</a>
             <button className="btn btn-outline btn-sm" onClick={() => copy(INSTALL, '已复制接入命令')}>
               <Icon name="copy" size={15} />复制接入命令
             </button>
@@ -155,97 +109,7 @@ export default function Guide() {
         }
       />
 
-      <Panel
-        title="客户端版本"
-        sub="上传维护发布版本库；「当前生效」版本对下载页与静默升级生效，可回退"
-        actions={
-          <>
-            <input ref={fileRef} type="file" accept=".jar,.zip" style={{ display: 'none' }} onChange={onUpload} />
-            <button className="btn btn-primary btn-sm" disabled={busy === 'upload'} onClick={() => fileRef.current?.click()}>
-              <Icon name="upload" size={15} />{busy === 'upload' ? '上传中…' : '上传新版本'}
-            </button>
-          </>
-        }
-      >
-        {!rel || !rel.available ? (
-          <div style={{ fontSize: 13, color: 'var(--ink-3)', lineHeight: 1.8 }}>
-            版本库为空。点右上角「上传新版本」上传 <code style={{ fontFamily: 'var(--mono)' }}>talos-agent-&lt;版本&gt;.jar / .zip</code>，
-            或执行 <code style={{ fontFamily: 'var(--mono)' }}>client\build-package.bat</code> 后把产物放进发布目录。
-            未指定当前生效版本时，自动以版本号最高的包为准。
-          </div>
-        ) : (
-          <>
-            <div className="card card-pad" style={{ display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap' }}>
-              <div>
-                <div style={{ fontSize: 12, color: 'var(--ink-4)' }}>当前生效版本</div>
-                <div style={{ fontSize: 24, fontWeight: 650, letterSpacing: '-0.02em', fontFamily: 'var(--mono)', marginTop: 2 }}>
-                  v{cur?.version}
-                </div>
-              </div>
-              <div style={{ flex: 1, minWidth: 260, fontSize: 12, color: 'var(--ink-3)', lineHeight: 1.8, fontFamily: 'var(--mono)' }}>
-                {cur?.fileName} · {sizeText(cur?.size)}<br />
-                SHA256 {shortSha(cur?.sha256)}<br />
-                发布于 {cur?.updatedAt}
-              </div>
-              <a className="btn btn-primary btn-sm" href={curUrl} download onClick={() => toast(`开始下载 ${cur?.fileName}`)}>
-                <Icon name="download" size={15} />下载安装包
-              </a>
-            </div>
-
-            {rel.versions.length > 1 && (
-              <table style={{ marginTop: 16 }}>
-                <thead>
-                  <tr><th>版本</th><th>文件</th><th>大小</th><th>更新时间</th><th style={{ width: 200 }}>操作</th></tr>
-                </thead>
-                <tbody>
-                  {rel.versions.map((it) => (
-                    <tr key={it.fileName}>
-                      <td style={{ fontFamily: 'var(--mono)', fontSize: 12.5 }}>
-                        {it.version} {it.current && <Tag tone="ok">当前生效</Tag>}
-                      </td>
-                      <td style={{ fontFamily: 'var(--mono)', fontSize: 12, color: 'var(--ink-3)' }}>{it.fileName}</td>
-                      <td style={{ fontSize: 12.5 }}>{sizeText(it.size)}</td>
-                      <td style={{ fontSize: 12.5, color: 'var(--ink-3)' }}>{it.updatedAt}</td>
-                      <td>
-                        <div style={{ display: 'flex', gap: 6 }}>
-                          {!it.current && (
-                            <button
-                              className="btn btn-outline btn-xs"
-                              disabled={busy === 'act-' + it.version}
-                              onClick={() => activate(it.version)}
-                            >
-                              设为当前
-                            </button>
-                          )}
-                          <a className="btn btn-outline btn-xs" href={`${it.downloadUrl}?version=${encodeURIComponent(it.version)}`} download>
-                            下载
-                          </a>
-                          <button
-                            className="btn btn-outline btn-xs"
-                            disabled={busy === 'del-' + it.fileName}
-                            onClick={() => removeFile(it)}
-                          >
-                            删除
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-
-            <div style={{ marginTop: 12, fontSize: 12, color: 'var(--ink-4)', lineHeight: 1.7 }}>
-              版本库目录：<code style={{ fontFamily: 'var(--mono)' }}>{rel.releaseDir}</code>
-              （配置项 <code style={{ fontFamily: 'var(--mono)' }}>talos.agent.release-dir</code>）。
-              上传、指定与删除即时生效，无需重启服务端；客户端上线时与「当前生效」版本比对，落后即触发静默升级。
-            </div>
-          </>
-        )}
-      </Panel>
-
-      <div style={{ height: 18 }} />
-
+      <div id="connect" className="docs-sec">
       <Panel title="连接机制" sub="客户端主动建连，服务端顺流下发 —— 服务端从不主动入站">
         <div style={{ fontSize: 13, color: 'var(--ink-3)', lineHeight: 1.8 }}>
           研发终端通常位于 NAT 或防火墙之后，无法被服务端直接访问。因此接入方向是<strong style={{ color: 'var(--ink)' }}>反向</strong>的：
@@ -284,9 +148,9 @@ export default function Guide() {
           </tbody>
         </table>
       </Panel>
+      </div>
 
-      <div style={{ height: 18 }} />
-
+      <div id="install" className="docs-sec">
       <Panel title="三步接入" sub="Windows 安装包内置运行环境，无需单独安装 JDK">
         <div className="grid g3">
           <div className="card card-pad">
@@ -325,9 +189,9 @@ export default function Guide() {
           <div className="codeblk">{WATCHDOG}</div>
         </div>
       </Panel>
+      </div>
 
-      <div style={{ height: 18 }} />
-
+      <div id="scripts" className="docs-sec">
       <Panel title="一键脚本" sub="安装目录下的全部运维脚本，均为双击/单命令可用" flush>
         <table>
           <thead>
@@ -349,12 +213,12 @@ export default function Guide() {
           排障：<code style={{ fontFamily: 'var(--mono)' }}>scripts\status.bat</code> 一屏看完配置、进程、保活任务与最近 15 行日志。
         </div>
       </Panel>
+      </div>
 
-      <div style={{ height: 18 }} />
-
+      <div id="upgrade" className="docs-sec">
       <Panel title="静默升级" sub="服务端驱动，终端后台完成下载、校验、替换与重启">
         <div style={{ fontSize: 13, color: 'var(--ink-3)', lineHeight: 1.8 }}>
-          服务端的「当前生效版本」在本页顶部的「客户端版本」面板上传与维护，安装包落盘于
+          服务端的「当前生效版本」在控制台「客户端」页维护，安装包落盘于
           <code style={{ fontFamily: 'var(--mono)' }}> talos.agent.release-dir</code>
           （默认 <code style={{ fontFamily: 'var(--mono)' }}>client/target</code>）。
           打包产物自带 <code style={{ fontFamily: 'var(--mono)' }}>Implementation-Version</code>，客户端的
@@ -397,8 +261,9 @@ export default function Guide() {
         </div>
       </Panel>
 
-      <div style={{ height: 18 }} />
+      </div>
 
+      <div id="protocol" className="docs-sec">
       <Panel title="消息契约" sub="客户端与服务端之间传输的全部消息类型" flush>
         <table>
           <thead>
@@ -477,8 +342,9 @@ export default function Guide() {
         </div>
       </Panel>
 
-      <div style={{ height: 18 }} />
+      </div>
 
+      <div id="logs" className="docs-sec">
       <Panel title="运行日志" sub="控制台「客户端」页 → 查看日志，三个视图定位不同层次的问题">
         <table>
           <thead>
@@ -509,8 +375,9 @@ export default function Guide() {
         </div>
       </Panel>
 
-      <div style={{ height: 18 }} />
+      </div>
 
+      <div id="config" className="docs-sec">
       <Panel title="客户端配置字段" sub="conf/agent.yml —— 由 install.bat 生成，可手工修改后重启生效" flush>
         <table>
           <thead>
@@ -532,8 +399,9 @@ export default function Guide() {
         </table>
       </Panel>
 
-      <div style={{ height: 18 }} />
+      </div>
 
+      <div id="exec" className="docs-sec">
       <Panel title="服务端下发的执行参数" sub="在「Coding Agent」页配置，随 CONFIG_PUSH 下发，优先级高于客户端本地配置" flush>
         <table>
           <thead>
@@ -559,8 +427,9 @@ export default function Guide() {
         </div>
       </Panel>
 
-      <div style={{ height: 18 }} />
+      </div>
 
+      <div id="troubleshoot" className="docs-sec">
       <Panel title="常见故障" sub="先看 logs 下最新的 agent*.log，再看控制台「调用日志」页的渲染结果" flush>
         <table>
           <thead>
@@ -581,6 +450,8 @@ export default function Guide() {
           </tbody>
         </table>
       </Panel>
+
+      </div>
 
       <div style={{ marginTop: 16, fontSize: 12.5, color: 'var(--ink-4)' }}>
         本页内容与客户端实现保持一致；修改客户端接入方式时请同步更新此处。

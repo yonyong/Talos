@@ -3,6 +3,7 @@ import { Icon, Mark } from '../icons'
 import { useToast } from '../ui'
 import { fetchAgentRelease } from '../api'
 import type { AgentRelease } from '../types'
+import SiteFooter from '../components/SiteFooter'
 
 const INSTALL_CMD = 'scripts\\install.bat --server talos.yonyong.dev:9443 --token <一次性凭证> --id <客户端ID>'
 
@@ -68,7 +69,7 @@ export default function Download({ onBack }: { onBack: (anchor?: string) => void
               客户端常驻研发终端，主动与服务端建立反向长连接，接收并执行工作流节点。
               解压后双击 <code style={{ fontFamily: 'var(--mono)' }}>setup.bat</code> 即可一键安装并启动，
               脚本会自动注册计划任务保活；目标机需已安装 JRE 17+。
-              完整说明见控制台「接入指南」页。
+              完整说明见文档中心「接入指南」。
             </p>
           </div>
 
@@ -233,14 +234,10 @@ export default function Download({ onBack }: { onBack: (anchor?: string) => void
         </div>
       </section>
 
-      <footer className="foot">
-        <div className="wrap">
-          <div className="foot-bot" style={{ borderTop: 'none', marginTop: 0, paddingTop: 0 }}>
-            <span>© 2026 Talos · 仅供内网使用</span>
-            <span>{available ? `客户端 ${release?.version} · 服务端要求 1.4.x` : '客户端未发布'}</span>
-          </div>
-        </div>
-      </footer>
+      <SiteFooter
+        compact
+        versionNote={available ? `客户端 ${release?.version} · 服务端要求 1.4.x` : '客户端未发布'}
+      />
     </div>
   )
 }

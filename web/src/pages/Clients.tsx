@@ -8,6 +8,7 @@ import {
   upgradeAllClients, upgradeClient, useAsync, versionOlder,
 } from '../api'
 import type { AgentRelease, AiCallLog, ClientLogEntry, ClientNode, PageFocus, PageKey, UserRow } from '../types'
+import AgentReleasePanel from '../components/AgentReleasePanel'
 
 const INSTALL_CMD = 'scripts\\install.bat --server talos.yonyong.dev:9443 --token <一次性凭证> --id <客户端ID>'
 
@@ -157,6 +158,10 @@ export default function Clients({ focus, nav }: { focus?: PageFocus; nav: (p: Pa
         }
       />
 
+      <div style={{ marginBottom: 18 }}>
+        <AgentReleasePanel />
+      </div>
+
       {loading && <div style={{ fontSize: 13, color: 'var(--ink-4)', padding: 16 }}>加载中…</div>}
       {!loading && clients === null && <div style={{ fontSize: 13, color: 'var(--ink-4)', padding: 16 }}>接口请求失败，请确认后端已启动（:8080）</div>}
 
@@ -232,8 +237,8 @@ export default function Clients({ focus, nav }: { focus?: PageFocus; nav: (p: Pa
                   暂无客户端接入
                   <div style={{ marginTop: 10 }}>
                     <a
-                      style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, color: 'var(--accent)', cursor: 'pointer' }}
-                      onClick={() => nav('guide')}
+                      href="#/docs/guide"
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, color: 'var(--accent)' }}
                     >
                       查看接入指南，完成第一台终端接入 <Icon name="arrow" size={13} />
                     </a>
@@ -336,11 +341,11 @@ export default function Clients({ focus, nav }: { focus?: PageFocus; nav: (p: Pa
           )}
 
           <a
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 20, fontSize: 12.5, color: 'var(--accent)', cursor: 'pointer' }}
-            onClick={() => nav('guide')}
+            href="#/docs/guide"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 20, fontSize: 12.5, color: 'var(--accent)' }}
           >
             <Icon name="info" size={14} />
-            新终端接入？安装命令、保活机制、配置字段与排障见「接入指南」（文档中心）
+            新终端接入？安装命令、保活机制、配置字段与排障见文档中心「接入指南」
             <Icon name="arrow" size={13} />
           </a>
         </>

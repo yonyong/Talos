@@ -51,15 +51,27 @@ const P: Record<string, React.ReactNode> = {
   logout: <><path d="M15 4h3a2 2 0 012 2v12a2 2 0 01-2 2h-3" /><path d="M10 8l-4 4 4 4" /><path d="M6 12h9" /></>,
   file: <><path d="M13 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V9z" /><path d="M13 3v6h6" /></>,
   send: <><path d="M4 12l16-8-6 16-3-6z" /></>,
+  mail: <><rect x="3" y="5" width="18" height="14" rx="2.2" /><path d="M3.8 7.2L12 13.2l8.2-6" /></>,
+  /** GitHub Octocat 官方剪影（fill 绘制，见 Icon fill 分支） */
+  github: <path fill="currentColor" stroke="none" d="M12 2C6.48 2 2 6.58 2 12.25c0 4.52 2.87 8.35 6.84 9.7.5.1.68-.22.68-.48 0-.24-.01-.87-.01-1.7-2.78.62-3.37-1.37-3.37-1.37-.45-1.18-1.11-1.5-1.11-1.5-.91-.64.07-.63.07-.63 1 .07 1.53 1.06 1.53 1.06.89 1.56 2.34 1.11 2.91.85.09-.66.35-1.11.63-1.37-2.22-.26-4.56-1.14-4.56-5.07 0-1.12.39-2.03 1.03-2.75-.1-.26-.45-1.31.1-2.73 0 0 .84-.27 2.75 1.05A9.3 9.3 0 0112 6.8c.85 0 1.71.12 2.51.35 1.91-1.32 2.75-1.05 2.75-1.05.55 1.42.2 2.47.1 2.73.64.72 1.03 1.63 1.03 2.75 0 3.94-2.34 4.81-4.57 5.07.36.32.68.94.68 1.9 0 1.37-.01 2.47-.01 2.81 0 .26.18.58.69.48A10.26 10.26 0 0022 12.25C22 6.58 17.52 2 12 2z" />,
 }
 
 export type IconName = keyof typeof P
 
 export function Icon({ name, size = 18, className = '' }: { name: string; size?: number; className?: string }) {
   const d = P[name] ?? P.info
+  // github 等品牌剪影用 fill；其余走描边
+  const filled = name === 'github'
   return (
     <span className={`ic ${className}`} style={{ width: size, height: size }}>
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
+      <svg
+        viewBox="0 0 24 24"
+        fill={filled ? 'currentColor' : 'none'}
+        stroke={filled ? 'none' : 'currentColor'}
+        strokeWidth={filled ? 0 : 1.7}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
         {d}
       </svg>
     </span>
