@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { Mark } from '../icons'
 import { Icon } from '../icons'
-import ContactIcons from '../components/ContactIcons'
 
 export default function Login({ onBack, onLogin }: { onBack: () => void; onLogin: () => void }) {
   const [user, setUser] = useState('yangde')
@@ -53,7 +52,9 @@ export default function Login({ onBack, onLogin }: { onBack: () => void; onLogin
           <div style={{ marginTop: 24, fontSize: 12, color: 'var(--ink-4)', lineHeight: 1.6 }}>
             登录即代表你同意遵守内网数据使用规范；所有操作将记录审计日志。
           </div>
-          <ContactIcons className="login-contact" />
+          <div className="login-contact">
+            <a href="#/contact" style={{ fontSize: 13, color: 'var(--ink-3)' }}>联系我们 →</a>
+          </div>
         </div>
       </div>
     </div>

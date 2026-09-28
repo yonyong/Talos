@@ -1,6 +1,7 @@
 import React from 'react'
 import { Mark } from '../icons'
 import SiteFooter from '../components/SiteFooter'
+import { navigate } from '../router'
 
 /* ---------------- 架构图（深色科技风） ---------------- */
 function ArchSvg() {
@@ -166,7 +167,8 @@ export default function Landing({ onEnter, onDownload }: { onEnter: () => void; 
             <a href="#arch">架构</a>
             <a href="#feat">核心能力</a>
             <a href="#sec">安全</a>
-            <a href="#" onClick={(e) => { e.preventDefault(); onDownload() }}>下载</a>
+            <a href="#/docs" onClick={(e) => { e.preventDefault(); navigate({ view: 'docs' }); window.scrollTo(0, 0) }}>文档</a>
+            <a href="#/download" onClick={(e) => { e.preventDefault(); onDownload() }}>下载</a>
           </nav>
           <div className="nav-cta">
             <a className="ghost" onClick={(e) => { e.preventDefault(); onEnter() }}>登录</a>

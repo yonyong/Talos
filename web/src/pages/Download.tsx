@@ -69,7 +69,7 @@ export default function Download({ onBack }: { onBack: (anchor?: string) => void
               客户端常驻研发终端，主动与服务端建立反向长连接，接收并执行工作流节点。
               解压后双击 <code style={{ fontFamily: 'var(--mono)' }}>setup.bat</code> 即可一键安装并启动，
               脚本会自动注册计划任务保活；目标机需已安装 JRE 17+。
-              完整说明见控制台「接入指南」页。
+              完整说明见文档中心「接入指南」。
             </p>
           </div>
 
