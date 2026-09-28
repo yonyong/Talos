@@ -250,6 +250,27 @@ h1.hero-title .grad {
 .login-div::before, .login-div::after { content: ''; flex: 1; height: 1px; background: var(--line); }
 .btn.sso { width: 100%; justify-content: center; }
 
+/* 登录（邮箱 + 邮件授权码）：错误就地提示，不丢已填内容 */
+.field-err {
+  margin-top: 13px; padding: 9px 12px; border-radius: var(--radius-xs);
+  background: var(--err-soft); color: var(--err);
+  font-size: 12.5px; line-height: 1.55;
+}
+/* 授权码：等宽 + 大字距，位数字符数一眼可辨 */
+.field .code-input {
+  height: 50px; font-family: var(--mono); font-size: 19px; font-weight: 600;
+  letter-spacing: 6px; text-align: center; padding: 0 8px;
+}
+.field .code-input::placeholder { letter-spacing: 6px; color: var(--ink-5); }
+.link-inline { color: var(--ink-3); border-bottom: 1px solid var(--line-2); padding-bottom: 1px; }
+.link-inline:hover { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* 启动校验登录态时的过渡态（避免用过期 token 把控制台渲染出来再跳走） */
+.boot-splash {
+  min-height: 100vh; display: flex; align-items: center; justify-content: center;
+  font-size: 13px; color: var(--ink-4); background: var(--bg-subtle);
+}
+
 /* 带单位后缀的输入框（如单日限额 tokens/日） */
 .inp-unit { position: relative; }
 .inp-unit input { padding-right: 86px !important; }

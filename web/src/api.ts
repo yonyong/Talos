@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { authHeaders, clearAuth, withToken, type AuthUser } from './auth'
 import type {
   Issue, ClientNode, AgentBackend, PromptTemplate, AiCallLog, DocItem,
   KbDoc, UserRow, Admission, WorkflowNode, WorkflowGraph, WorkflowEdge, InstanceGraph,
@@ -12,13 +13,29 @@ import type {
  * ========================================================================= */
 const BASE = '/api'
 
+/**
+ * 登录态收口：token 失效（401）时清掉本地凭据并把控制台退回登录页。
+ * 只在已经进入控制台（#/app/...）时跳转——登录页自身打接口拿到 401 不该再跳一次。
+ */
+function onUnauthorized(msg: string): never {
+  clearAuth()
+  if (window.location.hash.startsWith('#/app')) {
+    window.location.replace('#/login')
+  }
+  throw new Error(msg)
+}
+
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
   // multipart 上传：不设 Content-Type，交给浏览器带 boundary
   const isForm = typeof FormData !== 'undefined' && init?.body instanceof FormData
-  const res = await fetch(BASE + path, {
-    headers: isForm ? undefined : { 'Content-Type': 'application/json' },
-    ...init,
-  })
+  const headers: Record<string, string> = { ...authHeaders(), ...(init?.headers as Record<string, string> | undefined) }
+  if (!isForm) headers['Content-Type'] = 'application/json'
+  const res = await fetch(BASE + path, { ...init, headers })
+  if (res.status === 401) {
+    let msg = '登录已失效，请重新登录'
+    try { const b = await res.json(); if (b && b.message) msg = b.message } catch {}
+    return onUnauthorized(msg)
+  }
   if (!res.ok) {
     let msg = `请求失败 ${res.status}`
     try { const b = await res.json(); if (b && (b.message || b.error)) msg = b.message || b.error } catch {}
@@ -63,7 +80,7 @@ interface RawDoc {
   hasFile?: boolean; hasText?: boolean
 }
 interface RawKb { name: string; category?: string; chunks?: number; status?: string; content?: string }
-interface RawUser { id?: number; name?: string; empNo?: string; role?: string; bizDomain?: string; bizCodes?: string[]; clientId?: string }
+interface RawUser { id?: number; name?: string; empNo?: string; email?: string; role?: string; bizDomain?: string; bizCodes?: string[]; clientId?: string }
 interface RawRolePerm { id?: number; role?: string; capability?: string; level?: string }
 interface RawTemplate { code?: string; name?: string; definitionJson?: string }
 interface RawInstance {
@@ -207,6 +224,7 @@ function mapUser(e: RawUser): UserRow {
   const codes = e.bizCodes ?? []
   return {
     id: e.id, name: e.name ?? '—', no: e.empNo ?? '—', role: e.role ?? 'guest',
+    email: e.email ?? '',
     bizCodes: codes,
     biz: codes.length ? codes.join('、') : (e.bizDomain ?? '全部'),
     client: e.clientId ?? '—',
@@ -309,6 +327,43 @@ function mapTaskNode(n: RawNode): TaskNodeRow {
 }
 
 /* ============================ 高层 fetch ============================ */
+
+/* ---- 登录：邮箱 + 邮件授权码（白名单接口，不需要 token） ---- */
+
+/** 发授权码的结果：邮件地址已打码，只用于界面提示「已发送至 x***@y」 */
+export interface SendCodeResult {
+  sent: boolean
+  /** false = 服务端沿用了有效期内的授权码，本次没有真的发新邮件 */
+  resent: boolean
+  email: string
+  /** 授权码位数，前端据此限制输入长度 */
+  codeLength: number
+  /** 授权码有效期（秒） */
+  expiresIn: number
+  /** 距离下一次可以发信还有多少秒（0 = 现在就能发） */
+  resendAfter: number
+  /** 仅在服务端 expose-code=true（联调）时返回 */
+  devCode?: string
+}
+
+export const sendLoginCode = (email: string, force = false) =>
+  api<SendCodeResult>('/auth/send-code', { method: 'POST', body: JSON.stringify({ email, force }) })
+
+export interface LoginResult {
+  token: string
+  expireAt: string
+  ttlHours: number
+  user: AuthUser
+}
+
+export const verifyLoginCode = (email: string, code: string) =>
+  api<LoginResult>('/auth/verify', { method: 'POST', body: JSON.stringify({ email, code }) })
+
+/** 校验当前 token 是否仍有效（服务端重启后会话即失效，前端启动时用它兜底） */
+export const fetchMe = () => api<AuthUser>('/auth/me')
+
+export const logout = () => api<{ loggedOut: boolean }>('/auth/logout', { method: 'POST' })
+
 export const fetchIssues = (params?: { status?: string; type?: string; owner?: string }) => {
   const q = new URLSearchParams()
   if (params?.status) q.set('status', params.status)
@@ -391,7 +446,8 @@ export const fetchAgentReleaseList = () => api<AgentReleaseList>('/agent/release
 export async function uploadAgentRelease(file: File): Promise<AgentReleaseList> {
   const fd = new FormData()
   fd.append('file', file)
-  const res = await fetch(BASE + '/agent/release/upload', { method: 'POST', body: fd })
+  const res = await fetch(BASE + '/agent/release/upload', { method: 'POST', body: fd, headers: authHeaders() })
+  if (res.status === 401) return onUnauthorized('登录已失效，请重新登录')
   if (!res.ok) {
     let msg = `上传失败 ${res.status}`
     try { const b = await res.json(); if (b && (b.message || b.error)) msg = b.message || b.error } catch {}
@@ -523,13 +579,14 @@ export const uploadDocs = (
 export const deleteDoc = (id: number) =>
   api<{ deleted: boolean; id: number }>(`/docs/${id}`, { method: 'DELETE' })
 
-/** 文档内容地址：文本/图片走 inline 预览，其他走下载 */
+/** 文档内容地址：文本/图片走 inline 预览，其他走下载。带 token —— <img>/<a> 直链发不了请求头 */
 export const docRawUrl = (id: number, download = false) =>
-  `${BASE}/docs/${id}/raw${download ? '?dl=1' : ''}`
+  withToken(`${BASE}/docs/${id}/raw${download ? '?dl=1' : ''}`)
 
 /** 读取文档纯文本（预览用；非文本类返回空串） */
 export const fetchDocText = async (id: number): Promise<string> => {
-  const res = await fetch(docRawUrl(id))
+  const res = await fetch(withToken(docRawUrl(id)), { headers: authHeaders() })
+  if (res.status === 401) return onUnauthorized('登录已失效，请重新登录')
   if (!res.ok) throw new Error(`读取失败 ${res.status}`)
   return res.text()
 }

@@ -27,6 +27,32 @@ spring:
       max-file-size: 1GB
       max-request-size: 1GB
 
+  # 登录授权码邮件下发。
+  # 下面的 username/password 是联调默认值（与 D:/develop/project/workspace 的邮件配置一致），
+  # 生产建议全部用环境变量覆盖、把默认值清空，别把凭据留在仓库：
+  #   TALOS_MAIL_HOST / TALOS_MAIL_PORT / TALOS_MAIL_USERNAME / TALOS_MAIL_PASSWORD / TALOS_MAIL_FROM
+  mail:
+    host: ${TALOS_MAIL_HOST:smtp.qq.com}
+    port: ${TALOS_MAIL_PORT:465}
+    username: ${TALOS_MAIL_USERNAME:2365878736@qq.com}
+    password: ${TALOS_MAIL_PASSWORD:dbuttuimxkhnecab}
+    protocol: smtp
+    default-encoding: UTF-8
+    properties:
+      mail:
+        smtp:
+          auth: true
+          ssl:
+            enable: true
+          socketFactory:
+            class: javax.net.ssl.SSLSocketFactory
+            port: ${TALOS_MAIL_PORT:465}
+          starttls:
+            enable: true
+            required: false
+          timeout: 10000
+          connectiontimeout: 10000
+
 # 客户端反向长连接端口（gRPC）
 grpc:
   server:
@@ -56,6 +82,25 @@ talos:
   security:
     # 任务下发 HMAC 签名密钥，客户端校验指令来源
     task-sign-secret: ${TALOS_SIGN_SECRET:talos-dev-secret}
+  # 控制台登录：邮箱授权码 + 会话 token（除白名单外所有 /api/** 都要求携带 token）
+  auth:
+    # 授权码位数与有效期
+    code-length: 8
+    code-ttl-seconds: 180
+    # 同一邮箱两次发信的最小间隔（秒），前端倒计时与之对齐
+    resend-interval-seconds: 60
+    # 同一邮箱每小时最多发信次数 / 单个授权码最多试错次数（超过即作废，须重新获取）
+    max-sends-per-hour: 10
+    max-verify-attempts: 5
+    # 会话 token 有效期（小时）
+    session-ttl-hours: 12
+    # 会话 token HMAC 密钥：生产务必用环境变量覆盖
+    token-secret: ${TALOS_AUTH_SECRET:talos-dev-auth-secret}
+    # 发信人地址，留空则用 spring.mail.username
+    mail-from: ${TALOS_MAIL_FROM:}
+    # 首次部署引导：库里没有任何用户带邮箱时，把该邮箱赋给管理员，避免「谁都登不进去」
+    # 例：TALOS_ADMIN_EMAIL=<管理员邮箱>
+    bootstrap-email: ${TALOS_ADMIN_EMAIL:}
   client:
     heartbeat-timeout-seconds: 30
   agent:

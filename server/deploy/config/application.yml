@@ -49,6 +49,13 @@ grpc:
     permit-keep-alive-without-calls: true
 
 talos:
+  # CORS allow-list for /api/**. Default "*" allows every origin, which is
+  # safe here: auth uses the Authorization Bearer header (no cookies), so a
+  # cross-site page cannot carry a valid token. Browsers attach an Origin
+  # header to every POST - even same-origin ones - so an over-restrictive
+  # list 403-blocks the site's own login page. Tighten only if you must:
+  # cors:
+  #   allowed-origin-patterns: https://talos.example.com,http://localhost:*
   llm:
     provider: ${TALOS_LLM_PROVIDER:qwen}
     api-key: ${TALOS_LLM_KEY:}

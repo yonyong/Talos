@@ -10,6 +10,11 @@
  *   --only 可用 ASCII 键：dashboard issues admission workflow monitor clients agents logs docs kb biz repos users roles
  *          （也接受页面中文名，如 --only 总览,权限管理）
  *   --template 仅对工作流编排页生效，切换模板后再截图（文件名追加模板后缀）
+ *   --token  直接注入已有会话 token（登录改版后控制台需要「邮箱 + 邮件授权码」，
+ *           自动化拿不到邮件里的码，所以脚本化截图走这条通道）：
+ *             TALOS_TOKEN=$(curl -s ... /api/auth/verify ... | jq -r .token) node tools/capture-console.mjs
+ *           也可用环境变量 TALOS_TOKEN。联调时更省事的办法是给服务端开 talos.auth.expose-code=true，
+ *           让 /api/auth/send-code 直接把 devCode 回传，再换 token。
  *
  * 需要 NODE_PATH 指向包含 playwright-core 的目录。
  */
@@ -47,6 +52,7 @@ const opt = {
   height: 1000,
   wait: 1500,
   template: null,
+  token: process.env.TALOS_TOKEN || null,
 }
 for (let i = 0; i < argv.length; i++) {
   const a = argv[i]
@@ -58,6 +64,7 @@ for (let i = 0; i < argv.length; i++) {
   else if (a === '--height') opt.height = +argv[++i]
   else if (a === '--wait') opt.wait = +argv[++i]
   else if (a === '--template') opt.template = argv[++i]
+  else if (a === '--token') opt.token = argv[++i]
 }
 
 const targets = opt.only
@@ -79,9 +86,30 @@ try {
 
   // ---- 进入控制台：官网 -> 登录 -> 控制台 ----
   await page.goto(opt.base, { waitUntil: 'load', timeout: 30000 })
-  await page.locator('button:has-text("进入控制台")').first().click({ timeout: 15000 })
-  await page.locator('.login-card .btn-primary').first().click({ timeout: 15000 })
-  await page.waitForSelector('.app', { timeout: 20000 })
+  if (opt.token) {
+    // 有 token 就直通控制台：登录已改为「邮箱 + 邮件授权码」，脚本读不到邮件里的码
+    await page.evaluate((t) => {
+      localStorage.setItem('talos.token', t)
+      localStorage.setItem('talos.onboarded', '1') // 跳过首次进入的初始配置向导
+    }, opt.token)
+    await page.goto(`${opt.base}/#/app/dashboard`, { waitUntil: 'load', timeout: 30000 })
+    await page.reload({ waitUntil: 'load' }) // hash-only 跳转不重跑启动校验，必须真加载一次
+    await page.waitForSelector('.app', { timeout: 20000 })
+  } else {
+    await page.locator('button:has-text("进入控制台")').first().click({ timeout: 15000 })
+    // 老路径：两步式登录（填邮箱 -> 发授权码 -> 填码 -> 登录）。自动化没有收信能力，
+    // 只有人工/联调（expose-code）时能走通；否则请用 --token / TALOS_TOKEN。
+    await page.locator('.login-card input').first().fill(process.env.TALOS_EMAIL || '')
+    await page.locator('.login-card .btn-primary').first().click({ timeout: 15000 })
+    await page.waitForSelector('.code-input', { timeout: 20000 })
+    if (process.env.TALOS_CODE) {
+      await page.locator('.code-input').fill(process.env.TALOS_CODE)
+      await page.locator('.login-card .btn-primary').first().click()
+      await page.waitForSelector('.app', { timeout: 20000 })
+    } else {
+      throw new Error('登录需要邮箱授权码：请改用 --token/TALOS_TOKEN，或同时给出 TALOS_EMAIL 与 TALOS_CODE')
+    }
+  }
   // 隔离实例首次进入会弹「初始配置」向导（.mask 挡所有点击）→ 先完成进入控制台
   const wizardDone = page.locator('button:has-text("完成并进入控制台")').first()
   if (await wizardDone.isVisible({ timeout: 2000 }).catch(() => false)) {

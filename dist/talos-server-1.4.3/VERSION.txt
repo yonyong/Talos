@@ -1,9 +1,9 @@
 Talos Server 1.4.3
-built      : 2026-09-28 00:53:43 +08:00
+built      : 2026-09-28 02:06:43 +08:00
 package    : talos-server-1.4.3-linux.tar.gz
 jar        : app\talos-server-1.4.3.jar
-jar bytes  : 69971192
-jar sha256 : a64611b60323ae02c781b8d198802fecaa889b712eaa5066655ce30832d8b0f6
-source     : 087e6ca
+jar bytes  : 70897926
+jar sha256 : 79346a1c900d341727da579fd64b7f58fd7e0da942b9ad7d7d28e6372867d9f4
+source     : 5ec63a0
 target dir : /opt/applications/talos
 docs       : README.txt

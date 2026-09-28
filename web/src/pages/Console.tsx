@@ -8,6 +8,8 @@ import {
   applySettings, avatarText, loadProfile, loadSettings, saveProfile, saveSettings, SETTINGS_EVENT,
 } from '../settings'
 import type { Profile, Settings } from '../settings'
+import { logout } from '../api'
+import { broadcastAuth, clearAuth } from '../auth'
 import Dashboard from './Dashboard'
 import Issues from './Issues'
 import Admission from './Admission'
@@ -306,8 +308,12 @@ export default function Console({ page, focus, onLogout }: {
           footer={
             <>
               <button className="btn btn-outline btn-sm" onClick={() => setLogoutConfirm(false)}>取消</button>
-              <button className="btn btn-sm logout-cta" onClick={() => {
+              <button className="btn btn-sm logout-cta" onClick={async () => {
                 setLogoutConfirm(false)
+                // 先让服务端注销会话（失败也无所谓：本地凭据一定要清掉，否则界面还在假装已登录）
+                try { await logout() } catch { /* 会话可能早已失效 */ }
+                clearAuth()
+                broadcastAuth()
                 toast('已退出登录')
                 onLogout()
               }}>确认退出</button>

@@ -11,8 +11,8 @@ const ROLE_TONE: Record<string, 'info' | 'ok' | 'warn' | 'mut'> = {
 }
 
 /** 归属业务域与仓库一致：多选编码列表，来自业务树 */
-type Draft = { id?: number; name: string; no: string; role: string; bizCodes: string[]; client: string }
-const EMPTY_DRAFT: Draft = { name: '', no: '', role: 'dev', bizCodes: [], client: '' }
+type Draft = { id?: number; name: string; no: string; email: string; role: string; bizCodes: string[]; client: string }
+const EMPTY_DRAFT: Draft = { name: '', no: '', email: '', role: 'dev', bizCodes: [], client: '' }
 export default function Users() {
   const { toast } = useToast()
   const { data, loading, reload } = useAsync<UserRow[]>(() => fetchUsers(), [])
@@ -40,6 +40,7 @@ export default function Users() {
     return list
       .filter((u) => (role === 'all' ? true : u.role === role))
       .filter((u) => !kw || u.name.toLowerCase().includes(kw) || u.no.includes(kw)
+        || (u.email ?? '').toLowerCase().includes(kw)
         || bizText(u).toLowerCase().includes(kw)
         || (u.bizCodes ?? []).some((c) => c.toLowerCase().includes(kw))
         || u.client.includes(kw))
@@ -54,10 +55,12 @@ export default function Users() {
   const submit = async () => {
     if (!draft) return
     if (!draft.name.trim() || !draft.no.trim()) { toast('姓名与工号为必填'); return }
+    const email = draft.email.trim()
+    if (email && !/^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/.test(email)) { toast('邮箱格式不正确'); return }
     setSaving(true)
     try {
       await saveUser({
-        id: draft.id, name: draft.name.trim(), empNo: draft.no.trim(),
+        id: draft.id, name: draft.name.trim(), empNo: draft.no.trim(), email,
         role: draft.role, bizCodes: draft.bizCodes, clientId: draft.client.trim() || undefined,
       })
       setDraft(null)
@@ -119,13 +122,16 @@ export default function Users() {
         {!loading && data !== null && (shown.length === 0 ? <Empty text="没有匹配的用户" /> : (
           <table>
             <thead>
-              <tr><th>姓名</th><th>工号</th><th>角色</th><th>业务域</th><th>绑定客户端</th><th style={{ textAlign: 'right', paddingRight: 14 }}>操作</th></tr>
+              <tr><th>姓名</th><th>工号</th><th>登录邮箱</th><th>角色</th><th>业务域</th><th>绑定客户端</th><th style={{ textAlign: 'right', paddingRight: 14 }}>操作</th></tr>
             </thead>
             <tbody>
               {shown.map((u) => (
                 <tr key={u.id ?? u.no}>
                   <td style={{ fontWeight: 550 }}>{u.name}</td>
                   <td className="tid">{u.no}</td>
+                  <td className="tid">{u.email
+                    ? u.email
+                    : <span className="t-mut" title="未登记邮箱的账号无法登录控制台">未登记</span>}</td>
                   <td><Tag tone={ROLE_TONE[u.role] ?? 'mut'}>{roleLabel[u.role] ?? u.role}</Tag></td>
                   <td>{bizText(u)}</td>
                   <td className="tid">{u.client}</td>
@@ -133,7 +139,7 @@ export default function Users() {
                     <button className="btn btn-xs btn-outline" style={{ marginRight: 6 }}
                       onClick={() => {
                         setBoundOrig(u.client === '—' ? '' : u.client)
-                        setDraft({ id: u.id, name: u.name, no: u.no, role: u.role, bizCodes: u.bizCodes ?? [], client: u.client === '—' ? '' : u.client })
+                        setDraft({ id: u.id, name: u.name, no: u.no, email: u.email ?? '', role: u.role, bizCodes: u.bizCodes ?? [], client: u.client === '—' ? '' : u.client })
                       }}>
                       <Icon name="edit" size={13} />编辑
                     </button>
@@ -167,6 +173,11 @@ export default function Users() {
               <input value={draft.name} placeholder="如 王磊" onChange={(e) => setDraft({ ...draft, name: e.target.value })} /></div>
             <div className="field"><label>工号</label>
               <input value={draft.no} placeholder="如 25102" onChange={(e) => setDraft({ ...draft, no: e.target.value })} /></div>
+            <div className="field" style={{ gridColumn: '1 / -1' }}><label>登录邮箱</label>
+              <input value={draft.email} placeholder="登录控制台用的邮箱地址"
+                onChange={(e) => setDraft({ ...draft, email: e.target.value })} />
+              <div className="fhelp">控制台以「邮箱 + 邮件授权码」登录：授权码发往这个地址。留空则该账号不可登录；同一邮箱只能对应一个账号。</div>
+            </div>
             <div className="field"><label>角色</label>
               <select value={draft.role} onChange={(e) => setDraft({ ...draft, role: e.target.value })}>
                 {ROLES.map((r) => <option key={r} value={r}>{roleLabel[r]}</option>)}

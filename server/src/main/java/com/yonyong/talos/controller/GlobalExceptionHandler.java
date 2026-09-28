@@ -17,6 +17,11 @@ import java.util.Map;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    @ExceptionHandler(AuthException.class)
+    public ResponseEntity<Map<String, Object>> onAuth(AuthException e) {
+        return ResponseEntity.status(e.getStatus()).body(Map.of("message", text(e)));
+    }
+
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<Map<String, Object>> onBadRequest(IllegalArgumentException e) {
         return ResponseEntity.badRequest().body(Map.of("message", text(e)));

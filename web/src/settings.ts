@@ -1,12 +1,13 @@
 /**
  * 控制台偏好设置 + 当前用户个人信息。
  *
- * 当前无后端鉴权/用户体系，二者均持久化在 localStorage：
+ * 鉴权已接入服务端（邮箱 + 邮件授权码，见 auth.ts / Login.tsx），二者仍持久化在 localStorage：
  *   - talos.settings  偏好（主题色 / 界面密度 / 登录后默认页）
- *   - talos.profile   个人信息（姓名 / 工号 / 角色 / 邮箱 / 手机号）
- * 后续接入真实用户体系时，仅需把读写换成接口调用。
+ *   - talos.profile   个人信息（姓名 / 工号 / 角色 / 邮箱 / 手机号），登录成功后由服务端回填
+ * 登录凭据单独存 talos.token / talos.user，改坏 profile 不会影响登录。
  */
 import type { PageKey } from './types'
+import { roleLabel } from './constants'
 
 /* ============ 偏好设置 ============ */
 
@@ -138,11 +139,15 @@ export interface Profile {
   phone: string
 }
 
+/**
+ * 个人信息。登录（邮箱 + 授权码）成功后由服务端返回的真实用户信息覆盖 ——
+ * 这里只作为「尚未登录」时的空壳，因此不放任何真实姓名/工号/邮箱（部署信息不该写进代码）。
+ */
 export const DEFAULT_PROFILE: Profile = {
-  name: 'YangDe',
-  no: '24988',
-  role: '平台管理员',
-  email: 'yangde@wind.com.cn',
+  name: '',
+  no: '',
+  role: '',
+  email: '',
   phone: '',
 }
 
@@ -159,6 +164,22 @@ export function loadProfile(): Profile {
 
 export function saveProfile(p: Profile) {
   localStorage.setItem(PROFILE_KEY, JSON.stringify(p))
+}
+
+/**
+ * 用登录返回的真实身份覆盖个人信息。
+ * 控制台顶栏、个人设置（agent/git 配置按工号定位）、Issue 默认提出人都读 profile，
+ * 因此登录成功与启动校验通过时都要同步一次。
+ */
+export function applyUserProfile(u: { name?: string; empNo?: string; role?: string; email?: string }) {
+  const prev = loadProfile()
+  saveProfile({
+    ...prev,
+    name: u.name || prev.name,
+    no: u.empNo || prev.no,
+    role: (u.role && roleLabel[u.role]) || u.role || prev.role,
+    email: u.email || prev.email,
+  })
 }
 
 /** 头像字母：取姓名前两个字符的大写 */

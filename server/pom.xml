@@ -13,7 +13,7 @@
 
   <groupId>com.yonyong.talos</groupId>
   <artifactId>talos-server</artifactId>
-  <version>1.4.3</version>
+  <version>1.4.4</version>
   <name>talos-server</name>
   <description>Talos 研发周期全自动流程平台 · 服务端</description>
 
@@ -46,6 +46,12 @@
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-validation</artifactId>
+    </dependency>
+
+    <!-- 登录授权码邮件下发（SMTP，参数全部来自配置，代码内不出现任何邮箱地址） -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-mail</artifactId>
     </dependency>
 
     <!-- LangChain4J：工作流编排与 Prompt 模板治理 -->

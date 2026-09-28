@@ -412,6 +412,8 @@ export interface UserRow {
   name: string
   no: string
   role: string
+  /** 登录邮箱：控制台以「邮箱 + 邮件授权码」登录，空表示该账号不可登录 */
+  email: string
   /** 兼容展示用：业务域名称（存量单值或编码拼接）；新数据以 bizCodes 为准 */
   biz: string
   /** 归属业务域编码列表，与仓库 bizCodes 一致 */

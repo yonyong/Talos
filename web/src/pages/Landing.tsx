@@ -282,11 +282,11 @@ export default function Landing({ onEnter, onDownload }: { onEnter: () => void; 
               <a href="#" onClick={(e) => { e.preventDefault(); onDownload() }}>客户端下载</a>
             </div>
             <div className="foot-col"><h5>资源</h5><a href="#">部署文档</a><a href="#">API 参考</a><a href="#">变更日志</a></div>
-            <div className="foot-col"><h5>关于</h5><a href="#">版本 1.4.3</a><a href="#">内网部署说明</a><a href="#">问题反馈</a></div>
+            <div className="foot-col"><h5>关于</h5><a href="#">版本 1.4.4</a><a href="#">内网部署说明</a><a href="#">问题反馈</a></div>
           </div>
           <div className="foot-bot">
             <span>© 2026 Talos · 仅供内网使用</span>
-            <span>构建 1.4.3 · 数据不出内网</span>
+            <span>构建 1.4.4 · 数据不出内网</span>
           </div>
         </div>
       </footer>

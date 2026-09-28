@@ -20,6 +20,14 @@ public class UserEntity {
     @Column(unique = true, length = 32)
     private String empNo;
 
+    /**
+     * 登录邮箱：控制台以「邮箱 + 邮件授权码」登录，授权码发往此地址。
+     * 为空表示该用户暂不可登录（由管理员在「用户管理」页维护）。
+     * 唯一性在 UserController / AuthService 层校验（不加 DB 唯一约束，避免老库全 NULL 时的迁移风险）。
+     */
+    @Column(length = 128)
+    private String email;
+
     /** admin / pm / lead / dev / qa / guest */
     @Column(length = 16)
     private String role;

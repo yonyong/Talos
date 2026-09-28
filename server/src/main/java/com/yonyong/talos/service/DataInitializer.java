@@ -36,12 +36,17 @@ public class DataInitializer implements CommandLineRunner {
     @Value("${talos.private-model.base-url:}") private String dftPrivateBaseUrl;
     @Value("${talos.private-model.model:cb-internal}") private String dftPrivateModel;
 
+    /** 登录引导邮箱：来自外部配置/环境变量，代码里不出现任何具体邮箱 */
+    @Value("${talos.auth.bootstrap-email:}")
+    private String bootstrapEmail;
+
     @Override
     public void run(String... args) {
         initTemplates();
         initPrompts();
         initKb();
         initUsers();
+        initLoginEmail();
         initRolePermissions();
         initLlmConfigs();
         initAgentConfigs();
@@ -53,6 +58,28 @@ public class DataInitializer implements CommandLineRunner {
                 kbDocRepository.count(), userRepository.count(), rolePermissionRepository.count(),
                 llmConfigRepository.count(),
                 bizDomainRepository.count(), repoRepository.count());
+    }
+
+    /**
+     * 登录引导：控制台登录要求邮箱命中 t_user.email，全新库里的种子用户都没有邮箱，
+     * 若不引导就会出现「谁都登不进去、又没人能进控制台登记邮箱」的死锁。
+     * 库里一个邮箱都没有时，把配置里的引导邮箱赋给管理员（已配置邮箱的库不动）。
+     */
+    private void initLoginEmail() {
+        if (bootstrapEmail == null || bootstrapEmail.isBlank()) return;
+        java.util.List<UserEntity> all = userRepository.findAll();
+        boolean anyRegistered = all.stream()
+                .anyMatch(u -> u.getEmail() != null && !u.getEmail().isBlank());
+        if (anyRegistered) return;
+        UserEntity admin = all.stream()
+                .filter(u -> "admin".equals(u.getRole()))
+                .findFirst()
+                .orElse(null);
+        if (admin == null) return;
+        admin.setEmail(AuthService.normalize(bootstrapEmail));
+        userRepository.save(admin);
+        log.info("登录引导：已为管理员 {}（工号 {}）登记登录邮箱 {}（可在「用户管理」页修改）",
+                admin.getName(), admin.getEmpNo(), LoginMailService.mask(admin.getEmail()));
     }
 
     private void initTemplates() {

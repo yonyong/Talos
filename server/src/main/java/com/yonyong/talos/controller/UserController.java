@@ -2,6 +2,8 @@ package com.yonyong.talos.controller;
 
 import com.yonyong.talos.entity.UserEntity;
 import com.yonyong.talos.repository.UserRepository;
+import com.yonyong.talos.service.AuthService;
+import com.yonyong.talos.service.AuthSessionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -16,6 +18,7 @@ import java.util.Map;
 public class UserController {
 
     private final UserRepository userRepository;
+    private final AuthSessionService sessionService;
 
     @GetMapping
     public List<UserEntity> list(@RequestParam(required = false) String role) {
@@ -52,12 +55,47 @@ public class UserController {
             user.setBizCodes(existing.getBizCodes());
             user.setBizDomain(existing.getBizDomain());
         }
+
+        // 登录邮箱：null = 请求未携带（保留原值，便于只改绑定关系这类局部更新），
+        // 空串 = 显式清空（该用户随即无法登录）。
+        if (user.getEmail() == null && existing != null) {
+            user.setEmail(existing.getEmail());
+        }
+        applyEmail(user, existing);
+
         return ResponseEntity.ok(userRepository.save(user));
+    }
+
+    /**
+     * 邮箱是登录身份，必须唯一且格式合法：
+     * 邮箱唯一性在业务层校验（实体上不加 DB 唯一约束，避免老库全 NULL 时的迁移风险）。
+     */
+    private void applyEmail(UserEntity user, UserEntity existing) {
+        String raw = user.getEmail();
+        if (raw == null || raw.isBlank()) {
+            user.setEmail(null);
+            return;
+        }
+        String email = AuthService.normalize(raw);
+        if (!AuthService.validEmail(email)) {
+            throw new IllegalArgumentException("邮箱格式不正确：" + raw.trim());
+        }
+        Long selfId = existing == null ? null : existing.getId();
+        UserEntity other = selfId == null
+                ? userRepository.findFirstByEmailIgnoreCase(email)
+                : userRepository.findFirstByEmailIgnoreCaseAndIdNot(email, selfId);
+        if (other != null) {
+            throw new IllegalStateException("邮箱 " + email + " 已被用户 " + other.getName()
+                    + "（工号 " + other.getEmpNo() + "）占用，登录身份不可重复");
+        }
+        user.setEmail(email);
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<?> delete(@PathVariable Long id) {
+        // 用户一删，其已签发但仍在有效期内的会话必须立刻作废
+        int revoked = sessionService.revokeUser(id);
         userRepository.deleteById(id);
-        return ResponseEntity.ok(Map.of("deleted", true));
+        return ResponseEntity.ok(Map.of("deleted", true, "sessionsRevoked", revoked));
     }
 }
