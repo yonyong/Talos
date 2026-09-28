@@ -51,13 +51,12 @@ public class AuthSessionService {
     private int sessionTtlHours;
 
     /** 会话快照：登录时定格，改用户资料不影响本次会话（下次登录生效） */
-    public record Session(Long userId, String empNo, String name, String role, String email,
+    public record Session(Long userId, String name, String role, String email,
                           String clientId, List<String> bizCodes, Instant expireAt) {
 
         /** 接口返回给前端的用户信息（不包含任何凭据） */
         public Map<String, Object> toView() {
             Map<String, Object> m = new java.util.LinkedHashMap<>();
-            m.put("empNo", empNo == null ? "" : empNo);
             m.put("name", name == null ? "" : name);
             m.put("role", role == null ? "guest" : role);
             m.put("email", email == null ? "" : email);
@@ -79,7 +78,7 @@ public class AuthSessionService {
         String token = Base64.getUrlEncoder().withoutPadding().encodeToString(buf);
         Instant expireAt = Instant.now().plus(Duration.ofHours(Math.max(1, sessionTtlHours)));
         Session session = new Session(
-                user.getId(), user.getEmpNo(), user.getName(), user.getRole(), user.getEmail(),
+                user.getId(), user.getName(), user.getRole(), user.getEmail(),
                 user.getClientId(), user.getBizCodes(), expireAt);
         sessions.put(token, session);
         return new Issued(token, expireAt, session);

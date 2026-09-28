@@ -8,6 +8,7 @@ import {
 import { profileSaveHint } from '../api'
 import type { ProbeResult } from '../api'
 import type { ClientNode, UserRow } from '../types'
+import { getUser } from '../auth'
 import {
   ACCENTS, applySettings, loadProfile, saveSettings,
 } from '../settings'
@@ -36,7 +37,7 @@ export default function SettingsPanel({ initial, onboard, onClose }: {
     <Modal
       title={onboard ? '欢迎使用 Talos · 初始配置' : '设置'}
       width={1080}
-      height='86vh'
+      height='94vh'
       onClose={onClose}
       /* 普通设置态不设 footer：各 Tab 已有自己的保存按钮，右上角 ✕ / Esc / 点遮罩关闭；
          仅首次登录引导保留「完成并进入控制台」收尾 CTA */
@@ -154,20 +155,16 @@ function AppearanceTab({ initial }: { initial: Settings }) {
 /* ============================ 通用 ============================ */
 function GeneralTab({ initial }: { initial: Settings }) {
   const { toast } = useToast()
-  const me = loadEmpNo()
   const [s, setS] = useState<Settings>(initial)
   /** 浏览器通知授权状态（点「开启权限」后刷新） */
   const [perm, setPerm] = useState(() => notifyPermission())
 
-  /** 工作流自动执行开关（服务端持久化，需工号） */
+  /** 工作流自动执行开关（服务端持久化在当前登录用户的个人设置里） */
   const [autoStart, setAutoStart] = useState(true)
   const [autoDirty, setAutoDirty] = useState(false)
   const [saving, setSaving] = useState(false)
 
-  const { data } = useAsync(
-    () => (me ? fetchUserProfile(me) : Promise.resolve(null)),
-    [me],
-  )
+  const { data } = useAsync(() => fetchUserProfile(), [])
   useEffect(() => {
     if (data) setAutoStart(data.autoStart !== false)
   }, [data])
@@ -193,10 +190,9 @@ function GeneralTab({ initial }: { initial: Settings }) {
   }
 
   const save = async () => {
-    if (!me) return
     setSaving(true)
     try {
-      await saveProfileSettings(me, { autoStart })
+      await saveProfileSettings({ autoStart })
       setAutoDirty(false)
       toast('已保存通用设置')
     } catch (e) {
@@ -212,20 +208,14 @@ function GeneralTab({ initial }: { initial: Settings }) {
       <div style={{ height: 14 }} />
       <div className="set-sec" style={{ marginTop: 0 }}>
         <div className="set-label">工作流自动执行</div>
-        {me ? (
-          <>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
-              <Switch on={autoStart} onClick={() => { setAutoStart((v) => !v); setAutoDirty(true) }} />
-              <span style={{ fontSize: 12.5, color: 'var(--ink-2)' }}>自动执行我提出的 Issue 工作流</span>
-            </label>
-            <div style={{ fontSize: 12.5, color: 'var(--ink-4)', margin: '8px 0 0', lineHeight: 1.7 }}>
-              开启后，你提出的 Issue 一旦通过准入并完成分拣即自动启动工作流，客户端离线时会在其上线后自动补启；
-              关闭后停在「分拣中」，需在 Issue 详情手动点击「启动工作流」确认。
-            </div>
-          </>
-        ) : (
-          <Hint>还没有设置工号。点击左下角头像打开「个人信息」，填写工号后即可开启自动执行。</Hint>
-        )}
+        <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+          <Switch on={autoStart} onClick={() => { setAutoStart((v) => !v); setAutoDirty(true) }} />
+          <span style={{ fontSize: 12.5, color: 'var(--ink-2)' }}>自动执行我提出的 Issue 工作流</span>
+        </label>
+        <div style={{ fontSize: 12.5, color: 'var(--ink-4)', margin: '8px 0 0', lineHeight: 1.7 }}>
+          开启后，你提出的 Issue 一旦通过准入并完成分拣即自动启动工作流，客户端离线时会在其上线后自动补启；
+          关闭后停在「分拣中」，需在 Issue 详情手动点击「启动工作流」确认。
+        </div>
       </div>
 
       <div className="set-sec">
@@ -274,32 +264,23 @@ function GeneralTab({ initial }: { initial: Settings }) {
         </div>
       </div>
 
-      {me && (
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 20 }}>
-          <button className="btn btn-primary btn-sm" disabled={saving || !autoDirty} onClick={save}>
-            {saving ? '保存中…' : '保存'}
-          </button>
-        </div>
-      )}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 20 }}>
+        <button className="btn btn-primary btn-sm" disabled={saving || !autoDirty} onClick={save}>
+          {saving ? '保存中…' : '保存'}
+        </button>
+      </div>
     </div>
   )
 }
 
 /* ==================== Coding Agent（与「Coding Agent 配置」管理页共用编辑器） ==================== */
 /**
- * 本人配置入口：只负责取工号，编辑界面完全复用 AgentConfigEditor，
+ * 本人配置入口：会话级 /profile/me 自动定位当前登录用户，编辑界面完全复用 AgentConfigEditor，
  * 与管理员在「Coding Agent 配置 → 用户配置汇总」里改任意用户是同一份实现。
  */
 function AgentTab() {
-  const me = loadEmpNo()
-
-  if (!me) {
-    return <Hint>还没有设置工号。点击左下角头像打开「个人信息」，填写工号后即可配置你的 Coding Agent。</Hint>
-  }
-
   return (
     <AgentConfigEditor
-      empNo={me}
       desc={<>
         可配置多个后端，<b>列表顺序即优先级</b>（拖拽 ⠿ 调整）；执行任务时从上往下选第一个可用的。
         服务端不再预设任何默认后端，你配置的后端即该客户端可用的后端，保存后<b>立即重推给你绑定的客户端</b>。
@@ -311,11 +292,7 @@ function AgentTab() {
 /* ============================ Git 凭据 ============================ */
 function GitTab() {
   const { toast } = useToast()
-  const me = loadEmpNo()
-  const { data, reload } = useAsync(
-    () => (me ? fetchUserProfile(me) : Promise.reject(new Error('未设置工号'))),
-    [me],
-  )
+  const { data, reload } = useAsync(() => fetchUserProfile(), [])
   const { data: repos } = useAsync(() => fetchRepos(), [])
 
   const [token, setToken] = useState('')
@@ -348,10 +325,9 @@ function GitTab() {
   }, [data, repos, repoHydrated])
 
   const save = async () => {
-    if (!me) return
     setSaving(true)
     try {
-      const r = await saveProfileSettings(me, {
+      const r = await saveProfileSettings({
         gitToken: token.trim(),
         clearGitToken: clearToken,
         gitUserName: gitUser.trim(),
@@ -370,20 +346,15 @@ function GitTab() {
   }
 
   const testGit = async () => {
-    if (!me) return
     setProbing(true)
     try {
-      const r = await probeGit(me, repoUrl.trim(), token.trim() || undefined)
+      const r = await probeGit(repoUrl.trim(), token.trim() || undefined)
       setGitResult(r)
     } catch (e) {
       setGitResult({ ok: false, message: e instanceof Error ? e.message : String(e) })
     } finally {
       setProbing(false)
     }
-  }
-
-  if (!me) {
-    return <Hint>还没有设置工号。点击左下角头像打开「个人信息」，填写工号后即可配置 Git 凭据。</Hint>
   }
 
   return (
@@ -454,11 +425,7 @@ function GitTab() {
 /* ============================ 本机工具链 ============================ */
 function ToolTab() {
   const { toast } = useToast()
-  const me = loadEmpNo()
-  const { data, reload } = useAsync(
-    () => (me ? fetchUserProfile(me) : Promise.reject(new Error('未设置工号'))),
-    [me],
-  )
+  const { data, reload } = useAsync(() => fetchUserProfile(), [])
 
   const [workDir, setWorkDir] = useState('')
   const [mavenHome, setMavenHome] = useState('')
@@ -473,10 +440,9 @@ function ToolTab() {
   }, [data])
 
   const save = async () => {
-    if (!me) return
     setSaving(true)
     try {
-      const r = await saveProfileSettings(me, {
+      const r = await saveProfileSettings({
         workDir: workDir.trim(),
         mavenHome: mavenHome.trim(),
       })
@@ -490,20 +456,15 @@ function ToolTab() {
   }
 
   const testToolchain = async () => {
-    if (!me) return
     setProbing(true)
     try {
-      const r = await probeToolchain(me, workDir.trim(), mavenHome.trim())
+      const r = await probeToolchain(workDir.trim(), mavenHome.trim())
       setTcResult(r)
     } catch (e) {
       setTcResult({ ok: false, message: e instanceof Error ? e.message : String(e) })
     } finally {
       setProbing(false)
     }
-  }
-
-  if (!me) {
-    return <Hint>还没有设置工号。点击左下角头像打开「个人信息」，填写工号后即可配置工具链。</Hint>
   }
 
   return (
@@ -550,7 +511,8 @@ function ToolTab() {
 /** 绑定客户端（面板顶部常驻）：Agent/Git 测试与配置下发都经这条绑定关系 */
 function BindClientBar() {
   const { toast } = useToast()
-  const empNo = loadProfile().no.trim()
+  // 当前登录身份：登录态里的邮箱优先（邮箱 = 用户身份，按它到用户表匹配本人记录）
+  const myEmail = (getUser()?.email || loadProfile().email).trim().toLowerCase()
   const [userRows, setUserRows] = useState<UserRow[] | null>(null)
   const [userErr, setUserErr] = useState(false)
   const [clientList, setClientList] = useState<ClientNode[]>([])
@@ -559,15 +521,15 @@ function BindClientBar() {
 
   useEffect(() => {
     let alive = true
-    if (empNo) {
+    if (myEmail) {
       fetchUsers().then((us) => { if (alive) setUserRows(us) })
         .catch(() => { if (alive) setUserErr(true) })
     }
     fetchClients().then((cs) => { if (alive) setClientList(cs) }).catch(() => {})
     return () => { alive = false }
-  }, [empNo])
+  }, [myEmail])
 
-  const me = empNo ? userRows?.find((u) => u.no === empNo) ?? null : null
+  const me = myEmail ? userRows?.find((u) => u.email && u.email.trim().toLowerCase() === myEmail) ?? null : null
   const serverClient = me ? (me.client === '—' ? '' : me.client) : ''
   const bind = bindOverride ?? serverClient
 
@@ -576,12 +538,12 @@ function BindClientBar() {
     setBindSaving(true)
     try {
       await saveUser({
-        id: me.id, name: me.name, empNo: me.no, role: me.role,
-        bizDomain: me.biz, clientId: bind.trim() || undefined,
+        id: me.id, name: me.name, email: me.email, role: me.role,
+        bizCodes: me.bizCodes, clientId: bind.trim() || undefined,
       })
       setBindOverride(null)
       setUserRows((rows) => rows
-        ? rows.map((u) => (u.no === me.no ? { ...u, client: bind.trim() || '—' } : u))
+        ? rows.map((u) => (u.id === me.id ? { ...u, client: bind.trim() || '—' } : u))
         : rows)
       toast(bind.trim() ? `已绑定客户端 ${bind.trim()}` : '已解除客户端绑定')
     } catch (e) {
@@ -598,8 +560,8 @@ function BindClientBar() {
     }}>
       <Icon name="client" size={15} className="bindbar-ic" />
       <b style={{ fontSize: 13, flex: 'none' }}>绑定客户端</b>
-      {!empNo ? (
-        <span style={{ fontSize: 12.5, color: 'var(--ink-3)' }}>先在「个人信息」填写工号并匹配用户记录后再绑定。</span>
+      {!myEmail ? (
+        <span style={{ fontSize: 12.5, color: 'var(--ink-3)' }}>当前登录账号没有邮箱信息，无法定位用户记录。</span>
       ) : userErr ? (
         <span style={{ fontSize: 12.5, color: 'var(--ink-3)' }}>无法读取用户数据（服务未启动或接口异常）。</span>
       ) : userRows === null ? (
@@ -635,7 +597,7 @@ function BindClientBar() {
         )
       ) : (
         <span style={{ fontSize: 12.5, color: 'var(--ink-3)' }}>
-          工号 {empNo} 未在「用户管理」中登记，无法绑定客户端。
+          登录邮箱 {myEmail} 未在「用户管理」中登记（或该用户未登记邮箱），无法绑定客户端。
         </span>
       )}
     </div>
@@ -649,8 +611,4 @@ function Hint({ children }: { children: React.ReactNode }) {
       <div>{children}</div>
     </div>
   )
-}
-
-function loadEmpNo(): string {
-  return loadProfile().no.trim()
 }

@@ -5,7 +5,7 @@ import type {
   KbDoc, UserRow, Admission, WorkflowNode, WorkflowGraph, WorkflowEdge, InstanceGraph,
   TimelineNode, TerminalLine, RolePermission,
   BizDomain, BizTreeNode, Repo, SortPreview, SortMethod, ClientLogEntry, AgentRelease, AgentReleaseList,
-  IssueDetail, IssueNode, TaskNodeRow, LlmChannel, LlmTestResult,
+  IssueDetail, IssueNode, TaskNodeRow, LlmChannel, LlmTestResult, LogPage,
 } from './types'
 
 /* =========================================================================
@@ -80,7 +80,7 @@ interface RawDoc {
   hasFile?: boolean; hasText?: boolean
 }
 interface RawKb { name: string; category?: string; chunks?: number; status?: string; content?: string }
-interface RawUser { id?: number; name?: string; empNo?: string; email?: string; role?: string; bizDomain?: string; bizCodes?: string[]; clientId?: string }
+interface RawUser { id?: number; name?: string; email?: string; role?: string; bizDomain?: string; bizCodes?: string[]; clientId?: string }
 interface RawRolePerm { id?: number; role?: string; capability?: string; level?: string }
 interface RawTemplate { code?: string; name?: string; definitionJson?: string }
 interface RawInstance {
@@ -223,7 +223,7 @@ function mapKb(e: RawKb): KbDoc {
 function mapUser(e: RawUser): UserRow {
   const codes = e.bizCodes ?? []
   return {
-    id: e.id, name: e.name ?? '—', no: e.empNo ?? '—', role: e.role ?? 'guest',
+    id: e.id, name: e.name ?? '—', role: e.role ?? 'guest',
     email: e.email ?? '',
     bizCodes: codes,
     biz: codes.length ? codes.join('、') : (e.bizDomain ?? '全部'),
@@ -503,7 +503,7 @@ export const saveAgent = (cfg: RawAgent) =>
 export const pushAllAgents = () => api<{ pushed: number }>('/agents/config/push-all', { method: 'POST' })
 export const fetchAgentUsers = () =>
   api<{
-    empNo: string; name: string; clientId: string; online: boolean;
+    id?: number; email: string; name: string; clientId: string; online: boolean;
     agents: { backend: string; execPath: string; model: string; enabled: boolean }[]
   }[]>('/agents/users')
 export const fetchPrompts = () => api<RawPrompt[]>('/agents/prompts').then((r) => r.map(mapPrompt))
@@ -540,9 +540,19 @@ export const saveLlmConfig = (c: {
 export const testLlmChannel = (channel: string) =>
   api<LlmTestResult>('/llm/test', { method: 'POST', body: JSON.stringify({ channel }) })
 
-export const fetchLogs = (issueCode?: string) => {
-  const s = issueCode ? `?issueCode=${encodeURIComponent(issueCode)}` : ''
-  return api<RawLog[]>(`/logs${s}`).then((r) => r.map(mapLog))
+export const fetchLogs = (params?: {
+  issueCode?: string
+  q?: string
+  page?: number
+  size?: number
+}) => {
+  const qp = new URLSearchParams()
+  if (params?.issueCode) qp.set('issueCode', params.issueCode)
+  if (params?.q) qp.set('q', params.q)
+  if (params?.page != null) qp.set('page', String(params.page))
+  if (params?.size != null) qp.set('size', String(params.size))
+  const s = qp.toString()
+  return api<LogPage>(`/logs${s ? `?${s}` : ''}`)
 }
 
 export const fetchDocs = (params?: { issueCode?: string; kind?: string; category?: string }) => {
@@ -606,10 +616,10 @@ export const saveUser = (u: RawUser) =>
   api<RawUser>('/users', { method: 'POST', body: JSON.stringify(u) })
 export const deleteUser = (id: number) =>
   api<{ deleted: boolean }>(`/users/${id}`, { method: 'DELETE' })
-/** 管理员解除用户与客户端的绑定（用户绑定后唯一的解绑出口） */
-export const unbindClientUser = (clientId: string, empNo: string) =>
-  api<{ clientId: string; empNo: string; name?: string; configPushed: boolean }>(
-    `/clients/${encodeURIComponent(clientId)}/bound-users/${encodeURIComponent(empNo)}/unbind`,
+/** 管理员解除用户与客户端的绑定（用户绑定后唯一的解绑出口），按用户 id 定位 */
+export const unbindClientUser = (clientId: string, userId: number) =>
+  api<{ clientId: string; userId: number; name?: string; configPushed: boolean }>(
+    `/clients/${encodeURIComponent(clientId)}/bound-users/${userId}/unbind`,
     { method: 'POST' },
   )
 
@@ -807,7 +817,10 @@ export interface UserAgentCfg {
 }
 
 export interface UserProfile {
-  empNo: string
+  userId?: number
+  /** 该配置归属用户的登录邮箱（邮箱 = 用户身份） */
+  email: string
+  name?: string
   workDir?: string
   mavenHome?: string
   gitTokenSet?: boolean
@@ -829,14 +842,24 @@ export interface ProbeResult {
   message?: string
 }
 
+/* ---- 个人设置：本人走会话级 /profile/me（无需传身份）；管理端传目标用户邮箱走 /profile/{email} ---- */
+
+/** profile 路径：无 target = 本人（/me），有 target = 管理端按邮箱定位 */
+function profilePath(suffix: string, targetEmail?: string): string {
+  return targetEmail
+    ? `/profile/${encodeURIComponent(targetEmail)}${suffix}`
+    : `/profile/me${suffix}`
+}
+
 /** token 永不回显明文，只有 gitTokenSet + 掩码 */
-export const fetchUserProfile = (empNo: string) =>
-  api<UserProfile>(`/profile/${encodeURIComponent(empNo)}`)
+export const fetchUserProfile = (targetEmail?: string) =>
+  api<UserProfile>(profilePath('', targetEmail))
 
 /** 保存结果里的下发状态：绑定客户端在线即已重推，离线则等其上线 */
 export interface ProfileSaveResult {
   saved: boolean
-  empNo?: string
+  userId?: number
+  email?: string
   count?: number
   clientId?: string
   online?: boolean
@@ -851,35 +874,35 @@ export function profileSaveHint(r: ProfileSaveResult): string {
 }
 
 /** Git 凭据 + 工具链（workDir / mavenHome）；gitToken 传空 = 保持原值，clearGitToken=true 才清空 */
-export const saveProfileSettings = (empNo: string, body: Record<string, unknown>) =>
-  api<ProfileSaveResult>(`/profile/${encodeURIComponent(empNo)}`, {
+export const saveProfileSettings = (body: Record<string, unknown>, targetEmail?: string) =>
+  api<ProfileSaveResult>(profilePath('', targetEmail), {
     method: 'POST',
     body: JSON.stringify(body),
   })
 
 /** Agent 多条整表保存（顺序即优先级） */
-export const saveProfileAgents = (empNo: string, agents: UserAgentCfg[]) =>
-  api<ProfileSaveResult>(`/profile/${encodeURIComponent(empNo)}/agents`, {
+export const saveProfileAgents = (agents: UserAgentCfg[], targetEmail?: string) =>
+  api<ProfileSaveResult>(profilePath('/agents', targetEmail), {
     method: 'POST',
     body: JSON.stringify({ agents }),
   })
 
 /* ---- 测试：全部经 gRPC 下发到绑定客户端本机真实执行 ---- */
 
-export const probeAgent = (empNo: string, cfg: UserAgentCfg) =>
-  api<ProbeResult>(`/profile/${encodeURIComponent(empNo)}/probe/agent`, {
+export const probeAgent = (cfg: UserAgentCfg, targetEmail?: string) =>
+  api<ProbeResult>(profilePath('/probe/agent', targetEmail), {
     method: 'POST',
     body: JSON.stringify(cfg),
   })
 
-export const probeGit = (empNo: string, repoUrl: string, gitToken?: string) =>
-  api<ProbeResult>(`/profile/${encodeURIComponent(empNo)}/probe/git`, {
+export const probeGit = (repoUrl: string, gitToken?: string, targetEmail?: string) =>
+  api<ProbeResult>(profilePath('/probe/git', targetEmail), {
     method: 'POST',
     body: JSON.stringify({ repoUrl, gitToken }),
   })
 
-export const probeToolchain = (empNo: string, workDir?: string, mavenHome?: string) =>
-  api<ProbeResult>(`/profile/${encodeURIComponent(empNo)}/probe/toolchain`, {
+export const probeToolchain = (workDir?: string, mavenHome?: string, targetEmail?: string) =>
+  api<ProbeResult>(profilePath('/probe/toolchain', targetEmail), {
     method: 'POST',
     body: JSON.stringify({ workDir, mavenHome }),
   })

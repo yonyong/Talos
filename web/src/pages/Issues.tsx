@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { Icon } from '../icons'
-import { Chips, Dropdown, Empty, Modal, PageH, Panel, PersonSelect, Progress, Search, Tag, useToast } from '../ui'
+import { Chips, Dropdown, Empty, Modal, PageH, Pager, Panel, PersonSelect, Progress, Search, Tag, useToast } from '../ui'
 import { AttachPane, DocList } from '../attach'
 import type { PendingFile } from '../attach'
 import {
@@ -90,6 +90,9 @@ export default function Issues({ nav, focus }: { nav: (p: PageKey, focus?: PageF
   const [statusFilter, setStatusFilter] = useState<string | null>(null)
   const [q, setQ] = useState('')
   const [view, setView] = useState<'list' | 'board'>('list')
+  /** 列表视图分页（Issue 只增不减，必须分页；看板视图按状态分列，不分页） */
+  const [page, setPage] = useState(1)
+  const PAGE_SIZE = 30
   const [open, setOpen] = useState(false)
   const [detail, setDetail] = useState<Issue | null>(null)
   const [detailFull, setDetailFull] = useState<IssueDetail | null>(null)
@@ -106,6 +109,8 @@ export default function Issues({ nav, focus }: { nav: (p: PageKey, focus?: PageF
   const [resortOpen, setResortOpen] = useState(false)
   const [reassignTo, setReassignTo] = useState('')
   const [closePanel, setClosePanel] = useState(false)
+  /** 详情大窗右上「更多动作」下拉 */
+  const [moreOpen, setMoreOpen] = useState(false)
   const [closeReason, setCloseReason] = useState('')
   const [reopenPanel, setReopenPanel] = useState(false)
   const [reopenDesc, setReopenDesc] = useState('')
@@ -121,10 +126,13 @@ export default function Issues({ nav, focus }: { nav: (p: PageKey, focus?: PageF
   const [addDocPending, setAddDocPending] = useState<PendingFile[]>([])
   const [uploading, setUploading] = useState(false)
 
-  /** 当前登录用户：优先用后端用户表按工号反查姓名，取不到时回退个人信息里的姓名 */
+  /** 当前登录用户：优先用后端用户表按邮箱反查姓名，取不到时回退个人信息里的姓名 */
   const profile = useMemo(() => loadProfile(), [])
   const me = useMemo(() => {
-    const hit = (userData ?? []).find((u) => u.no && u.no !== '—' && u.no === profile.no)
+    const myEmail = profile.email?.trim().toLowerCase()
+    const hit = myEmail
+      ? (userData ?? []).find((u) => u.email && u.email.trim().toLowerCase() === myEmail)
+      : undefined
     return hit?.name || profile.name || ''
   }, [userData, profile])
 
@@ -141,7 +149,7 @@ export default function Issues({ nav, focus }: { nav: (p: PageKey, focus?: PageF
   /** 逗号分隔名单 -> 姓名数组（复用模块级实现，避免两处解析规则漂移） */
   const splitNames = ownerList
 
-  /** 人员候选（姓名 + 工号/来源副标题）：后端用户表优先，补充业务域负责人与当前值 */
+  /** 人员候选（姓名 + 邮箱/来源副标题）：后端用户表优先，补充业务域负责人与当前值 */
   const peopleOptions = useMemo(() => {
     const map = new Map<string, string>()
     const put = (name?: string, sub?: string) => {
@@ -149,7 +157,7 @@ export default function Issues({ nav, focus }: { nav: (p: PageKey, focus?: PageF
       if (!n || n === '—') return
       if (!map.has(n)) map.set(n, sub && sub !== '—' ? sub : '')
     }
-    for (const u of userData ?? []) put(u.name, u.no && u.no !== '—' ? u.no : u.role)
+    for (const u of userData ?? []) put(u.name, u.email || u.role)
     const b = bizOf(form.bizCode)
     for (const n of splitNames(b?.devOwners)) put(n, '开发负责人')
     for (const n of splitNames(b?.bizOwners)) put(n, '业务负责人')
@@ -249,7 +257,27 @@ export default function Issues({ nav, focus }: { nav: (p: PageKey, focus?: PageF
       .filter((i) => !kw || i.title.toLowerCase().includes(kw) || i.id.toLowerCase().includes(kw) || i.owner.includes(kw) || i.reporter.includes(kw))
   }, [issues, filter, q, statusFilter, me])
 
+  // 筛选 / 搜索变化回到第 1 页
+  useEffect(() => { setPage(1) }, [q, filter, statusFilter])
+  const totalPages = Math.max(1, Math.ceil(shown.length / PAGE_SIZE))
+
+  /** 必填校验：标题 / 详细描述 / 责任人（业务域、期望完成时间留空走自动分拣） */
+  const stepMissing = (s: number): string | null => {
+    if (s === 0 && !form.title.trim()) return '标题'
+    if (s === 1 && !form.desc.trim()) return '详细描述'
+    if (s === 2 && !form.owner.trim()) return '责任人'
+    return null
+  }
+  const submitMissing = (): string | null => {
+    if (!form.title.trim()) return '标题'
+    if (!form.desc.trim()) return '详细描述'
+    if (!form.owner.trim()) return '责任人'
+    return null
+  }
+
   const submit = async () => {
+    const miss = submitMissing()
+    if (miss) { toast(`请填写${miss}`); return }
     setSaving(true)
     try {
       const b = bizOf(form.bizCode)
@@ -490,29 +518,34 @@ export default function Issues({ nav, focus }: { nav: (p: PageKey, focus?: PageF
           {view === 'list' ? (
             <Panel title={`共 ${shown.length} 条`} flush>
               {shown.length === 0 ? <Empty text={issues.length === 0 ? '暂无 Issue，点击右上角「新建 Issue」开始录入' : '没有符合条件的 Issue'} /> : (
-                <table>
-                  <thead>
-                    <tr><th>ID</th><th>标题</th><th>业务</th><th>类型</th><th>提出人</th><th>责任人</th><th>优先级</th><th>期望完成</th><th>状态</th></tr>
-                  </thead>
-                  <tbody>
-                    {shown.map((i) => (
-                      <tr key={i.id} onClick={() => openDetail(i)} style={{ cursor: 'pointer' }}>
-                        <td className="tid">{i.id}</td>
-                        <td>{i.title}</td>
-                        <td>
-                          {i.biz || '—'}
-                          {i.sortMethod === 'none' && <span style={{ marginLeft: 6 }}><Tag tone="warn" dot>待分拣</Tag></span>}
-                        </td>
-                        <td><Tag tone={i.type === 'REQ' ? 'info' : 'err'}>{i.type === 'REQ' ? '需求' : '缺陷'}</Tag></td>
-                        <td>{i.reporter}</td>
-                        <td>{i.owner}</td>
-                        <td><span style={{ fontFamily: 'var(--mono)', fontSize: 12 }}>{i.priority}</span></td>
-                        <td style={{ fontFamily: 'var(--mono)', fontSize: 12 }}>{i.due}</td>
-                        <td><Tag tone={statusMeta[i.status].tone} dot>{statusMeta[i.status].l}</Tag></td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                <>
+                  <table>
+                    <thead>
+                      <tr><th>ID</th><th>标题</th><th>业务</th><th>类型</th><th>提出人</th><th>责任人</th><th>优先级</th><th>期望完成</th><th>状态</th></tr>
+                    </thead>
+                    <tbody>
+                      {shown.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map((i) => (
+                        <tr key={i.id} onClick={() => openDetail(i)} style={{ cursor: 'pointer' }}>
+                          <td className="tid">{i.id}</td>
+                          <td>{i.title}</td>
+                          <td>
+                            {i.biz || '—'}
+                            {i.sortMethod === 'none' && <span style={{ marginLeft: 6 }}><Tag tone="warn" dot>待分拣</Tag></span>}
+                          </td>
+                          <td><Tag tone={i.type === 'REQ' ? 'info' : 'err'}>{i.type === 'REQ' ? '需求' : '缺陷'}</Tag></td>
+                          <td>{i.reporter}</td>
+                          <td>{i.owner}</td>
+                          <td><span style={{ fontFamily: 'var(--mono)', fontSize: 12 }}>{i.priority}</span></td>
+                          <td style={{ fontFamily: 'var(--mono)', fontSize: 12 }}>{i.due}</td>
+                          <td><Tag tone={statusMeta[i.status].tone} dot>{statusMeta[i.status].l}</Tag></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {totalPages > 1 && (
+                    <Pager page={page} totalPages={totalPages} total={shown.length} onChange={setPage} />
+                  )}
+                </>
               )}
             </Panel>
           ) : (
@@ -555,7 +588,17 @@ export default function Issues({ nav, focus }: { nav: (p: PageKey, focus?: PageF
                   <button className="btn btn-outline btn-sm" onClick={() => (step === 0 ? setOpen(false) : setStep(step - 1))} disabled={saving}>
                     {step === 0 ? '取消' : '上一步'}
                   </button>
-                  <button className="btn btn-primary btn-sm" onClick={() => (step === WIZ_STEPS.length - 1 ? submit() : setStep(step + 1))} disabled={saving}>
+                  <button className="btn btn-primary btn-sm" onClick={() => {
+                    if (step === WIZ_STEPS.length - 1) {
+                      const m = submitMissing()
+                      if (m) { toast(`请填写${m}`); return }
+                      submit()
+                    } else {
+                      const m = stepMissing(step)
+                      if (m) { toast(`请填写${m}`); return }
+                      setStep(step + 1)
+                    }
+                  }} disabled={saving}>
                     {saving ? '提交中…' : step === WIZ_STEPS.length - 1 ? '提交' : '下一步'}
                   </button>
                 </>
@@ -634,7 +677,6 @@ export default function Issues({ nav, focus }: { nav: (p: PageKey, focus?: PageF
                       files={pending}
                       onChange={setPending}
                       onReject={(names) => toast(`${names.length} 个文件超过 20MB：${names.slice(0, 2).join('、')}`)}
-                      hint="截图、日志、需求稿等原始材料，随 Issue 一起归档；提交后可在详情页查看与下载。"
                     />
                   </div>
                 </>
@@ -650,7 +692,7 @@ export default function Issues({ nav, focus }: { nav: (p: PageKey, focus?: PageF
                       onChange={(v) => { setReporterEdited(true); setForm({ ...form, reporter: v }) }}
                       placeholder="选择提出人"
                     />
-                    <div className="fhelp">默认取当前登录用户{me ? `（${me}${profile.no && profile.no !== '—' ? ` · ${profile.no}` : ''}）` : ''}，可下拉改为代他人录入。</div>
+                    <div className="fhelp">默认取当前登录用户{me ? `（${me}${profile.email ? ` · ${profile.email}` : ''}）` : ''}，可下拉改为代他人录入。</div>
                   </div>
                   <div className="field">
                     <label>责任人</label>
@@ -676,9 +718,6 @@ export default function Issues({ nav, focus }: { nav: (p: PageKey, focus?: PageF
                         </button>
                       ))}
                     </div>
-                  </div>
-                  <div style={{ fontSize: 12.5, color: 'var(--ink-4)', marginTop: 14, lineHeight: 1.6 }}>
-                    选择业务域后系统会自动预填默认责任人；提交后将立即触发 AI 准入判定与项目分拣。
                   </div>
                 </>
               )}
@@ -714,11 +753,6 @@ export default function Issues({ nav, focus }: { nav: (p: PageKey, focus?: PageF
                       </div>
                     )}
                   </div>
-                  <div className="id-note">
-                    提交后立即触发 AI 准入判定与业务域分拣
-                    {form.bizCode ? '' : '（未指定业务域时由关键词匹配或 AI 裁决确定）'}；
-                    {reporter && reporter === me ? '按提出人的「自动执行」偏好，条件满足时无需人工点击即可启动。' : '提出人非当前登录用户时，按该用户的偏好决定是否自动启动。'}
-                  </div>
                 </>
               )}
             </Modal>
@@ -728,8 +762,7 @@ export default function Issues({ nav, focus }: { nav: (p: PageKey, focus?: PageF
             <Modal
               title={`${detail.id} · Issue 详情`}
               size="full"
-              onClose={() => setDetail(null)}
-              footer={<button className="btn btn-outline btn-sm" onClick={() => setDetail(null)}>关闭</button>}
+              onClose={() => { setDetail(null); setMoreOpen(false) }}
             >
               <div className="id-wrap">
                 {/* 头部：左侧身份，右侧处置动作；大窗下不再竖着堆 */}
@@ -760,7 +793,7 @@ export default function Issues({ nav, focus }: { nav: (p: PageKey, focus?: PageF
                         <button
                           className="btn btn-primary btn-sm"
                           disabled={acting}
-                          onClick={() => { setReopenPanel(!reopenPanel); setClosePanel(false); setReassignOpen(false); setResortOpen(false) }}
+                          onClick={() => { setReopenPanel(!reopenPanel); setClosePanel(false); setReassignOpen(false); setResortOpen(false); setMoreOpen(false) }}
                         >
                           <Icon name="refresh" size={14} />{acting ? '处理中…' : '重新处理'}
                         </button>
@@ -768,39 +801,51 @@ export default function Issues({ nav, focus }: { nav: (p: PageKey, focus?: PageF
                       <button className={`btn btn-sm ${canReopen ? 'btn-outline' : 'btn-primary'}`} disabled={acting || !canStart} onClick={doStart}>
                         <Icon name="play" size={14} />{acting ? '处理中…' : '启动工作流'}
                       </button>
-                      {!isTerminal && (
+                      {/* 次要动作收进「更多」，保持主动作唯一 */}
+                      <div className="more-wrap">
                         <button
-                          className="btn btn-outline btn-sm"
-                          disabled={!inst}
-                          onClick={() => nav('monitor', { issueCode: detail.id })}
+                          className={`iconbtn ${moreOpen ? 'on' : ''}`}
+                          style={moreOpen ? { background: 'var(--bg-muted)', color: 'var(--ink)' } : undefined}
+                          title="更多动作"
+                          onClick={() => setMoreOpen(!moreOpen)}
                         >
-                          <Icon name="terminal" size={14} />查看进度
+                          <Icon name="more" size={17} />
                         </button>
-                      )}
-                      {/* 归属调整：改派责任人与重新分拣成对出现，均走弹框 */}
-                      <span className="act-div" />
-                      <button
-                        className="btn btn-outline btn-sm"
-                        disabled={acting || isFinished}
-                        onClick={() => { setReassignOpen(true); setResortOpen(false); setClosePanel(false); setReopenPanel(false) }}
-                      >
-                        <Icon name="users" size={14} />改派责任人
-                      </button>
-                      <button
-                        className="btn btn-outline btn-sm"
-                        disabled={acting || resorting || isFinished}
-                        onClick={() => { setResortOpen(true); setReassignOpen(false); setClosePanel(false); setReopenPanel(false) }}
-                      >
-                        <Icon name="branch" size={14} />重新分拣
-                      </button>
-                      <span className="act-div" />
-                      <button
-                        className="btn btn-outline btn-sm"
-                        disabled={acting || isFinished}
-                        onClick={() => { setClosePanel(!closePanel); setReassignOpen(false); setResortOpen(false) }}
-                      >
-                        <Icon name="x" size={14} />关闭 Issue
-                      </button>
+                        {moreOpen && (
+                          <>
+                            <div className="more-mask" onClick={() => setMoreOpen(false)} />
+                            <div className="more-menu">
+                              {!isTerminal && (
+                                <button
+                                  disabled={!inst}
+                                  onClick={() => { setMoreOpen(false); nav('monitor', { issueCode: detail.id }) }}
+                                >
+                                  <Icon name="terminal" size={14} />查看进度
+                                </button>
+                              )}
+                              <button
+                                disabled={acting || isFinished}
+                                onClick={() => { setMoreOpen(false); setReassignOpen(true); setResortOpen(false); setClosePanel(false); setReopenPanel(false) }}
+                              >
+                                <Icon name="users" size={14} />改派责任人
+                              </button>
+                              <button
+                                disabled={acting || resorting || isFinished}
+                                onClick={() => { setMoreOpen(false); setResortOpen(true); setReassignOpen(false); setClosePanel(false); setReopenPanel(false) }}
+                              >
+                                <Icon name="branch" size={14} />重新分拣
+                              </button>
+                              <button
+                                className="danger"
+                                disabled={acting || isFinished}
+                                onClick={() => { setMoreOpen(false); setClosePanel(!closePanel); setReassignOpen(false); setResortOpen(false) }}
+                              >
+                                <Icon name="x" size={14} />关闭 Issue
+                              </button>
+                            </div>
+                          </>
+                        )}
+                      </div>
                     </div>
                     <div className="meta">
                       {inst
@@ -1194,10 +1239,6 @@ export default function Issues({ nav, focus }: { nav: (p: PageKey, focus?: PageF
             </Modal>
           )}
 
-          <div style={{ marginTop: 14, fontSize: 12.5, color: 'var(--ink-4)' }}>
-            提交后：AI 准入判定 → 项目分拣（识别仓库）→ 匹配工作流模板 → 下发至责任人客户端。
-            <a style={{ color: 'var(--accent)', cursor: 'pointer', marginLeft: 8 }} onClick={() => nav('admission')}>查看判定队列 →</a>
-          </div>
         </>
       )}
     </div>

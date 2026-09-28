@@ -144,9 +144,9 @@ public class ConfigService {
     private UserSettingEntity personalSettingOf(String clientId) {
         if (clientId == null || GLOBAL.equals(clientId)) return null;
         return userRepository.findByClientId(clientId).stream()
-                .map(UserEntity::getEmpNo)
-                .filter(empNo -> empNo != null && !empNo.isBlank())
-                .map(userSettingRepository::findByEmpNo)
+                .map(UserEntity::getId)
+                .filter(Objects::nonNull)
+                .map(userSettingRepository::findByUserId)
                 .filter(Objects::nonNull)
                 .findFirst().orElse(null);
     }
@@ -155,10 +155,10 @@ public class ConfigService {
     private List<UserAgentEntity> personalAgentsOf(String clientId) {
         if (clientId == null || GLOBAL.equals(clientId)) return List.of();
         return userRepository.findByClientId(clientId).stream()
-                .map(UserEntity::getEmpNo)
-                .filter(empNo -> empNo != null && !empNo.isBlank())
+                .map(UserEntity::getId)
+                .filter(Objects::nonNull)
                 .findFirst()
-                .map(userAgentRepository::findByEmpNoOrderBySortOrderAscIdAsc)
+                .map(userAgentRepository::findByUserIdOrderBySortOrderAscIdAsc)
                 .orElse(List.of());
     }
 

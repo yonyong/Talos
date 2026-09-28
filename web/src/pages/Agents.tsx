@@ -7,7 +7,8 @@ import { fetchAgentUsers, pushAllAgents, useAsync } from '../api'
 import { AgentConfigEditor, BACKEND_NAMES } from '../components/AgentConfigEditor'
 
 type UserAgents = {
-  empNo: string
+  id?: number
+  email: string
   name: string
   clientId: string
   online: boolean
@@ -22,8 +23,11 @@ export default function Agents() {
   const { data, loading, error, reload } = useAsync<UserAgents[]>(fetchAgentUsers, [])
 
   // 已配置后端的用户排在前面，避免"配了却看不见"
+  // 防御：旧版后端 /agents/users 可能缺 email 或 agents 字段，缺字段不得让整页白屏
   const users = [...(data ?? [])].sort(
-    (a, b) => Number(b.agents.length > 0) - Number(a.agents.length > 0) || a.empNo.localeCompare(b.empNo),
+    (a, b) =>
+      Number((b.agents?.length ?? 0) > 0) - Number((a.agents?.length ?? 0) > 0)
+      || (a.email ?? '').localeCompare(b.email ?? ''),
   )
 
   const push = async () => {
@@ -85,10 +89,10 @@ export default function Agents() {
             </thead>
             <tbody>
               {users.map((u) => (
-                <tr key={u.empNo}>
+                <tr key={u.email || u.name}>
                   <td>
                     <div style={{ fontWeight: 550, fontSize: 13 }}>{u.name || '—'}</div>
-                    <div style={{ fontSize: 11.5, color: 'var(--ink-4)', fontFamily: 'var(--mono)' }}>{u.empNo}</div>
+                    <div style={{ fontSize: 11.5, color: 'var(--ink-4)', fontFamily: 'var(--mono)' }}>{u.email || '未登记邮箱'}</div>
                   </td>
                   <td>
                     <span style={{ fontFamily: 'var(--mono)', fontSize: 12.5 }}>{u.clientId || '未绑定'}</span>
@@ -103,7 +107,7 @@ export default function Agents() {
                     </span>
                   </td>
                   <td>
-                    {u.agents.length === 0
+                    {(u.agents?.length ?? 0) === 0
                       ? <span style={{ fontSize: 12.5, color: 'var(--ink-4)' }}>未配置</span>
                       : (
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
@@ -127,7 +131,7 @@ export default function Agents() {
                   </td>
                   <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
                     <button className="btn btn-sm btn-outline" onClick={() => setEditing(u)}>
-                      <Icon name={u.agents.length > 0 ? 'settings' : 'plus'} size={13} />配置
+                      <Icon name={(u.agents?.length ?? 0) > 0 ? 'settings' : 'plus'} size={13} />配置
                     </button>
                   </td>
                 </tr>
@@ -145,7 +149,7 @@ export default function Agents() {
 
       {editing && (
         <Modal
-          title={`配置 Coding Agent · ${editing.name || editing.empNo}`}
+          title={`配置 Coding Agent · ${editing.name || editing.email}`}
           width={1000}
           onClose={() => setEditing(null)}
         >
@@ -155,7 +159,7 @@ export default function Agents() {
           }}>
             <Icon name="agent" size={15} />
             <b style={{ fontSize: 13 }}>{editing.name || '—'}</b>
-            <span style={{ fontFamily: 'var(--mono)', fontSize: 11.5, color: 'var(--ink-4)' }}>{editing.empNo}</span>
+            <span style={{ fontFamily: 'var(--mono)', fontSize: 11.5, color: 'var(--ink-4)' }}>{editing.email || '未登记邮箱'}</span>
             <span style={{ width: 1, height: 14, background: 'var(--line)' }} />
             <span style={{ fontSize: 12.5, color: 'var(--ink-3)' }}>绑定客户端</span>
             <span style={{ fontFamily: 'var(--mono)', fontSize: 12.5 }}>{editing.clientId || '未绑定'}</span>
@@ -174,7 +178,7 @@ export default function Agents() {
             </div>
           )}
 
-          <AgentConfigEditor empNo={editing.empNo} onSaved={() => reload()} />
+          <AgentConfigEditor targetEmail={editing.email || undefined} onSaved={() => reload()} />
         </Modal>
       )}
     </div>

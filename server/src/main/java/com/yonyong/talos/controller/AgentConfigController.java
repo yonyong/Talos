@@ -64,20 +64,23 @@ public class AgentConfigController {
         List<Map<String, Object>> out = new ArrayList<>();
         for (UserEntity u : userRepository.findAll()) {
             Map<String, Object> m = new LinkedHashMap<>();
-            m.put("empNo", u.getEmpNo());
+            m.put("id", u.getId());
+            m.put("email", u.getEmail() == null ? "" : u.getEmail());
             m.put("name", u.getName());
             m.put("clientId", u.getClientId());
             boolean online = u.getClientId() != null && !u.getClientId().isBlank()
                     && clientRegistry.isOnline(u.getClientId());
             m.put("online", online);
             List<Map<String, Object>> agents = new ArrayList<>();
-            for (UserAgentEntity a : userAgentRepository.findByEmpNoOrderBySortOrderAscIdAsc(u.getEmpNo())) {
-                Map<String, Object> am = new LinkedHashMap<>();
-                am.put("backend", a.getBackend());
-                am.put("execPath", a.getExecPath());
-                am.put("model", a.getModel());
-                am.put("enabled", !Boolean.FALSE.equals(a.getEnabled()));
-                agents.add(am);
+            if (u.getId() != null) {
+                for (UserAgentEntity a : userAgentRepository.findByUserIdOrderBySortOrderAscIdAsc(u.getId())) {
+                    Map<String, Object> am = new LinkedHashMap<>();
+                    am.put("backend", a.getBackend());
+                    am.put("execPath", a.getExecPath());
+                    am.put("model", a.getModel());
+                    am.put("enabled", !Boolean.FALSE.equals(a.getEnabled()));
+                    agents.add(am);
+                }
             }
             m.put("agents", agents);
             out.add(m);

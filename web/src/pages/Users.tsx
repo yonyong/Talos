@@ -11,8 +11,8 @@ const ROLE_TONE: Record<string, 'info' | 'ok' | 'warn' | 'mut'> = {
 }
 
 /** 归属业务域与仓库一致：多选编码列表，来自业务树 */
-type Draft = { id?: number; name: string; no: string; email: string; role: string; bizCodes: string[]; client: string }
-const EMPTY_DRAFT: Draft = { name: '', no: '', email: '', role: 'dev', bizCodes: [], client: '' }
+type Draft = { id?: number; name: string; email: string; role: string; bizCodes: string[]; client: string }
+const EMPTY_DRAFT: Draft = { name: '', email: '', role: 'dev', bizCodes: [], client: '' }
 export default function Users() {
   const { toast } = useToast()
   const { data, loading, reload } = useAsync<UserRow[]>(() => fetchUsers(), [])
@@ -39,7 +39,7 @@ export default function Users() {
     const kw = q.trim().toLowerCase()
     return list
       .filter((u) => (role === 'all' ? true : u.role === role))
-      .filter((u) => !kw || u.name.toLowerCase().includes(kw) || u.no.includes(kw)
+      .filter((u) => !kw || u.name.toLowerCase().includes(kw)
         || (u.email ?? '').toLowerCase().includes(kw)
         || bizText(u).toLowerCase().includes(kw)
         || (u.bizCodes ?? []).some((c) => c.toLowerCase().includes(kw))
@@ -54,13 +54,13 @@ export default function Users() {
 
   const submit = async () => {
     if (!draft) return
-    if (!draft.name.trim() || !draft.no.trim()) { toast('姓名与工号为必填'); return }
+    if (!draft.name.trim()) { toast('姓名为必填'); return }
     const email = draft.email.trim()
     if (email && !/^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/.test(email)) { toast('邮箱格式不正确'); return }
     setSaving(true)
     try {
       await saveUser({
-        id: draft.id, name: draft.name.trim(), empNo: draft.no.trim(), email,
+        id: draft.id, name: draft.name.trim(), email,
         role: draft.role, bizCodes: draft.bizCodes, clientId: draft.client.trim() || undefined,
       })
       setDraft(null)
@@ -103,9 +103,9 @@ export default function Users() {
       <div className="grid g3" style={{ marginBottom: 18 }}>
         <Kpi icon="users" label="用户总数" value={String(list.length)} delta="按业务域授权" dir="flat" />
         <Kpi icon="code" label="研发角色" value={String(list.filter((u) => u.role === 'dev' || u.role === 'lead').length)}
-          delta="可承接执行" dir="flat" color="#0f766e" glow="rgba(15,118,110,.2)" />
+          delta="可承接执行" dir="flat" color="#0f766e" />
         <Kpi icon="client" label="已绑定客户端" value={String(list.filter((u) => u.client !== '—').length)}
-          delta="可执行任务" dir="flat" color="#b45309" glow="rgba(180,83,9,.2)" />
+          delta="可执行任务" dir="flat" color="#b45309" />
       </div>
 
       <Panel
@@ -114,7 +114,7 @@ export default function Users() {
         flush
         actions={<div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
           <Chips value={role} items={chips} onChange={setRole} />
-          <Search placeholder="搜索姓名 / 工号" value={q} onChange={setQ} />
+          <Search placeholder="搜索姓名 / 邮箱" value={q} onChange={setQ} />
         </div>}
       >
         {loading && <div style={{ fontSize: 13, color: 'var(--ink-4)', padding: 16 }}>加载中…</div>}
@@ -122,13 +122,12 @@ export default function Users() {
         {!loading && data !== null && (shown.length === 0 ? <Empty text="没有匹配的用户" /> : (
           <table>
             <thead>
-              <tr><th>姓名</th><th>工号</th><th>登录邮箱</th><th>角色</th><th>业务域</th><th>绑定客户端</th><th style={{ textAlign: 'right', paddingRight: 14 }}>操作</th></tr>
+              <tr><th>姓名</th><th>登录邮箱</th><th>角色</th><th>业务域</th><th>绑定客户端</th><th style={{ textAlign: 'right', paddingRight: 14 }}>操作</th></tr>
             </thead>
             <tbody>
               {shown.map((u) => (
-                <tr key={u.id ?? u.no}>
+                <tr key={u.id ?? u.email ?? u.name}>
                   <td style={{ fontWeight: 550 }}>{u.name}</td>
-                  <td className="tid">{u.no}</td>
                   <td className="tid">{u.email
                     ? u.email
                     : <span className="t-mut" title="未登记邮箱的账号无法登录控制台">未登记</span>}</td>
@@ -139,7 +138,7 @@ export default function Users() {
                     <button className="btn btn-xs btn-outline" style={{ marginRight: 6 }}
                       onClick={() => {
                         setBoundOrig(u.client === '—' ? '' : u.client)
-                        setDraft({ id: u.id, name: u.name, no: u.no, email: u.email ?? '', role: u.role, bizCodes: u.bizCodes ?? [], client: u.client === '—' ? '' : u.client })
+                        setDraft({ id: u.id, name: u.name, email: u.email ?? '', role: u.role, bizCodes: u.bizCodes ?? [], client: u.client === '—' ? '' : u.client })
                       }}>
                       <Icon name="edit" size={13} />编辑
                     </button>
@@ -171,17 +170,15 @@ export default function Users() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
             <div className="field"><label>姓名</label>
               <input value={draft.name} placeholder="如 王磊" onChange={(e) => setDraft({ ...draft, name: e.target.value })} /></div>
-            <div className="field"><label>工号</label>
-              <input value={draft.no} placeholder="如 25102" onChange={(e) => setDraft({ ...draft, no: e.target.value })} /></div>
-            <div className="field" style={{ gridColumn: '1 / -1' }}><label>登录邮箱</label>
-              <input value={draft.email} placeholder="登录控制台用的邮箱地址"
-                onChange={(e) => setDraft({ ...draft, email: e.target.value })} />
-              <div className="fhelp">控制台以「邮箱 + 邮件授权码」登录：授权码发往这个地址。留空则该账号不可登录；同一邮箱只能对应一个账号。</div>
-            </div>
             <div className="field"><label>角色</label>
               <select value={draft.role} onChange={(e) => setDraft({ ...draft, role: e.target.value })}>
                 {ROLES.map((r) => <option key={r} value={r}>{roleLabel[r]}</option>)}
               </select></div>
+            <div className="field" style={{ gridColumn: '1 / -1' }}><label>登录邮箱</label>
+              <input value={draft.email} placeholder="登录控制台用的邮箱地址"
+                onChange={(e) => setDraft({ ...draft, email: e.target.value })} />
+              <div className="fhelp">邮箱即用户身份：控制台以「邮箱 + 邮件授权码」登录，个人配置与绑定关系都按邮箱关联。留空则该账号不可登录；同一邮箱只能对应一个账号。</div>
+            </div>
             <div className="field" style={{ gridColumn: '1 / -1' }}><label>归属业务域</label>
               <BizTreeSelect
                 tree={treeData ?? []}
@@ -245,7 +242,7 @@ export default function Users() {
           }
         >
           <div style={{ fontSize: 13.5, lineHeight: 1.8 }}>
-            即将删除用户 <strong>{pendingDelete.name}</strong>（工号 {pendingDelete.no}，角色 {roleLabel[pendingDelete.role] ?? pendingDelete.role}）。
+            即将删除用户 <strong>{pendingDelete.name}</strong>（{pendingDelete.email ? `邮箱 ${pendingDelete.email}` : '未登记邮箱'}，角色 {roleLabel[pendingDelete.role] ?? pendingDelete.role}）。
             <div style={{ color: 'var(--ink-3)', marginTop: 8 }}>
               该用户已认领或正在执行的 Issue 不会被回收，但将不再出现在成员列表中。
             </div>

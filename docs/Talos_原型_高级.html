@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Talos — 研发周期自动化平台</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --bg:#ffffff;
+    --surface:#fafafa;
+    --surface-2:#f6f6f7;
+    --ink:#18181b;
+    --ink-2:#52525b;
+    --ink-3:#9b9ba3;
+    --line:rgba(24,24,27,.10);
+    --line-2:rgba(24,24,27,.16);
+    --accent:#5e6ad2;
+    --accent-ink:#4b53b8;
+    --accent-weak:rgba(94,106,210,.07);
+    --accent-line:rgba(94,106,210,.30);
+    --radius:14px;
+    --radius-sm:9px;
+    --max:1120px;
+    --ease:cubic-bezier(.22,.61,.36,1);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;
+    background:var(--bg);color:var(--ink);
+    -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;
+    line-height:1.55;font-size:16px;
+  }
+  .wrap{max-width:var(--max);margin:0 auto;padding:0 28px}
+  a{color:inherit;text-decoration:none}
+  h1,h2,h3,h4{letter-spacing:-.02em;font-weight:600;line-height:1.12;color:var(--ink)}
+
+  /* ---------- nav ---------- */
+  header.nav{
+    position:sticky;top:0;z-index:50;
+    background:rgba(255,255,255,.72);
+    backdrop-filter:saturate(180%) blur(14px);
+    border-bottom:1px solid transparent;
+    transition:border-color .3s var(--ease),background .3s var(--ease);
+  }
+  header.nav.scrolled{border-bottom-color:var(--line)}
+  .nav-in{display:flex;align-items:center;justify-content:space-between;height:64px}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:600;font-size:17px;letter-spacing:-.01em}
+  .brand svg{display:block}
+  .nav-links{display:flex;gap:34px;font-size:14.5px;color:var(--ink-2);font-weight:500}
+  .nav-links a{transition:color .2s var(--ease)}
+  .nav-links a:hover{color:var(--ink)}
+  .nav-cta{display:flex;align-items:center;gap:18px}
+  .nav-cta .login{font-size:14.5px;font-weight:500;color:var(--ink-2);transition:color .2s}
+  .nav-cta .login:hover{color:var(--ink)}
+
+  /* ---------- buttons ---------- */
+  .btn{
+    display:inline-flex;align-items:center;justify-content:center;gap:8px;
+    font-size:14.5px;font-weight:560;letter-spacing:-.01em;
+    padding:10px 18px;border-radius:var(--radius-sm);
+    border:1px solid transparent;cursor:pointer;
+    transition:transform .18s var(--ease),background .2s var(--ease),border-color .2s var(--ease),box-shadow .2s var(--ease);
+    white-space:nowrap;
+  }
+  .btn-primary{background:var(--ink);color:#fff}
+  .btn-primary:hover{background:#000;transform:translateY(-1px)}
+  .btn-primary.accent{background:var(--accent);color:#fff}
+  .btn-primary.accent:hover{background:var(--accent-ink);transform:translateY(-1px)}
+  .btn-ghost{background:transparent;color:var(--ink);border-color:var(--line-2)}
+  .btn-ghost:hover{border-color:var(--ink);transform:translateY(-1px)}
+
+  /* ---------- hero ---------- */
+  .hero{padding:120px 0 96px;position:relative;overflow:hidden}
+  .hero::before{
+    content:"";position:absolute;inset:0;z-index:0;pointer-events:none;
+    background-image:radial-gradient(rgba(24,24,27,.045) 1px,transparent 1px);
+    background-size:26px 26px;
+    -webkit-mask-image:radial-gradient(ellipse 70% 60% at 50% 30%,#000 30%,transparent 75%);
+    mask-image:radial-gradient(ellipse 70% 60% at 50% 30%,#000 30%,transparent 75%);
+  }
+  .hero-in{position:relative;z-index:1;max-width:760px}
+  .eyebrow{
+    display:inline-flex;align-items:center;gap:9px;
+    font-size:13px;font-weight:540;color:var(--ink-2);
+    padding:6px 13px;border:1px solid var(--line);border-radius:100px;
+    background:var(--surface);letter-spacing:0;
+  }
+  .eyebrow .tick{width:6px;height:6px;border-radius:50%;background:var(--accent)}
+  h1.title{font-size:60px;line-height:1.04;letter-spacing:-.035em;font-weight:600;margin:26px 0 22px}
+  h1.title .em{color:var(--accent)}
+  .sub{font-size:18px;line-height:1.6;color:var(--ink-2);max-width:600px;font-weight:430}
+  .hero-actions{display:flex;gap:14px;margin-top:38px;flex-wrap:wrap}
+  .hero-meta{margin-top:28px;font-size:13.5px;color:var(--ink-3);display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  .hero-meta .sep{width:4px;height:4px;border-radius:50%;background:var(--ink-3);opacity:.5}
+
+  /* ---------- section heads ---------- */
+  .block{padding:104px 0;border-top:1px solid var(--line)}
+  .sec-label{font-size:13px;font-weight:560;letter-spacing:.04em;text-transform:uppercase;color:var(--accent-ink)}
+  .sec-title{font-size:38px;letter-spacing:-.03em;margin:14px 0 14px;font-weight:600}
+  .sec-desc{font-size:17px;color:var(--ink-2);max-width:560px;font-weight:430}
+
+  /* ---------- architecture ---------- */
+  .arch-frame{
+    margin-top:48px;border:1px solid var(--line);border-radius:var(--radius);
+    background:var(--surface);padding:40px;overflow:hidden;
+  }
+  .arch-frame svg{display:block;width:100%;height:auto}
+
+  /* ---------- capabilities ---------- */
+  .cap-grid{margin-top:56px;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;background:var(--bg)}
+  .cap-row{display:grid;grid-template-columns:1fr 1fr}
+  .cap{
+    padding:38px 40px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);
+    transition:background .25s var(--ease);
+  }
+  .cap:nth-child(2n){border-right:none}
+  .cap:nth-last-child(-n+2){border-bottom:none}
+  .cap:hover{background:var(--surface)}
+  .cap .ico{
+    width:34px;height:34px;color:var(--ink);margin-bottom:20px;
+    display:flex;align-items:center;justify-content:center;
+    border:1px solid var(--line);border-radius:9px;background:var(--bg);
+  }
+  .cap .ico svg{width:18px;height:18px}
+  .cap h3{font-size:18px;letter-spacing:-.015em;margin-bottom:9px;font-weight:600}
+  .cap p{font-size:14.5px;color:var(--ink-2);line-height:1.62;font-weight:430}
+
+  /* ---------- console preview ---------- */
+  .win{
+    margin-top:48px;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;background:var(--bg);
+    box-shadow:0 1px 0 rgba(24,24,27,.02),0 24px 50px -32px rgba(24,24,27,.18);
+  }
+  .win-bar{display:flex;align-items:center;gap:8px;padding:13px 18px;border-bottom:1px solid var(--line);background:var(--surface)}
+  .win-bar .d{width:10px;height:10px;border-radius:50%;border:1px solid var(--line-2)}
+  .win-bar .ttl{margin-left:10px;font-size:13px;color:var(--ink-3);font-weight:500}
+  .win-body{padding:8px 0}
+  .trow{display:grid;grid-template-columns:34px 1.4fr 1fr 120px 110px;align-items:center;padding:13px 24px;gap:14px;border-bottom:1px solid var(--line);font-size:14px}
+  .trow:last-child{border-bottom:none}
+  .trow.head{font-size:12px;font-weight:560;color:var(--ink-3);text-transform:uppercase;letter-spacing:.03em;border-bottom:1px solid var(--line-2)}
+  .trow .st{display:inline-flex;align-items:center;gap:8px;font-size:13px;color:var(--ink-2)}
+  .trow .dot{width:7px;height:7px;border-radius:50%}
+  .dot.done{background:var(--ink-3)}
+  .dot.active{background:var(--accent);box-shadow:0 0 0 3px var(--accent-weak)}
+  .dot.wait{background:transparent;border:1.5px solid var(--line-2)}
+  .trow .code{font-variant-numeric:tabular-nums;color:var(--ink-2);font-size:13.5px}
+  .trow .mono{font-family:'Inter',ui-monospace,monospace;font-size:13px;color:var(--ink)}
+  .tag{font-size:12px;font-weight:540;padding:3px 9px;border:1px solid var(--line-2);border-radius:6px;color:var(--ink-2)}
+
+  /* ---------- security ---------- */
+  .sec-sec{margin-top:56px;display:grid;grid-template-columns:1.1fr 1fr;gap:64px;align-items:start}
+  .sec-sec h2{font-size:34px;letter-spacing:-.03em;font-weight:600;line-height:1.12}
+  .sec-sec .lead{margin-top:18px;font-size:16.5px;color:var(--ink-2);font-weight:430;line-height:1.6}
+  .slist{display:flex;flex-direction:column}
+  .sitem{display:flex;gap:18px;padding:24px 0;border-top:1px solid var(--line)}
+  .sitem:last-child{border-bottom:1px solid var(--line)}
+  .sitem .si{width:38px;height:38px;flex:none;color:var(--accent);border:1px solid var(--accent-line);border-radius:10px;display:flex;align-items:center;justify-content:center;background:var(--accent-weak)}
+  .sitem .si svg{width:19px;height:19px}
+  .sitem b{display:block;font-size:15.5px;font-weight:600;letter-spacing:-.01em;margin-bottom:3px}
+  .sitem span{font-size:14px;color:var(--ink-2);font-weight:430}
+
+  /* ---------- cta ---------- */
+  .cta-block{padding:112px 0}
+  .cta{
+    border:1px solid var(--line);border-radius:var(--radius);
+    background:var(--surface);padding:64px 56px;text-align:center;
+  }
+  .cta h2{font-size:34px;letter-spacing:-.03em;font-weight:600}
+  .cta p{margin:14px auto 30px;font-size:16.5px;color:var(--ink-2);max-width:440px;font-weight:430}
+  .cta .hero-actions{justify-content:center}
+
+  /* ---------- footer ---------- */
+  footer{border-top:1px solid var(--line);padding:44px 0}
+  .foot-in{display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap}
+  .foot-links{display:flex;gap:28px;font-size:14px;color:var(--ink-2);font-weight:500}
+  .foot-links a:hover{color:var(--ink)}
+  .foot-copy{font-size:13px;color:var(--ink-3)}
+
+  [data-reveal]{opacity:0;transform:translateY(14px);transition:opacity .7s var(--ease),transform .7s var(--ease)}
+  [data-reveal].in{opacity:1;transform:none}
+  @media (max-width:860px){
+    .nav-links{display:none}
+    h1.title{font-size:42px}
+    .sec-title{font-size:30px}
+    .cap-row{grid-template-columns:1fr}
+    .cap{border-right:none}
+    .cap:nth-last-child(2){border-bottom:1px solid var(--line)}
+    .sec-sec{grid-template-columns:1fr;gap:40px}
+    .trow{grid-template-columns:28px 1fr 90px;gap:10px}
+    .trow .col-hide{display:none}
+    .arch-frame{padding:20px}
+  }
+</style>
+</head>
+<body>
+
+<!-- ============ NAV ============ -->
+<header class="nav" id="nav">
+  <div class="wrap nav-in">
+    <div class="brand">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <rect x="3.5" y="3.5" width="17" height="17" rx="5"/>
+        <path d="M12 7.2v9.6"/>
+        <path d="M8.4 11h7.2"/>
+        <path d="M9.6 11v6.8M14.4 11v6.8"/>
+      </svg>
+      Talos
+    </div>
+    <nav class="nav-links">
+      <a href="#arch">架构</a>
+      <a href="#cap">核心能力</a>
+      <a href="#console">控制台</a>
+      <a href="#sec">安全</a>
+      <a href="#">文档</a>
+    </nav>
+    <div class="nav-cta">
+      <a href="#" class="login">登录</a>
+      <a href="#" class="btn btn-primary accent">进入控制台</a>
+    </div>
+  </div>
+</header>
+
+<!-- ============ HERO ============ -->
+<section class="hero">
+  <div class="wrap hero-in" data-reveal>
+    <span class="eyebrow"><span class="tick"></span>研发周期自动化平台</span>
+    <h1 class="title">交付，应当<br><span class="em">自己运转</span>。</h1>
+    <p class="sub">Talos 在服务端定义规则，在研发终端自动执行。一条 Issue 从采集、分拣到交付，全程可观测、可审计、可回滚。</p>
+    <div class="hero-actions">
+      <a href="#" class="btn btn-primary accent">进入控制台</a>
+      <a href="#arch" class="btn btn-ghost">查看架构</a>
+    </div>
+    <div class="hero-meta">
+      <span>内网部署</span><span class="sep"></span>
+      <span>Claude Code</span><span class="sep"></span>
+      <span>Cursor</span><span class="sep"></span>
+      <span>Codex</span><span class="sep"></span>
+      <span>CodeBuddy</span>
+    </div>
+  </div>
+</section>
+
+<!-- ============ ARCHITECTURE ============ -->
+<section class="block" id="arch">
+  <div class="wrap">
+    <div data-reveal>
+      <div class="sec-label">系统架构</div>
+      <h2 class="sec-title">反向长连接，代码不出内网</h2>
+      <p class="sec-desc">客户端主动建连，服务端只负责编排与下发；推理与产物始终留在终端一侧。</p>
+    </div>
+    <div class="arch-frame" data-reveal>
+      <svg viewBox="0 0 1040 340" fill="none" font-family="Inter,system-ui,sans-serif">
+        <!-- server zone -->
+        <rect x="40" y="50" width="270" height="220" rx="14" stroke="var(--line-2)" fill="var(--surface)"/>
+        <text x="175" y="82" text-anchor="middle" font-size="15" font-weight="600" fill="var(--ink)">Talos 服务端</text>
+        <text x="175" y="102" text-anchor="middle" font-size="11.5" fill="var(--ink-3)">编排 · 准入 · 配置</text>
+        <rect x="66" y="122" width="108" height="44" rx="9" stroke="var(--line-2)" fill="var(--bg)"/>
+        <text x="120" y="149" text-anchor="middle" font-size="12.5" font-weight="540" fill="var(--ink-2)">准入 / 分拣</text>
+        <rect x="186" y="122" width="108" height="44" rx="9" stroke="var(--line-2)" fill="var(--bg)"/>
+        <text x="240" y="149" text-anchor="middle" font-size="12.5" font-weight="540" fill="var(--ink-2)">工作流引擎</text>
+        <rect x="66" y="180" width="108" height="44" rx="9" stroke="var(--accent-line)" fill="var(--accent-weak)"/>
+        <text x="120" y="207" text-anchor="middle" font-size="12.5" font-weight="560" fill="var(--accent-ink)">配置下发</text>
+        <rect x="186" y="180" width="108" height="44" rx="9" stroke="var(--line-2)" fill="var(--bg)"/>
+        <text x="240" y="207" text-anchor="middle" font-size="12.5" font-weight="540" fill="var(--ink-2)">文档 / 日志</text>
+        <text x="175" y="258" text-anchor="middle" font-size="11" fill="var(--ink-3)">内网 / 机房部署</text>
+
+        <!-- terminal zone -->
+        <rect x="410" y="50" width="220" height="220" rx="14" stroke="var(--line-2)" fill="var(--surface)"/>
+        <text x="520" y="82" text-anchor="middle" font-size="15" font-weight="600" fill="var(--ink)">研发终端</text>
+        <text x="520" y="102" text-anchor="middle" font-size="11.5" fill="var(--ink-3)">NAT 后 · 心跳 10s</text>
+        <rect x="438" y="120" width="164" height="52" rx="10" stroke="var(--ink)" fill="var(--bg)"/>
+        <text x="520" y="143" text-anchor="middle" font-size="13.5" font-weight="600" fill="var(--ink)">客户端 Daemon</text>
+        <text x="520" y="160" text-anchor="middle" font-size="11" fill="var(--ink-2)">常驻 · 拉取 · 回传</text>
+        <rect x="438" y="184" width="164" height="40" rx="9" stroke="var(--line-2)" fill="var(--bg)"/>
+        <text x="520" y="208" text-anchor="middle" font-size="12.5" font-weight="540" fill="var(--ink-2)">多后端适配层</text>
+        <text x="520" y="258" text-anchor="middle" font-size="11" fill="var(--ink-3)">mTLS 双向认证</text>
+
+        <!-- agent zone -->
+        <rect x="700" y="50" width="300" height="220" rx="14" stroke="var(--line-2)" fill="var(--surface)"/>
+        <text x="850" y="82" text-anchor="middle" font-size="15" font-weight="600" fill="var(--ink)">Coding Agent 后端</text>
+        <text x="850" y="102" text-anchor="middle" font-size="11.5" fill="var(--ink-3)">多模型推理</text>
+        <rect x="724" y="122" width="130" height="44" rx="9" stroke="var(--line-2)" fill="var(--bg)"/>
+        <text x="789" y="149" text-anchor="middle" font-size="12.5" font-weight="540" fill="var(--ink-2)">Claude Code</text>
+        <rect x="866" y="122" width="100" height="44" rx="9" stroke="var(--line-2)" fill="var(--bg)"/>
+        <text x="916" y="149" text-anchor="middle" font-size="12.5" font-weight="540" fill="var(--ink-2)">Cursor</text>
+        <rect x="724" y="180" width="130" height="44" rx="9" stroke="var(--line-2)" fill="var(--bg)"/>
+        <text x="789" y="207" text-anchor="middle" font-size="12.5" font-weight="540" fill="var(--ink-2)">Codex</text>
+        <rect x="866" y="180" width="100" height="44" rx="9" stroke="var(--accent-line)" fill="var(--accent-weak)"/>
+        <text x="916" y="207" text-anchor="middle" font-size="12.5" font-weight="560" fill="var(--accent-ink)">CodeBuddy</text>
+        <text x="850" y="258" text-anchor="middle" font-size="11" fill="var(--ink-3)">敏感代码强制私有化</text>
+
+        <!-- connections: single accent -->
+        <path d="M310 160 H 406" stroke="var(--accent)" stroke-width="1.5" stroke-dasharray="4 5" stroke-linecap="round"/>
+        <text x="358" y="150" text-anchor="middle" font-size="11" font-weight="560" fill="var(--accent-ink)">gRPC 双向流</text>
+        <path d="M630 160 H 696" stroke="var(--accent)" stroke-width="1.5" stroke-linecap="round"/>
+        <text x="663" y="150" text-anchor="middle" font-size="11" font-weight="560" fill="var(--accent-ink)">调用</text>
+      </svg>
+    </div>
+  </div>
+</section>
+
+<!-- ============ CAPABILITIES ============ -->
+<section class="block" id="cap">
+  <div class="wrap">
+    <div data-reveal>
+      <div class="sec-label">核心能力</div>
+      <h2 class="sec-title">一条流水线，覆盖研发全程</h2>
+      <p class="sec-desc">采集、判定、分拣、编排、执行、回流——每个环节都在同一条可观测的流水线上。</p>
+    </div>
+    <div class="cap-grid" data-reveal>
+      <div class="cap">
+        <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16l-6 7v5l-4 2v-7z"/></svg></div>
+        <h3>智能准入与分拣</h3>
+        <p>基于服务端知识库自动判定 Issue 是否准入，并识别关联项目与代码仓库，命中即生成执行上下文。</p>
+      </div>
+      <div class="cap">
+        <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="8" width="16" height="11" rx="3"/><path d="M9 19v2M15 19v2"/><circle cx="9" cy="13.5" r="1" fill="currentColor" stroke="none"/><circle cx="15" cy="13.5" r="1" fill="currentColor" stroke="none"/><path d="M12 8V5"/></svg></div>
+        <h3>端侧 Coding Agent</h3>
+        <p>同一终端可挂载多后端，配置即下发，执行即回传。文档生成同样由端侧 Agent 完成——它需要真正读懂代码。</p>
+      </div>
+      <div class="cap">
+        <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="7" height="5" rx="1.5"/><rect x="14" y="15" width="7" height="5" rx="1.5"/><path d="M6.5 9v5.5a2 2 0 002 2H14"/></svg></div>
+        <h3>双轨工作流编排</h3>
+        <p>需求与缺陷各自的标准链路可可视化编排，节点按策略自动推进，失败可恢复、可续跑。</p>
+      </div>
+      <div class="cap">
+        <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-6 10-6 10 6 10 6-3.6 6-10 6-10-6-10-6z"/><circle cx="12" cy="12" r="2.6"/></svg></div>
+        <h3>全链路可观测</h3>
+        <p>渲染后的 Prompt、每次调用的模型与费用、客户端连接与作业进度，在服务端一览无余。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ CONSOLE PREVIEW ============ -->
+<section class="block" id="console">
+  <div class="wrap">
+    <div data-reveal>
+      <div class="sec-label">控制台一瞥</div>
+      <h2 class="sec-title">看得清每一步</h2>
+      <p class="sec-desc">没有花哨的仪表盘，只有该看见的信息：链路进度、节点状态、用量，用线条而非色块表达。</p>
+    </div>
+    <div class="win" data-reveal>
+      <div class="win-bar">
+        <span class="d"></span><span class="d"></span><span class="d"></span>
+        <span class="ttl">Issues · quote-service · 流水线 #TR-2041</span>
+      </div>
+      <div class="win-body">
+        <div class="trow head">
+          <span></span><span>节点</span><span class="col-hide">分支</span><span class="col-hide">耗时</span><span>状态</span>
+        </div>
+        <div class="trow">
+          <span class="code">01</span><span class="mono">Git 准备</span><span class="col-hide mono">feat/tr-2041</span><span class="col-hide">12s</span>
+          <span class="st"><span class="dot done"></span>已完成</span>
+        </div>
+        <div class="trow">
+          <span class="code">02</span><span class="mono">需求分析</span><span class="col-hide mono">feat/tr-2041</span><span class="col-hide">48s</span>
+          <span class="st"><span class="dot done"></span>已完成</span>
+        </div>
+        <div class="trow">
+          <span class="code">03</span><span class="mono">编码实现</span><span class="col-hide mono">feat/tr-2041</span><span class="col-hide">3m 12s</span>
+          <span class="st"><span class="dot active"></span>进行中</span>
+        </div>
+        <div class="trow">
+          <span class="code">04</span><span class="mono">测试门禁</span><span class="col-hide mono">—</span><span class="col-hide">—</span>
+          <span class="st"><span class="dot wait"></span>等待</span>
+        </div>
+        <div class="trow">
+          <span class="code">05</span><span class="mono">提交评审</span><span class="col-hide mono">—</span><span class="col-hide">—</span>
+          <span class="st"><span class="dot wait"></span>等待</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SECURITY ============ -->
+<section class="block" id="sec">
+  <div class="wrap">
+    <div class="sec-sec" data-reveal>
+      <div>
+        <div class="sec-label">安全</div>
+        <h2>过程留痕，<br>权限清晰。</h2>
+        <p class="lead">服务端只在内网编排，敏感仓库强制走私有化推理；所有 AI 调用记录渲染后的 Prompt 与用量，可审计、可追溯、可回滚。</p>
+      </div>
+      <div class="slist">
+        <div class="sitem">
+          <div class="si"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7.5 3v6c0 4.5-3.1 7.9-7.5 9.5C7.6 19.9 4.5 16.5 4.5 12V6z"/><path d="M9 12l2 2 4-4"/></svg></div>
+          <div><b>mTLS 双向认证</b><span>客户端凭证 + 任务 HMAC 签名，杜绝伪造指令。</span></div>
+        </div>
+        <div class="sitem">
+          <div class="si"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="10" width="14" height="10" rx="2.4"/><path d="M8.5 10V7.5a3.5 3.5 0 017 0V10"/></svg></div>
+          <div><b>四道安全护栏</b><span>分支隔离 · 测试门禁 · 仅提 MR · 失败自动回滚。</span></div>
+        </div>
+        <div class="sitem">
+          <div class="si"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="12" r="4"/><path d="M12 12h9M18 12v3M15.5 12v2.5"/></svg></div>
+          <div><b>RBAC 六角色</b><span>按业务域鉴权，谁能看什么、操作什么一目了然。</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ CTA ============ -->
+<section class="cta-block">
+  <div class="wrap">
+    <div class="cta" data-reveal>
+      <h2>把研发流程，交给一条流水线</h2>
+      <p>从一条 Issue 开始，看交付如何自己运转。</p>
+      <div class="hero-actions">
+        <a href="#" class="btn btn-primary accent">进入控制台</a>
+        <a href="#" class="btn btn-ghost">预约演示</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FOOTER ============ -->
+<footer>
+  <div class="wrap foot-in">
+    <div class="brand">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <rect x="3.5" y="3.5" width="17" height="17" rx="5"/>
+        <path d="M12 7.2v9.6"/><path d="M8.4 11h7.2"/><path d="M9.6 11v6.8M14.4 11v6.8"/>
+      </svg>
+      Talos
+    </div>
+    <nav class="foot-links">
+      <a href="#arch">架构</a><a href="#cap">能力</a><a href="#sec">安全</a><a href="#">文档</a><a href="#">下载</a>
+    </nav>
+    <div class="foot-copy">© 2026 Talos · 内网部署研发自动化平台</div>
+  </div>
+</footer>
+
+<script>
+  // nav hairline on scroll
+  const nav = document.getElementById('nav');
+  const onScroll = () => nav.classList.toggle('scrolled', window.scrollY > 8);
+  window.addEventListener('scroll', onScroll, {passive:true});
+  onScroll();
+
+  // reveal on scroll
+  const io = new IntersectionObserver((entries)=>{
+    entries.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target);} });
+  },{threshold:0.12, rootMargin:'0px 0px -8% 0px'});
+  document.querySelectorAll('[data-reveal]').forEach(el=>io.observe(el));
+</script>
+</body>
+</html>

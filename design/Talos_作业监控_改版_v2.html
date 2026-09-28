@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Talos · 作业监控（三重点 Tab 改版）</title>
+<style>
+:root{
+  --bg:#ffffff;--bg-subtle:#fbfbfc;--bg-muted:#f5f5f7;--bg-sunken:#f0f0f2;
+  --surface:#ffffff;--bg-elev:#ffffff;--glass:rgba(255,255,255,.72);--knob:#fff;
+  --ink:#0a0a0b;--ink-2:#33343a;--ink-3:#71717a;--ink-4:#a1a1aa;--ink-5:#d4d4d8;
+  --line:rgba(10,10,11,.08);--line-2:rgba(10,10,11,.14);
+  --accent:#4f46e5;--accent-2:#6366f1;--accent-ink:#4338ca;--accent-soft:rgba(79,70,229,.07);
+  --ok:#15803d;--ok-soft:#eaf6ee;--warn:#b45309;--warn-soft:#fdf4e7;
+  --err:#b91c1c;--err-soft:#fdecec;
+  --radius:18px;--radius-sm:13px;--radius-xs:9px;
+  --shadow-xs:0 1px 2px rgba(10,10,11,.04);
+  --shadow-sm:0 1px 2px rgba(10,10,11,.05),0 2px 6px -2px rgba(10,10,11,.05);
+  --shadow:0 1px 2px rgba(10,10,11,.04),0 10px 28px -12px rgba(10,10,11,.14);
+  --shadow-xl:0 24px 64px -24px rgba(10,10,11,.3);
+  --dur:.16s;--ease:cubic-bezier(.22,.61,.36,1);
+  --font:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'PingFang SC','Microsoft YaHei',sans-serif;
+  --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font);color:var(--ink);background:var(--bg-subtle);-webkit-font-smoothing:antialiased;line-height:1.5;font-size:14px}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+.hidden{display:none!important}
+.ic{width:18px;height:18px;display:inline-block;vertical-align:middle;flex:none}
+.ic svg{width:100%;height:100%;display:block}
+
+/* ---------- shell ---------- */
+.wrap{max-width:1180px;margin:0 auto;padding:28px 28px 64px}
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:22px}
+.brand{display:flex;align-items:center;gap:11px}
+.logo{width:30px;height:30px;border-radius:9px;background:var(--accent);display:grid;place-items:center;color:#fff}
+.logo svg{width:17px;height:17px}
+.brand h1{font-size:16px;font-weight:600;letter-spacing:-.01em}
+.brand .sub{font-size:12px;color:var(--ink-3);margin-top:1px}
+
+/* realtime control */
+.rt{display:flex;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-xs);padding:7px 8px 7px 14px;box-shadow:var(--shadow-xs)}
+.rt .pulse{width:8px;height:8px;border-radius:50%;background:var(--ok);position:relative}
+.rt .pulse::after{content:"";position:absolute;inset:-4px;border-radius:50%;border:2px solid var(--ok);opacity:.5;animation:ping 2.4s var(--ease) infinite}
+@keyframes ping{0%{transform:scale(.6);opacity:.6}80%,100%{transform:scale(1.6);opacity:0}}
+.rt .txt{font-size:12.5px;color:var(--ink-2)}
+.rt .txt b{font-weight:600;color:var(--ink)}
+.rt .upd{font-size:11.5px;color:var(--ink-4);font-variant-numeric:tabular-nums}
+.rt .refresh{width:30px;height:30px;border-radius:8px;border:1px solid var(--line);display:grid;place-items:center;color:var(--ink-3);transition:var(--dur) var(--ease)}
+.rt .refresh:hover{color:var(--accent);border-color:var(--accent);background:var(--accent-soft)}
+.rt .refresh.spin svg{animation:rot .6s linear}
+@keyframes rot{to{transform:rotate(360deg)}}
+
+/* ---------- tabs ---------- */
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:24px}
+.tab{position:relative;display:flex;align-items:center;gap:8px;padding:11px 14px;font-size:13.5px;font-weight:500;color:var(--ink-3);transition:var(--dur) var(--ease)}
+.tab:hover{color:var(--ink-2)}
+.tab.on{color:var(--ink)}
+.tab.on::after{content:"";position:absolute;left:12px;right:12px;bottom:-1px;height:2px;background:var(--accent);border-radius:2px}
+.tab .badge{font-size:11px;font-weight:600;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--bg-muted);color:var(--ink-3);display:grid;place-items:center;font-variant-numeric:tabular-nums}
+.tab.on .badge{background:var(--accent-soft);color:var(--accent-ink)}
+.tab .badge.alert{background:var(--err-soft);color:var(--err)}
+.tab .badge.warn{background:var(--warn-soft);color:var(--warn)}
+
+/* ---------- generic card ---------- */
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-sm);box-shadow:var(--shadow-xs)}
+.sec-h{display:flex;align-items:center;justify-content:space-between;margin:0 2px 12px}
+.sec-h h2{font-size:13px;font-weight:600;color:var(--ink-2);letter-spacing:.02em;text-transform:uppercase}
+.sec-h .note{font-size:12px;color:var(--ink-4)}
+
+/* ---------- 概览 ---------- */
+.health{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px}
+.hcard{position:relative;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-sm);padding:16px 16px 15px;overflow:hidden;box-shadow:var(--shadow-xs)}
+.hcard .bar{position:absolute;left:0;top:0;bottom:0;width:3px}
+.hcard.run .bar{background:var(--accent)}
+.hcard.block .bar{background:var(--warn)}
+.hcard.fail .bar{background:var(--err)}
+.hcard.off .bar{background:var(--ink-4)}
+.hcard .k{font-size:12px;color:var(--ink-3);display:flex;align-items:center;gap:6px}
+.hcard .v{font-size:28px;font-weight:650;letter-spacing:-.02em;margin-top:6px;font-variant-numeric:tabular-nums;line-height:1}
+.hcard .d{font-size:11.5px;color:var(--ink-4);margin-top:5px}
+.hcard.block .v{color:var(--warn)} .hcard.fail .v{color:var(--err)} .hcard.off .v{color:var(--ink-2)}
+
+/* attention list */
+.attn{display:flex;flex-direction:column;gap:10px}
+.arow{display:flex;align-items:center;gap:14px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-sm);padding:14px 16px;transition:var(--dur) var(--ease);cursor:pointer;text-align:left;width:100%}
+.arow:hover{border-color:var(--line-2);box-shadow:var(--shadow-sm);transform:translateY(-1px)}
+.arow .ai{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;flex:none}
+.arow .ai svg{width:18px;height:18px}
+.arow.gate .ai{background:var(--accent-soft);color:var(--accent-ink)}
+.arow.adm .ai{background:var(--accent-soft);color:var(--accent-ink)}
+.arow.block .ai{background:var(--warn-soft);color:var(--warn)}
+.arow.off .ai{background:var(--err-soft);color:var(--err)}
+.arow .body{flex:1;min-width:0}
+.arow .tt{font-size:13.5px;font-weight:600}
+.arow .tt .code{font-family:var(--mono);font-size:12px;font-weight:600;color:var(--accent-ink);margin-right:6px}
+.arow .ds{font-size:12.5px;color:var(--ink-3);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.arow .act{font-size:12.5px;font-weight:600;color:var(--accent);flex:none;display:flex;align-items:center;gap:4px}
+.empty{display:flex;flex-direction:column;align-items:center;gap:10px;padding:46px 0;color:var(--ink-4)}
+.empty .ei{width:46px;height:46px;border-radius:50%;background:var(--ok-soft);color:var(--ok);display:grid;place-items:center}
+.empty .ei svg{width:24px;height:24px}
+
+/* ---------- 实例表 ---------- */
+.filters{display:flex;gap:7px;margin-bottom:14px;flex-wrap:wrap}
+.fchip{font-size:12.5px;font-weight:500;padding:6px 12px;border-radius:999px;border:1px solid var(--line);color:var(--ink-3);transition:var(--dur) var(--ease)}
+.fchip:hover{color:var(--ink-2);border-color:var(--line-2)}
+.fchip.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.fchip .n{opacity:.6;margin-left:5px;font-variant-numeric:tabular-nums}
+.table{width:100%;border-collapse:separate;border-spacing:0}
+.table thead th{font-size:11.5px;font-weight:600;color:var(--ink-4);text-transform:uppercase;letter-spacing:.03em;text-align:left;padding:0 14px 10px}
+.trow{background:var(--surface);cursor:pointer;transition:var(--dur) var(--ease)}
+.trow td{border-top:1px solid var(--line);padding:13px 14px;font-size:13px;vertical-align:middle}
+.trow:hover td{background:var(--bg-subtle)}
+.trow:first-child td{border-top:none}
+.trow .code{font-family:var(--mono);font-size:12.5px;font-weight:600;color:var(--accent-ink)}
+.trow .issue{color:var(--ink-2);max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.st{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600}
+.st .dot{width:7px;height:7px;border-radius:50%}
+.st.run{color:var(--accent-ink)} .st.run .dot{background:var(--accent)}
+.st.block{color:var(--warn)} .st.block .dot{background:var(--warn)}
+.st.fail{color:var(--err)} .st.fail .dot{background:var(--err)}
+.st.done{color:var(--ink-3)} .st.done .dot{background:var(--ink-4)}
+.cnode{color:var(--ink-2)}
+.cnode .at{color:var(--warn);font-weight:600}
+.client{display:inline-flex;align-items:center;gap:7px;color:var(--ink-2);font-size:12.5px}
+.client .cd{width:7px;height:7px;border-radius:50%;background:var(--ok)}
+.client .cd.off{background:var(--err)}
+.elapsed{font-variant-numeric:tabular-nums;color:var(--ink-3)}
+/* progress segmented */
+.seg{display:flex;gap:2px;width:120px}
+.seg i{height:6px;flex:1;border-radius:2px;background:var(--bg-muted)}
+.seg i.done{background:var(--ok)} .seg i.skip{background:var(--ink-5)} .seg i.block{background:var(--warn)} .seg i.cur{background:var(--accent)}
+.segwrap{display:flex;align-items:center;gap:9px}
+.segwrap .pc{font-size:11.5px;color:var(--ink-4);font-variant-numeric:tabular-nums;min-width:30px}
+
+/* ---------- 客户端 ---------- */
+.fleet{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.ccard{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-sm);padding:16px;box-shadow:var(--shadow-xs);position:relative;overflow:hidden}
+.ccard.off{border-color:var(--err);background:linear-gradient(0deg,var(--err-soft),transparent 60%)}
+.ccard .ctop{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.ccard .cname{font-size:14px;font-weight:600;display:flex;align-items:center;gap:8px}
+.ccard .cname .sd{width:8px;height:8px;border-radius:50%;background:var(--ok)}
+.ccard.off .cname .sd{background:var(--err)}
+.ccard .pill{font-size:11px;font-weight:600;padding:3px 8px;border-radius:999px}
+.ccard .pill.on{background:var(--ok-soft);color:var(--ok)}
+.ccard .pill.off{background:var(--err-soft);color:var(--err)}
+.ccard .task{font-size:12.5px;color:var(--ink-2);margin-bottom:3px}
+.ccard .task .lbl{color:var(--ink-4);margin-right:5px}
+.ccard .meta{font-size:11.5px;color:var(--ink-4);font-variant-numeric:tabular-nums;display:flex;gap:14px;margin-top:10px}
+.ccard.off .task{color:var(--err)}
+
+/* ---------- drawer ---------- */
+.scrim{position:fixed;inset:0;background:rgba(10,10,11,.32);backdrop-filter:blur(2px);opacity:0;pointer-events:none;transition:var(--dur) var(--ease);z-index:40}
+.scrim.show{opacity:1;pointer-events:auto}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(520px,92vw);background:var(--surface);box-shadow:var(--shadow-xl);transform:translateX(100%);transition:transform .26s var(--ease);z-index:50;display:flex;flex-direction:column}
+.drawer.show{transform:none}
+.dhead{padding:20px 22px 16px;border-bottom:1px solid var(--line);display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.dhead .code{font-family:var(--mono);font-size:12px;font-weight:600;color:var(--accent-ink)}
+.dhead h3{font-size:16px;font-weight:600;margin-top:3px;letter-spacing:-.01em}
+.dhead .x{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;color:var(--ink-3);border:1px solid var(--line);flex:none}
+.dhead .x:hover{color:var(--ink);background:var(--bg-muted)}
+.dbody{padding:18px 22px 28px;overflow:auto;flex:1}
+.dreason{background:var(--warn-soft);border:1px solid rgba(180,83,9,.18);color:var(--warn);border-radius:var(--radius-xs);padding:11px 13px;font-size:12.5px;font-weight:500;margin-bottom:16px;display:flex;gap:8px;align-items:flex-start}
+.dreason svg{width:16px;height:16px;flex:none;margin-top:1px}
+.dacts{display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap}
+.btn{font-size:12.5px;font-weight:600;padding:8px 14px;border-radius:var(--radius-xs);transition:var(--dur) var(--ease);border:1px solid transparent}
+.btn.primary{background:var(--accent);color:#fff}
+.btn.primary:hover{background:var(--accent-ink)}
+.btn.ghost{border-color:var(--line-2);color:var(--ink-2)}
+.btn.ghost:hover{background:var(--bg-muted)}
+.btn.danger{color:var(--err);border-color:transparent}
+.btn.danger:hover{background:var(--err-soft)}
+/* progress */
+.pbar{display:flex;gap:3px;margin-bottom:16px}
+.pbar i{height:8px;flex:1;border-radius:3px;background:var(--bg-muted)}
+.pbar i.done{background:var(--ok)} .pbar i.skip{background:var(--ink-5)} .pbar i.block{background:var(--warn)} .pbar i.cur{background:var(--accent)}
+.legend{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:20px;font-size:11.5px;color:var(--ink-3)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:9px;height:9px;border-radius:3px;display:inline-block}
+.lg-d{background:var(--ok)} .lg-s{background:var(--ink-5)} .lg-b{background:var(--warn)} .lg-c{background:var(--accent)}
+.dl{font-size:11.5px;font-weight:600;color:var(--ink-4);text-transform:uppercase;letter-spacing:.03em;margin-bottom:10px}
+/* timeline */
+.tl{position:relative;padding-left:22px}
+.tl::before{content:"";position:absolute;left:6px;top:6px;bottom:6px;width:2px;background:var(--line)}
+.tnode{position:relative;padding:0 0 18px}
+.tnode:last-child{padding-bottom:0}
+.tnode .td{position:absolute;left:-22px;top:2px;width:14px;height:14px;border-radius:50%;border:2px solid var(--line-2);background:var(--surface)}
+.tnode.done .td{background:var(--ok);border-color:var(--ok)}
+.tnode.skip .td{background:var(--surface);border-color:var(--ink-5)}
+.tnode.block .td{background:var(--warn);border-color:var(--warn)}
+.tnode.cur .td{background:var(--accent);border-color:var(--accent)}
+.tnode .tn{font-size:13px;font-weight:600;display:flex;align-items:center;gap:8px}
+.tnode.skip .tn{color:var(--ink-4);font-weight:500}
+.tnode .meta{font-size:11.5px;color:var(--ink-4);margin-top:3px;display:flex;gap:12px;flex-wrap:wrap}
+.tnode .tag{font-size:10.5px;font-weight:600;padding:2px 7px;border-radius:6px}
+.tnode .tag.gate{background:var(--accent-soft);color:var(--accent-ink)}
+.tnode .tag.mech{background:var(--bg-muted);color:var(--ink-3)}
+.tnode .tag.ai{background:var(--ok-soft);color:var(--ok)}
+.tnode.cur .wait{color:var(--warn);font-weight:600}
+/* log panel */
+.log{margin-top:6px;background:var(--bg-sunken);border-radius:var(--radius-xs);padding:12px 14px;font-family:var(--mono);font-size:11.5px;line-height:1.7;color:var(--ink-2);white-space:pre-wrap;max-height:160px;overflow:auto}
+.log .t{color:var(--ink-4)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <div class="brand">
+      <div class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4 7v5c0 4.5 3.2 7.5 8 9 4.8-1.5 8-4.5 8-9V7z"/></svg></div>
+      <div><h1>作业监控</h1><div class="sub">自动化研发工作流 · 执行总览</div></div>
+    </div>
+    <div class="rt">
+      <span class="pulse"></span>
+      <span class="txt"><b>实时</b> · 5s</span>
+      <span class="upd" id="upd">更新于 20:11:02</span>
+      <button class="refresh" id="refresh" title="立即刷新"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7M21 4v4h-4"/></svg></button>
+    </div>
+  </div>
+
+  <div class="tabs" id="tabs">
+    <button class="tab on" data-tab="overview">概览<span class="badge alert" id="b-overview">3</span></button>
+    <button class="tab" data-tab="instances">实例<span class="badge" id="b-instances">8</span></button>
+    <button class="tab" data-tab="clients">客户端<span class="badge warn" id="b-clients">1</span></button>
+  </div>
+
+  <!-- ============ TAB 1 · 概览 ============ -->
+  <section id="overview">
+    <div class="health">
+      <div class="hcard run"><span class="bar"></span><div class="k">运行中</div><div class="v">4</div><div class="d">共 7 个实例</div></div>
+      <div class="hcard block"><span class="bar"></span><div class="k">阻塞</div><div class="v">2</div><div class="d">1 人工闸门 + 1 准入待审</div></div>
+      <div class="hcard fail"><span class="bar"></span><div class="k">已失败</div><div class="v">0</div><div class="d">本时段无失败</div></div>
+      <div class="hcard off"><span class="bar"></span><div class="k">客户端离线</div><div class="v">1</div><div class="d">1 台已掉线 3h</div></div>
+    </div>
+
+    <div class="sec-h"><h2>需要你处理</h2><span class="note">3 项 · 按紧急度排序</span></div>
+    <div class="attn">
+      <button class="arow adm" onclick="openDrawer('TAL-1033')">
+        <span class="ai"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18M5 7h14M5 7 2 13h6zM19 7l-3 6h6z"/></svg></span>
+        <span class="body"><span class="tt"><span class="code">TAL-1033</span>准入无法判定，转人工</span><span class="ds">诉求类型置信度均低于阈值（需求 0.52 / 缺陷 0.48），需你指定类型与承接业务域</span></span>
+        <span class="act">去处理 <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></span>
+      </button>
+      <button class="arow gate" onclick="openDrawer('TAL-1042')">
+        <span class="ai"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 2 22h20z"/><path d="M12 10v5M12 18h.01"/></svg></span>
+        <span class="body"><span class="tt"><span class="code">TAL-1042</span>设计评审 等待你确认</span><span class="ds">节点 4「设计评审」是人工闸门，已等待 12 分钟 — 承接客户端 老杨的T14P 在线</span></span>
+        <span class="act">去处理 <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></span>
+      </button>
+      <button class="arow off" onclick="goTab('clients')">
+        <span class="ai"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18.4 6.6a9 9 0 1 1-12.8 0M12 2v10"/></svg></span>
+        <span class="body"><span class="tt"><span class="code">测试机-02</span>客户端已离线</span><span class="ds">最后心跳 3 小时前 · 当前无任务排队，但新实例将无法分配至此机</span></span>
+        <span class="act">查看 <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ============ TAB 2 · 实例 ============ -->
+  <section id="instances" class="hidden">
+    <div class="filters" id="filters">
+      <button class="fchip on" data-f="all">全部<span class="n">8</span></button>
+      <button class="fchip" data-f="run">运行中<span class="n">4</span></button>
+      <button class="fchip" data-f="block">阻塞<span class="n">2</span></button>
+      <button class="fchip" data-f="fail">已失败<span class="n">0</span></button>
+      <button class="fchip" data-f="done">已完成<span class="n">2</span></button>
+    </div>
+    <div class="card" style="padding:6px 6px 2px">
+      <table class="table">
+        <thead><tr><th>编号</th><th>状态</th><th>Issue</th><th>当前节点</th><th>进度</th><th>承接客户端</th><th>耗时</th></tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ============ TAB 3 · 客户端 ============ -->
+  <section id="clients" class="hidden">
+    <div class="fleet" id="fleet"></div>
+  </section>
+</div>
+
+<!-- drawer -->
+<div class="scrim" id="scrim" onclick="closeDrawer()"></div>
+<aside class="drawer" id="drawer">
+  <div class="dhead">
+    <div><div class="code" id="d-code">TAL-1042</div><h3 id="d-title">账户系统令牌轮换</h3></div>
+    <button class="x" onclick="closeDrawer()"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+  </div>
+  <div class="dbody" id="d-body"></div>
+</aside>
+
+<script>
+const instances = [
+  {code:'TAL-1033',st:'block',statusText:'阻塞',issue:'修复登录偶发 500',node:'准入判断',at:true,progress:'0/7',seg:['block','cur','cur','cur','cur','cur','cur'],client:'待分配',online:true,elapsed:'4m',title:'修复登录偶发 500'},
+  {code:'TAL-1042',st:'block',statusText:'阻塞',issue:'账户系统令牌轮换',node:'设计评审',at:true,progress:'1/7',seg:['done','done','done','block','cur','cur','cur'],client:'老杨的T14P',online:true,elapsed:'18m',title:'账户系统令牌轮换'},
+  {code:'TAL-1041',st:'run',statusText:'运行中',issue:'行情快照导出性能优化',node:'编码实现',progress:'3/7',seg:['done','done','done','cur','cur','cur','cur'],client:'老杨的T14P',online:true,elapsed:'42m',title:'行情快照导出性能优化'},
+  {code:'TAL-1039',st:'run',statusText:'运行中',issue:'登录页改版联调',node:'仓库准备',progress:'1/6',seg:['done','cur','cur','cur','cur','cur'],client:'老杨的T14P',online:true,elapsed:'9m',title:'登录页改版联调'},
+  {code:'TAL-1035',st:'done',statusText:'已完成',issue:'报表导出脚本修复',node:'交付',progress:'7/7',seg:['done','done','done','skip','done','done','done'],client:'老杨的T14P',online:true,elapsed:'1h12m',title:'报表导出脚本修复'},
+  {code:'TAL-1030',st:'fail',statusText:'已失败',issue:'灰度发布回滚脚本',node:'自测',progress:'5/7',seg:['done','done','done','done','done','fail','cur'],client:'老杨的T14P',online:true,elapsed:'53m',title:'灰度发布回滚脚本'},
+  {code:'TAL-1028',st:'done',statusText:'已完成',issue:'配置中心热更新',node:'交付',progress:'6/6',seg:['done','done','done','skip','done','done'],client:'测试机-02',online:false,elapsed:'2h01m',title:'配置中心热更新'},
+  {code:'TAL-1021',st:'run',statusText:'运行中',issue:'API 限流策略调整',node:'智能分拣',progress:'2/7',seg:['done','done','cur','cur','cur','cur','cur'],client:'老杨的T14P',online:true,elapsed:'6m',title:'API 限流策略调整'},
+];
+const clients = [
+  {name:'老杨的T14P',online:true,task:'编码实现 · TAL-1041',seen:'刚刚',ver:'1.4.6'},
+  {name:'测试机-02',online:false,task:'离线 · 最后任务 TAL-1028',seen:'3 小时前',ver:'1.4.4'},
+  {name:'构建机-01',online:true,task:'空闲',seen:'12s 前',ver:'1.4.6'},
+];
+const detail = {
+  'TAL-1033':{
+    reason:'AI 准入无法判定诉求类型（需求 0.52 / 缺陷 0.48，均低于阈值），已按 fail-safe 转人工。指定类型与承接业务域后即可继续。',
+    seg:['block','cur','cur','cur','cur','cur','cur'],
+    nodes:[
+      {n:'准入判断',s:'block',meta:['AI 准入','转人工 · 等待 4m'],tag:['ai','AI'],wait:true},
+      {n:'智能分拣',s:'cur',meta:['等待上游'],tag:['ai','AI']},
+      {n:'仓库准备',s:'cur',meta:['待执行'],tag:['mech','机械']},
+      {n:'设计评审',s:'cur',meta:['待执行'],tag:['gate','闸门']},
+      {n:'编码实现',s:'cur',meta:['待执行'],tag:['ai','AI']},
+      {n:'自测',s:'cur',meta:['待执行'],tag:['ai','AI']},
+      {n:'交付',s:'cur',meta:['待执行'],tag:['mech','机械']},
+    ],
+    log:'[20:14:55] $ talos admit TAL-1033\n[20:14:56] 提取诉求：修复登录偶发 500\n[20:14:58] 类型判定 需求=0.52 缺陷=0.48\n[20:14:58] 置信度不足阈值 → 转人工（fail-safe）\n[20:19:00] 等待人工指定类型与业务域'
+  },
+  'TAL-1042':{
+    reason:'节点 4「设计评审」是人工闸门，已等待 12 分钟，需要你确认后才能继续。',
+    seg:['done','done','done','block','cur','cur','cur'],
+    nodes:[
+      {n:'准入判断',s:'done',meta:['AI 准入','通过'],tag:['ai','AI']},
+      {n:'智能分拣',s:'done',meta:['路由至 账户 业务域'],tag:['ai','AI']},
+      {n:'仓库准备',s:'done',meta:['git · 客户端','老杨的T14P'],tag:['mech','机械']},
+      {n:'设计评审',s:'block',meta:['人工闸门','等待 12m'],tag:['gate','闸门'],wait:true},
+      {n:'编码实现',s:'cur',meta:['等待上游'],tag:['ai','AI']},
+      {n:'自测',s:'cur',meta:['待执行'],tag:['ai','AI']},
+      {n:'交付',s:'cur',meta:['待执行'],tag:['mech','机械']},
+    ],
+    log:'[20:01:02] $ talos admit TAL-1042\n[20:01:03] 准入通过 · 类型=需求\n[20:01:09] 分拣 → 业务域「账户」\n[20:01:40] git clone ... 完成 (老杨的T14P)\n[20:03:11] 进入设计评审（人工闸门）\n[20:11:11] 等待确认 12m'
+  }
+};
+
+// tabs
+document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>goTab(t.dataset.tab));
+function goTab(name){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',t.dataset.tab===name));
+  ['overview','instances','clients'].forEach(id=>document.getElementById(id).classList.toggle('hidden',id!==name));
+  if(name==='instances') renderTable('all');
+  if(name==='clients') renderFleet();
+}
+// filters
+document.querySelectorAll('.fchip').forEach(c=>c.onclick=()=>{
+  document.querySelectorAll('.fchip').forEach(x=>x.classList.remove('on'));
+  c.classList.add('on'); renderTable(c.dataset.f);
+});
+function renderTable(f){
+  const rows=instances.filter(i=>f==='all'||(f==='done'?i.st==='done':f==='block'?i.st==='block':f==='fail'?i.st==='fail':i.st==='run'));
+  document.getElementById('tbody').innerHTML=rows.map(i=>`
+    <tr class="trow" onclick="openDrawer('${i.code}')">
+      <td><span class="code">${i.code}</span></td>
+      <td><span class="st ${i.st}"><span class="dot"></span>${i.statusText}</span></td>
+      <td><span class="issue">${i.issue}</span></td>
+      <td><span class="cnode ${i.at?'':''}">${i.at?`<span class="at">${i.node}</span>`:i.node}</span></td>
+      <td><span class="segwrap"><span class="seg">${i.seg.map(s=>`<i class="${s}"></i>`).join('')}</span><span class="pc">${i.progress}</span></span></td>
+      <td><span class="client">${i.client==='待分配'?'<span style="color:var(--ink-4)">待分配</span>':`<span class="cd ${i.online?'':'off'}"></span>${i.client}`}</span></td>
+      <td><span class="elapsed">${i.elapsed}</span></td>
+    </tr>`).join('') || `<tr><td colspan="7" style="text-align:center;color:var(--ink-4);padding:30px">该状态暂无实例</td></tr>`;
+}
+function renderFleet(){
+  document.getElementById('fleet').innerHTML=clients.map(c=>`
+    <div class="ccard ${c.online?'':'off'}">
+      <div class="ctop"><span class="cname"><span class="sd"></span>${c.name}</span>
+        <span class="pill ${c.online?'on':'off'}">${c.online?'在线':'离线'}</span></div>
+      <div class="task"><span class="lbl">当前</span>${c.task}</div>
+      <div class="meta"><span>最后心跳 ${c.seen}</span><span>v${c.ver}</span></div>
+    </div>`).join('');
+}
+// drawer
+function openDrawer(code){
+  const d=detail[code]; const meta=instances.find(i=>i.code===code);
+  document.getElementById('d-code').textContent=code;
+  document.getElementById('d-title').textContent=meta?meta.title:code;
+  let html='';
+  if(d&&d.reason) html+=`<div class="dreason"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01"/><circle cx="12" cy="12" r="9"/></svg><span>${d.reason}</span></div>`;
+  html+=`<div class="dacts">
+      <button class="btn primary">人工通过</button>
+      <button class="btn ghost">标记失败</button>
+      <button class="btn ghost">重新执行</button>
+      <button class="btn danger">取消实例</button>
+    </div>`;
+  html+=`<div class="pbar">${meta.seg.map(s=>`<i class="${s}"></i>`).join('')}</div>`;
+  html+=`<div class="legend"><span><i class="lg-d"></i>已完成</span><span><i class="lg-s"></i>已跳过</span><span><i class="lg-b"></i>阻塞</span><span><i class="lg-c"></i>待执行</span></div>`;
+  html+=`<div class="dl">节点时间线</div><div class="tl">`;
+  if(d) d.nodes.forEach(n=>{
+    html+=`<div class="tnode ${n.s}"><span class="td"></span>
+      <div class="tn">${n.n}${n.tag?`<span class="tag ${n.tag[0]}">${n.tag[1]}</span>`:''}${n.wait?`<span class="wait">· 等待中</span>`:''}</div>
+      <div class="meta">${n.meta.map(m=>`<span>${m}</span>`).join('')}</div></div>`;
+  });
+  html+=`</div>`;
+  if(d&&d.log) html+=`<div class="dl" style="margin-top:18px">执行日志</div><div class="log">${d.log.replace(/^/gm,'')}</div>`;
+  document.getElementById('d-body').innerHTML=html;
+  document.getElementById('scrim').classList.add('show');
+  document.getElementById('drawer').classList.add('show');
+}
+function closeDrawer(){document.getElementById('scrim').classList.remove('show');document.getElementById('drawer').classList.remove('show');}
+// refresh anim
+document.getElementById('refresh').onclick=function(){this.classList.add('spin');setTimeout(()=>this.classList.remove('spin'),600);
+  const n=new Date();document.getElementById('upd').textContent='更新于 '+n.toTimeString().slice(0,8);};
+</script>
+</body>
+</html>

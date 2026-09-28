@@ -70,24 +70,8 @@ export default function App() {
 
   return (
     <ToastProvider>
-      {route.view === 'landing' && (
-        <Landing
-          onEnter={() => navigate({ view: 'login' })}
-          onDownload={() => { navigate({ view: 'download' }); window.scrollTo(0, 0) }}
-        />
-      )}
-      {route.view === 'download' && (
-        <Download
-          onBack={(anchor) => {
-            navigate({ view: 'landing' })
-            if (anchor) {
-              setTimeout(() => document.getElementById(anchor)?.scrollIntoView({ behavior: 'smooth' }), 80)
-            } else {
-              window.scrollTo(0, 0)
-            }
-          }}
-        />
-      )}
+      {route.view === 'landing' && <Landing onEnter={() => navigate({ view: 'login' })} />}
+      {route.view === 'download' && <Download />}
       {route.view === 'docs' && !route.doc && <DocsCenter />}
       {route.view === 'docs' && route.doc === 'guide' && (
         <DocsLayout doc="guide" section={route.section}>

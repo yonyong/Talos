@@ -63,20 +63,30 @@ public class IssueController {
         return ResponseEntity.ok(out);
     }
 
-    /** 录入 Issue：必填 业务、诉求类型、标题、描述、期望完成时间、责任人 */
+    /** 录入 Issue：必填 标题、详细描述、责任人（业务域 / 期望完成时间可选，留空走自动分拣） */
     @PostMapping
     public ResponseEntity<?> create(@RequestBody Map<String, Object> body) {
+        String title = str(body.get("title"));
+        String desc = str(body.get("description"));
+        String owner = str(body.get("owner"));
+        // 必填校验：前端兜底之外再挡一层，避免绕过 UI 提交空数据
+        if (title.isEmpty()) return bad("标题不能为空");
+        if (desc.isEmpty()) return bad("详细描述不能为空");
+        if (owner.isEmpty()) return bad("责任人不能为空");
+
         IssueEntity e = new IssueEntity();
         e.setCode(String.valueOf(body.getOrDefault("code", nextCode(body.get("type")))));
-        e.setTitle(String.valueOf(body.getOrDefault("title", "")));
+        e.setTitle(title);
         e.setBiz(String.valueOf(body.getOrDefault("biz", "")));
         Object bizCode = body.get("bizCode");
         if (bizCode != null && !String.valueOf(bizCode).isBlank()) e.setBizCode(String.valueOf(bizCode));
         e.setType(String.valueOf(body.getOrDefault("type", "REQ")));
-        e.setOwner(String.valueOf(body.getOrDefault("owner", "")));
-        e.setReporter(String.valueOf(body.getOrDefault("reporter", e.getOwner())));
+        e.setOwner(owner);
+        String reporter = str(body.getOrDefault("reporter", ""));
+        if (reporter.isEmpty()) reporter = owner; // 提出人未传时跟随责任人，杜绝写入字面量 "null"
+        e.setReporter(reporter);
         e.setPriority(String.valueOf(body.getOrDefault("priority", "P1")));
-        e.setDescription(String.valueOf(body.getOrDefault("description", "")));
+        e.setDescription(desc);
         Object due = body.get("dueDate");
         if (due != null && !String.valueOf(due).isBlank()) e.setDueDate(LocalDate.parse(String.valueOf(due)));
         e.setClientId((String) body.get("clientId"));
@@ -235,6 +245,16 @@ public class IssueController {
         m.put("hasText", d.getContent() != null && !d.getContent().isBlank());
         m.put("createdAt", d.getCreatedAt() == null ? null : d.getCreatedAt().toString());
         return m;
+    }
+
+    /** 取值并去空白；null / 空白统一成空串，便于必填校验 */
+    private static String str(Object o) {
+        return o == null ? "" : String.valueOf(o).trim();
+    }
+
+    /** 统一错误响应：前端 api() 依赖 { message } 字段展示 */
+    private static ResponseEntity<?> bad(String message) {
+        return ResponseEntity.badRequest().body(Map.of("message", message));
     }
 
     private String nextCode(Object type) {

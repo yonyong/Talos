@@ -108,7 +108,7 @@ export default function Workflow() {
     <div>
       <PageH
         title="工作流编排"
-        desc="DAG 图定义：节点 + 条件边。点击节点或连线即可编辑，悬停看详情；闸门结论与 Issue 上下文决定走哪条分支，回退边可把节点打回重做。"
+        desc="点击节点或连线即可编辑，悬停查看详情；条件边写法在编辑连线时可查。"
         actions={
           <>
             {dirty && <Tag tone="warn" dot>有未保存改动</Tag>}
@@ -162,18 +162,6 @@ export default function Workflow() {
               />
             )}
           </Panel>
-
-          <div style={{ marginTop: 14, fontSize: 12.5, color: 'var(--ink-4)', lineHeight: 1.8 }}>
-            条件写法：<code style={{ fontFamily: 'var(--mono)' }}>always</code> ·
-            <code style={{ fontFamily: 'var(--mono)', margin: '0 4px' }}>gate:pass</code> /
-            <code style={{ fontFamily: 'var(--mono)', margin: '0 4px' }}>gate:blocked</code> ·
-            <code style={{ fontFamily: 'var(--mono)', margin: '0 4px' }}>success</code> /
-            <code style={{ fontFamily: 'var(--mono)', margin: '0 4px' }}>failed</code> ·
-            表达式 <code style={{ fontFamily: 'var(--mono)' }}>expr:issue.priority == P0 &amp;&amp; gate == pass</code>
-            （支持 <code style={{ fontFamily: 'var(--mono)' }}>&amp;&amp; || ! ( ) == != in</code>，变量含
-            issue.priority / issue.type / issue.biz / issue.owner / result / gate / round）。
-            解析不出时按「条件不成立」处理，分支走空即转人工，不会静默放行。
-          </div>
         </>
       )}
 
@@ -221,83 +209,100 @@ function NodeEditor({
 
   return (
     <Modal
-      title={`编辑节点 · STEP ${String(form.step).padStart(2, '0')}${node.name ? ` · ${node.name}` : ''}`}
-      width={720}
+      title={`STEP ${String(form.step).padStart(2, '0')} · ${node.name || '未命名节点'}`}
+      width={620}
       onClose={onClose}
       footer={
         <>
           {onDelete && (
-            <button className="btn btn-outline btn-sm" onClick={onDelete} style={{ marginRight: 'auto', color: 'var(--err)' }}>
-              <Icon name="trash" size={14} />删除节点
+            <button
+              className="btn btn-sm" style={{ marginRight: 'auto', color: 'var(--err)', background: 'var(--err-soft)' }}
+              onClick={() => { if (window.confirm(`确定删除节点 STEP ${form.step}「${node.name}」？其相关连线将一并移除。`)) onDelete() }}
+            >
+              <Icon name="trash" size={14} />删除
             </button>
           )}
           <button className="btn btn-outline btn-sm" onClick={onClose} disabled={saving}>取消</button>
-          <button className="btn btn-primary btn-sm" onClick={() => onSave(form)} disabled={saving || !nameOk || stepTaken}>确认</button>
+          <button className="btn btn-primary btn-sm" onClick={() => onSave(form)} disabled={saving || !nameOk || stepTaken}>保存</button>
         </>
       }
     >
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 14 }}>
-        <div className="field">
-          <label>步骤号（节点唯一标识，连线按它引用）</label>
-          <input
-            type="number" min="1" value={form.step}
-            onChange={(e) => setForm({ ...form, step: parseInt(e.target.value || '1', 10) })}
-          />
-          {stepTaken && <div style={{ fontSize: 11.5, color: 'var(--err)', marginTop: 6 }}>该步骤号已被占用</div>}
+      <div className="fgroup">
+        <div className="fgroup-l">标识</div>
+        <div style={{ display: 'grid', gridTemplateColumns: '110px 1fr', gap: 14 }}>
+          <div className="field">
+            <label>步骤号</label>
+            <input
+              type="number" min="1" value={form.step}
+              onChange={(e) => setForm({ ...form, step: parseInt(e.target.value || '1', 10) })}
+            />
+            {stepTaken && <div style={{ fontSize: 11.5, color: 'var(--err)', marginTop: 6 }}>该步骤号已被占用</div>}
+          </div>
+          <div className="field">
+            <label>节点名称</label>
+            <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="如 设计评审" />
+          </div>
         </div>
-        <div className="field">
-          <label>节点名称</label>
-          <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="如 设计评审" />
+        <div style={{ marginTop: 8, fontSize: 11.5, color: 'var(--ink-4)' }}>
+          步骤号是节点唯一标识，连线按它引用。
         </div>
-        <div className="field">
-          <label>节点类型</label>
-          <select
-            value={form.kind}
-            onChange={(e) => {
-              const k = e.target.value as NodeKind
-              // Git 是机械节点：不接后端、不要 Prompt 模板，切过去就把这两个字段归位，
-              // 免得存成「看起来配了 AI，实际不该有 AI」的空壳配置
-              setForm(k === 'git' ? { ...form, kind: k, backend: '—', prompt: '—' } : { ...form, kind: k })
-            }}
-          >
-            {KINDS.map((k) => <option key={k.k} value={k.k}>{k.l}</option>)}
-          </select>
+      </div>
+
+      <div className="fgroup">
+        <div className="fgroup-l">执行</div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 14 }}>
+          <div className="field">
+            <label>节点类型</label>
+            <select
+              value={form.kind}
+              onChange={(e) => {
+                const k = e.target.value as NodeKind
+                // Git 是机械节点：不接后端、不要 Prompt 模板，切过去就把这两个字段归位，
+                // 免得存成「看起来配了 AI，实际不该有 AI」的空壳配置
+                setForm(k === 'git' ? { ...form, kind: k, backend: '—', prompt: '—' } : { ...form, kind: k })
+              }}
+            >
+              {KINDS.map((k) => <option key={k.k} value={k.k}>{k.l}</option>)}
+            </select>
+          </div>
+          <div className="field">
+            <label>执行位置</label>
+            <select value={form.exec} onChange={(e) => setForm({ ...form, exec: e.target.value as WorkflowNode['exec'] })}>
+              <option>客户端</option><option>服务端</option>
+            </select>
+          </div>
+          <div className="field">
+            <label>Coding Agent 后端</label>
+            <select value={form.backend} disabled={mechanical}
+              onChange={(e) => setForm({ ...form, backend: e.target.value })}>
+              {BACKENDS.map((b) => <option key={b}>{b}</option>)}
+            </select>
+          </div>
+          <div className="field">
+            <label>Prompt 模板</label>
+            <input value={form.prompt} disabled={mechanical} onChange={(e) => setForm({ ...form, prompt: e.target.value })} placeholder="模板文件名" />
+          </div>
         </div>
+        {mechanical && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', marginTop: 14, borderRadius: 10, background: 'var(--warn-soft)', color: 'var(--warn)', fontSize: 12.5, lineHeight: 1.7 }}>
+            <Icon name="warn" size={15} />
+            机械节点：客户端只做确定性操作（clone / fetch / 切工作分支），不调用 Coding Agent、不产生 AI 调用日志。
+          </div>
+        )}
+      </div>
+
+      <div className="fgroup">
+        <div className="fgroup-l">门控</div>
         <div className="field">
-          <label>执行位置</label>
-          <select value={form.exec} onChange={(e) => setForm({ ...form, exec: e.target.value as WorkflowNode['exec'] })}>
-            <option>客户端</option><option>服务端</option>
-          </select>
-        </div>
-        <div className="field">
-          <label>Coding Agent 后端</label>
-          <select value={form.backend} disabled={mechanical}
-            onChange={(e) => setForm({ ...form, backend: e.target.value })}>
-            {BACKENDS.map((b) => <option key={b}>{b}</option>)}
-          </select>
-        </div>
-        <div className="field">
-          <label>闸门（非空即触发服务端 LLM 判定）</label>
+          <label>闸门</label>
           <input value={form.gate === '—' ? '' : form.gate} placeholder="如 人工闸门 / 覆盖率门禁，留空表示无闸门"
             onChange={(e) => setForm({ ...form, gate: e.target.value || '—' })} />
+          <div className="hint">
+            非空即触发服务端 LLM 判定，结论写回 <code style={{ fontFamily: 'var(--mono)' }}>gateResult</code>；条件边用
+            <code style={{ fontFamily: 'var(--mono)', margin: '0 4px' }}>gate:pass</code> /
+            <code style={{ fontFamily: 'var(--mono)', margin: '0 4px' }}>gate:blocked</code> 选路。
+          </div>
         </div>
-      </div>
-      <div className="field" style={{ marginTop: 6 }}>
-        <label>Prompt 模板</label>
-        <input value={form.prompt} disabled={mechanical} onChange={(e) => setForm({ ...form, prompt: e.target.value })} placeholder="模板文件名" />
-      </div>
-      {mechanical && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', marginTop: 14, borderRadius: 10, background: 'var(--warn-soft)', color: 'var(--warn)', fontSize: 12.5, lineHeight: 1.7 }}>
-          <Icon name="warn" size={15} />
-          机械节点：客户端只做确定性操作（clone / fetch / 切工作分支），不调用 Coding Agent、
-          不产生 AI 调用日志。仓库准备过程以执行日志回传，可在节点详情里查看。
-        </div>
-      )}
-      <div style={{ marginTop: 14, fontSize: 12.5, color: 'var(--ink-4)', lineHeight: 1.7 }}>
-        闸门判定由服务端 LLM 完成，结论写回节点的 gateResult，条件边用
-        <code style={{ fontFamily: 'var(--mono)', margin: '0 4px' }}>gate:pass</code> /
-        <code style={{ fontFamily: 'var(--mono)', margin: '0 4px' }}>gate:blocked</code> 选路；
-        图遍历与选路由服务端自研引擎完成，与 langchain4j 无关。
       </div>
     </Modal>
   )
@@ -323,8 +328,11 @@ function EdgeEditor({
       footer={
         <>
           {onDelete && (
-            <button className="btn btn-outline btn-sm" onClick={onDelete} style={{ marginRight: 'auto', color: 'var(--err)' }}>
-              <Icon name="trash" size={14} />删除连线
+            <button
+              className="btn btn-sm" style={{ marginRight: 'auto', color: 'var(--err)', background: 'var(--err-soft)' }}
+              onClick={() => { if (window.confirm(`确定删除连线 ${form.from} → ${form.to}？`)) onDelete() }}
+            >
+              <Icon name="trash" size={14} />删除
             </button>
           )}
           <button className="btn btn-outline btn-sm" onClick={onClose}>取消</button>
@@ -333,23 +341,26 @@ function EdgeEditor({
             disabled={sameStep}
             onClick={() => onSave({ ...form, condition: form.condition.trim() || 'always', kind: loop ? 'loopback' : 'forward' })}
           >
-            确认
+            保存
           </button>
         </>
       }
     >
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 14 }}>
-        <div className="field">
-          <label>源节点</label>
-          <select value={form.from} onChange={(e) => setForm({ ...form, from: parseInt(e.target.value, 10) })}>
-            {nodes.map((n) => <option key={n.step} value={n.step}>{n.step}. {n.name}</option>)}
-          </select>
-        </div>
-        <div className="field">
-          <label>目标节点</label>
-          <select value={form.to} onChange={(e) => setForm({ ...form, to: parseInt(e.target.value, 10) })}>
-            {nodes.map((n) => <option key={n.step} value={n.step}>{n.step}. {n.name}</option>)}
-          </select>
+      <div className="fgroup">
+        <div className="fgroup-l">路径</div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 14 }}>
+          <div className="field">
+            <label>源节点</label>
+            <select value={form.from} onChange={(e) => setForm({ ...form, from: parseInt(e.target.value, 10) })}>
+              {nodes.map((n) => <option key={n.step} value={n.step}>{n.step}. {n.name}</option>)}
+            </select>
+          </div>
+          <div className="field">
+            <label>目标节点</label>
+            <select value={form.to} onChange={(e) => setForm({ ...form, to: parseInt(e.target.value, 10) })}>
+              {nodes.map((n) => <option key={n.step} value={n.step}>{n.step}. {n.name}</option>)}
+            </select>
+          </div>
         </div>
       </div>
 
@@ -382,8 +393,14 @@ function EdgeEditor({
           placeholder="always / gate:pass / failed / expr:issue.priority == P0"
           style={{ fontFamily: 'var(--mono)' }}
         />
+        <div className="hint">
+          <code style={{ fontFamily: 'var(--mono)' }}>always</code> ·{' '}
+          <code style={{ fontFamily: 'var(--mono)' }}>gate:pass</code>/<code style={{ fontFamily: 'var(--mono)' }}>gate:blocked</code> ·{' '}
+          <code style={{ fontFamily: 'var(--mono)' }}>success</code>/<code style={{ fontFamily: 'var(--mono)' }}>failed</code> ·{' '}
+          <code style={{ fontFamily: 'var(--mono)' }}>expr:</code> 表达式，支持 <code style={{ fontFamily: 'var(--mono)' }}>&amp;&amp; || ! ( ) == != in</code>；
+          变量：issue.priority / issue.type / issue.biz / issue.owner / result / gate / round。解析不出按「条件不成立」处理，分支走向转人工。
+        </div>
       </div>
-
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 10 }}>
         {COND_PRESETS.map((p) => (
           <button
@@ -399,14 +416,6 @@ function EdgeEditor({
       <div className="field" style={{ marginTop: 14 }}>
         <label>说明（显示在连线标签上，可空）</label>
         <input value={form.label ?? ''} onChange={(e) => setForm({ ...form, label: e.target.value })} placeholder="如 评审通过 / 打回重做" />
-      </div>
-
-      <div style={{ marginTop: 12, fontSize: 12, color: 'var(--ink-4)', lineHeight: 1.75 }}>
-        支持 <code style={{ fontFamily: 'var(--mono)' }}>always</code>、
-        <code style={{ fontFamily: 'var(--mono)', margin: '0 4px' }}>gate:pass</code>/<code style={{ fontFamily: 'var(--mono)' }}>gate:blocked</code>、
-        <code style={{ fontFamily: 'var(--mono)', margin: '0 4px' }}>success</code>/<code style={{ fontFamily: 'var(--mono)' }}>failed</code>，
-        以及 <code style={{ fontFamily: 'var(--mono)' }}>expr:</code> 表达式（<code style={{ fontFamily: 'var(--mono)' }}>&amp;&amp; || ! ( ) == != in</code>）。
-        变量：issue.priority、issue.type、issue.biz、issue.owner、result、gate、round。
       </div>
     </Modal>
   )

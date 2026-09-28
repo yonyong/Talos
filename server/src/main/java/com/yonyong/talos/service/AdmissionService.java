@@ -119,10 +119,10 @@ public class AdmissionService {
     }
 
     /** 人工覆写 */
-    public IssueEntity override(String issueCode, String result, String operatorEmpNo) {
+    public IssueEntity override(String issueCode, String result, String operator) {
         IssueEntity issue = issueRepository.findByCode(issueCode);
         if (issue == null) throw new IllegalArgumentException("Issue 不存在: " + issueCode);
-        finish(issue, result, 1.0, "人工覆写（操作人 " + operatorEmpNo + "）", List.of());
+        finish(issue, result, 1.0, "人工覆写（操作人 " + operator + "）", List.of());
         return issueRepository.save(issue);
     }
 

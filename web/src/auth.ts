@@ -9,9 +9,9 @@
  */
 
 export interface AuthUser {
-  empNo: string
   name: string
   role: string
+  /** 登录邮箱 = 用户身份：个人配置、绑定关系等都以邮箱定位 */
   email: string
   clientId?: string
   bizCodes?: string[]

@@ -27,13 +27,13 @@ public class UserController {
 
     /**
      * 绑定约束：用户绑定客户端后不可自行更换或解绑，
-     * 只能由管理员在「客户端管理」页解除绑定后重新绑定（POST /api/clients/{clientId}/bound-users/{empNo}/unbind）。
+     * 只能由管理员在「客户端管理」页解除绑定后重新绑定（POST /api/clients/{clientId}/bound-users/{userId}/unbind）。
      */
     @PostMapping
     public ResponseEntity<UserEntity> save(@RequestBody UserEntity user) {
         UserEntity existing = user.getId() != null
                 ? userRepository.findById(user.getId()).orElse(null)
-                : userRepository.findByEmpNo(user.getEmpNo());
+                : null;
         if (existing != null && existing.getClientId() != null && !existing.getClientId().isBlank()) {
             String incoming = user.getClientId();
             if (incoming == null || incoming.isBlank() || !incoming.equals(existing.getClientId())) {
@@ -86,7 +86,7 @@ public class UserController {
                 : userRepository.findFirstByEmailIgnoreCaseAndIdNot(email, selfId);
         if (other != null) {
             throw new IllegalStateException("邮箱 " + email + " 已被用户 " + other.getName()
-                    + "（工号 " + other.getEmpNo() + "）占用，登录身份不可重复");
+                    + " 占用，登录身份不可重复");
         }
         user.setEmail(email);
     }

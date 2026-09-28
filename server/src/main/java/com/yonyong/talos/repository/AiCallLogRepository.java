@@ -6,6 +6,6 @@ import java.util.List;
 
 public interface AiCallLogRepository extends JpaRepository<AiCallLogEntity, Long> {
     List<AiCallLogEntity> findByIssueCode(String issueCode);
-    List<AiCallLogEntity> findTop100ByOrderByCreatedAtDesc();
+    List<AiCallLogEntity> findByOrderByCreatedAtDesc();
     List<AiCallLogEntity> findTop50ByClientIdOrderByCreatedAtDesc(String clientId);
 }

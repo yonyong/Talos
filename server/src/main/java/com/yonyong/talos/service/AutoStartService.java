@@ -22,7 +22,7 @@ import java.util.List;
  * 3) 客户端上线补启（AgentGrpcService.register）——自动启动时客户端离线会留在分拣中，
  *    待其上线后扫描补启，避免流水线因离线而断链。
  *
- * 开关归属：按 Issue 提出人（reporter，兜底 owner）姓名反查工号取其个人设置；
+ * 开关归属：按 Issue 提出人（reporter，兜底 owner）姓名反查用户取其个人设置；
  * null 视为自动（缺省自动执行），false 才需要人工确认。查不到人也视为自动（fail-open
  * 与准入 fail-safe 不冲突：启动门禁本身仍有准入/仓库/实例三道硬校验兜底）。
  */
@@ -42,7 +42,7 @@ public class AutoStartService {
         UserEntity u = userByName(issue.getReporter());
         if (u == null) u = userByName(issue.getOwner());
         if (u == null) return true;
-        UserSettingEntity s = userSettingRepository.findByEmpNo(u.getEmpNo());
+        UserSettingEntity s = userSettingRepository.findByUserId(u.getId());
         return s == null || !Boolean.FALSE.equals(s.getAutoStart());
     }
 

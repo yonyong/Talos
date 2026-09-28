@@ -9,7 +9,7 @@ import java.time.LocalDateTime;
  * 用户个人设置：Git 凭据 + 本机工具链（工作目录 / Maven）。
  *
  * 与 t_agent_config（scope=GLOBAL/clientId，管理员维护）不同，这张表由用户自己在
- * 设置面板维护，键为工号；Coding Agent 多条配置见 t_user_agent。
+ * 设置面板维护，键为用户 id（t_user.id，工号已废弃）；Coding Agent 多条配置见 t_user_agent。
  * 下发合并顺序：GLOBAL 默认 → clientId 覆盖 → 个人层。
  * Git Token 只存服务端，经 ConfigPush 的 git 段下发给该用户绑定的客户端，接口永不回显明文。
  */
@@ -21,9 +21,12 @@ public class UserSettingEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    /** 工号，唯一键；对应 t_user.emp_no */
-    @Column(unique = true, nullable = false, length = 32)
-    private String empNo;
+    /**
+     * 归属用户 id（t_user.id），唯一键。DDL 不加 NOT NULL：老库迁移回填由 DataInitializer 完成，
+     * 业务层保证非空。唯一约束对 NULL 不生效（H2/PG 语义），老库存量 NULL 行不会卡建索引。
+     */
+    @Column(name = "user_id", unique = true)
+    private Long userId;
 
     /** 客户端工作区目录：非空时优先于客户端 agent.yml 的 workspace */
     @Column(length = 256)
@@ -52,7 +55,7 @@ public class UserSettingEntity {
     /**
      * 工作流自动执行开关：null / true = 准入通过且分拣成功后自动启动工作流（缺省自动）；
      * false = 停在分拣中，由人工在 Issue 详情点击「启动工作流」确认后再执行。
-     * 判定归属：优先按提出人（reporter）查工号取其设置，查不到人时视为自动。
+     * 判定归属：优先按提出人（reporter）姓名反查用户取其设置，查不到人时视为自动。
      */
     @Column
     private Boolean autoStart;

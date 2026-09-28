@@ -1,0 +1,96 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="360" viewBox="0 0 1280 360" role="img" aria-label="Talos — 研发周期全自动流程平台">
+  <defs>
+    <linearGradient id="g1" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#6366f1"/>
+      <stop offset="1" stop-color="#a78bfa"/>
+    </linearGradient>
+    <linearGradient id="gtext" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#fafafa"/>
+      <stop offset="1" stop-color="#c7d2fe"/>
+    </linearGradient>
+    <radialGradient id="glow1" cx="0.22" cy="0.1" r="0.9">
+      <stop offset="0" stop-color="#6366f1" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#6366f1" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glow2" cx="0.9" cy="1" r="0.8">
+      <stop offset="0" stop-color="#a78bfa" stop-opacity="0.14"/>
+      <stop offset="1" stop-color="#a78bfa" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="grid" width="48" height="48" patternUnits="userSpaceOnUse">
+      <path d="M48 0H0V48" fill="none" stroke="#ffffff" stroke-opacity="0.045" stroke-width="1"/>
+    </pattern>
+    <marker id="arw" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+      <path d="M0 1 L9 5 L0 9 Z" fill="#818cf8"/>
+    </marker>
+    <marker id="arwg" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+      <path d="M0 1 L9 5 L0 9 Z" fill="#4ade80"/>
+    </marker>
+  </defs>
+
+  <style>
+    .flow { animation: dash 1.6s linear infinite; }
+    @keyframes dash { to { stroke-dashoffset: -20; } }
+    @media (prefers-reduced-motion: reduce) { .flow { animation: none; } }
+  </style>
+
+  <!-- backdrop -->
+  <rect width="1280" height="360" fill="#09090b"/>
+  <rect width="1280" height="360" fill="url(#grid)"/>
+  <rect width="1280" height="360" fill="url(#glow1)"/>
+  <rect width="1280" height="360" fill="url(#glow2)"/>
+  <rect x="0.5" y="0.5" width="1279" height="359" fill="none" stroke="#ffffff" stroke-opacity="0.08"/>
+
+  <!-- brand mark -->
+  <g transform="translate(118,118)">
+    <path d="M34 2 L62 13 V38 C62 55 50 66 34 72 C18 66 6 55 6 38 V13 Z"
+          fill="rgba(99,102,241,0.12)" stroke="url(#g1)" stroke-width="2.5" stroke-linejoin="round"/>
+    <path d="M22 28 H46 M34 28 V54" stroke="#e4e4e7" stroke-width="4.5" stroke-linecap="round"/>
+    <circle cx="34" cy="2" r="3" fill="#a78bfa"/>
+  </g>
+
+  <!-- wordmark -->
+  <text x="200" y="172" font-family="-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial,'PingFang SC','Microsoft YaHei',sans-serif"
+        font-size="66" font-weight="700" letter-spacing="10" fill="url(#gtext)">TALOS</text>
+  <rect x="204" y="192" width="304" height="3" rx="1.5" fill="url(#g1)"/>
+
+  <!-- taglines -->
+  <text x="202" y="238" font-family="-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial,'PingFang SC','Microsoft YaHei',sans-serif"
+        font-size="21" font-weight="600" fill="#d4d4d8">研发周期全自动流程平台</text>
+  <text x="203" y="266" font-family="-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif"
+        font-size="14.5" fill="#8b8b96" letter-spacing="0.4">Autonomous R&amp;D Delivery Platform — orchestrate on the server, execute on the client</text>
+
+  <!-- demo url chip -->
+  <g transform="translate(202,292)">
+    <rect width="252" height="34" rx="17" fill="rgba(99,102,241,0.10)" stroke="rgba(129,140,248,0.35)"/>
+    <circle cx="18" cy="17" r="3.4" fill="#4ade80"/>
+    <text x="32" y="22" font-family="ui-monospace,'SF Mono',Consolas,monospace" font-size="14" fill="#c7d2fe">www.missyou.website</text>
+  </g>
+
+  <!-- right motif: pipeline -->
+  <g font-family="-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial,'PingFang SC','Microsoft YaHei',sans-serif">
+    <rect x="800" y="96" width="168" height="64" rx="12" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.13)"/>
+    <text x="884" y="124" text-anchor="middle" font-size="14.5" font-weight="650" fill="#e4e4e7">服务端</text>
+    <text x="884" y="144" text-anchor="middle" font-size="11" fill="#71717a">编排 · 准入 · 下发</text>
+
+    <rect x="1032" y="96" width="168" height="64" rx="12" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.13)"/>
+    <text x="1116" y="124" text-anchor="middle" font-size="14.5" font-weight="650" fill="#e4e4e7">研发终端</text>
+    <text x="1116" y="144" text-anchor="middle" font-size="11" fill="#71717a">NAT 后 · 反向长连接</text>
+
+    <rect x="916" y="216" width="168" height="64" rx="12" fill="rgba(99,102,241,0.12)" stroke="rgba(129,140,248,0.3)"/>
+    <text x="1000" y="244" text-anchor="middle" font-size="14.5" font-weight="650" fill="#c7d2fe">Coding Agent</text>
+    <text x="1000" y="264" text-anchor="middle" font-size="11" fill="#8f8fa3">Claude · Cursor · Codex</text>
+
+    <path class="flow" d="M968 128 H 1024" stroke="#818cf8" stroke-width="1.8" stroke-dasharray="6 5" marker-end="url(#arw)"/>
+    <path class="flow" d="M1024 148 H 968" stroke="#4ade80" stroke-width="1.6" stroke-dasharray="5 5" marker-end="url(#arwg)"/>
+    <path class="flow" d="M950 162 C 950 196 960 210 976 220" stroke="#818cf8" stroke-width="1.6" fill="none" marker-end="url(#arw)"/>
+    <path class="flow" d="M1084 220 C 1104 208 1112 190 1112 164" stroke="#4ade80" stroke-width="1.5" fill="none" stroke-dasharray="5 5" marker-end="url(#arwg)"/>
+
+    <text x="996" y="188" text-anchor="middle" font-size="10.5" fill="#6d6d7a">gRPC 双向流 · 产物回流</text>
+  </g>
+
+  <!-- corner ticks -->
+  <g stroke="#ffffff" stroke-opacity="0.22" stroke-width="1.5">
+    <path d="M20 12 V20 M12 20 H20" fill="none"/>
+    <path d="M1260 348 V340 M1268 340 H1260" fill="none"/>
+  </g>
+</svg>

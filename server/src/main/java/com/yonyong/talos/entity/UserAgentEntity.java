@@ -9,17 +9,23 @@ import lombok.Data;
  * 与 t_agent_config（GLOBAL/clientId，管理员维护）叠加：
  * 客户端生效顺序 = GLOBAL 默认 → clientId 覆盖 → 本表按 sortOrder 逐条覆盖同 backend 字段，
  * 用户新增的管理端没有的 backend 会作为新条目下发；enabled=false 的条目不下发覆盖。
+ *
+ * <p>用户关联统一用 {@code user_id}（t_user.id）；旧版 emp_no 关联由 DataInitializer 一次性迁移。</p>
  */
 @Data
 @Entity
-@Table(name = "t_user_agent", indexes = { @Index(name = "idx_user_agent_emp", columnList = "empNo") })
+@Table(name = "t_user_agent", indexes = { @Index(name = "idx_user_agent_user", columnList = "user_id") })
 public class UserAgentEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, length = 32)
-    private String empNo;
+    /**
+     * 归属用户 id（t_user.id）。DDL 不加 NOT NULL：老库经 Hibernate update 加列时已有存量行，
+     * 由 DataInitializer 迁移回填，业务层保证非空。
+     */
+    @Column(name = "user_id")
+    private Long userId;
 
     /** 后端标识：claude / cursor / codex / codebuddy… */
     @Column(length = 32)

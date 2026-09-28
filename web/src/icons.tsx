@@ -4,6 +4,7 @@ const P: Record<string, React.ReactNode> = {
   arrow: <><path d="M5 12h14" /><path d="M13 6l6 6-6 6" /></>,
   arrowLeft: <><path d="M19 12H5" /><path d="M11 18l-6-6 6-6" /></>,
   chevron: <path d="M6 9l6 6 6-6" />,
+  menu: <><path d="M4 7h16" /><path d="M4 12h16" /><path d="M4 17h16" /></>,
   plus: <><path d="M12 5v14" /><path d="M5 12h14" /></>,
   x: <><path d="M18 6L6 18" /><path d="M6 6l12 12" /></>,
   check: <path d="M20 6L9 17l-5-5" />,
@@ -48,6 +49,7 @@ const P: Record<string, React.ReactNode> = {
   external: <><path d="M14 4h6v6" /><path d="M20 4l-9 9" /><path d="M18 14v5a1.5 1.5 0 01-1.5 1.5h-11A1.5 1.5 0 014 19V8a1.5 1.5 0 011.5-1.5h5" /></>,
   sparkle: <><path d="M12 3l1.6 4.4L18 9l-4.4 1.6L12 15l-1.6-4.4L6 9l4.4-1.6z" /></>,
   dashboard: <><rect x="3" y="4" width="7.5" height="7.5" rx="1.6" /><rect x="13.5" y="4" width="7.5" height="4.5" rx="1.6" /><rect x="3" y="14" width="7.5" height="6" rx="1.6" /><rect x="13.5" y="11" width="7.5" height="9" rx="1.6" /></>,
+  more: <><circle cx="5" cy="12" r="1.4" fill="currentColor" stroke="none" /><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none" /><circle cx="19" cy="12" r="1.4" fill="currentColor" stroke="none" /></>,
   logout: <><path d="M15 4h3a2 2 0 012 2v12a2 2 0 01-2 2h-3" /><path d="M10 8l-4 4 4 4" /><path d="M6 12h9" /></>,
   file: <><path d="M13 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V9z" /><path d="M13 3v6h6" /></>,
   send: <><path d="M4 12l16-8-6 16-3-6z" /></>,
@@ -78,7 +80,7 @@ export function Icon({ name, size = 18, className = '' }: { name: string; size?:
   )
 }
 
-/** Talos 品牌标记 — Gyroscope（双轨交汇，圆润线条） */
+/** Talos 品牌标记 — 神盾（盾形 + T 字母为主体） */
 export function Mark({ size = 26 }: { size?: number }) {
   const uid = React.useId().replace(/:/g, '')
   const gid = `talos-mark-${uid}`
@@ -86,18 +88,17 @@ export function Mark({ size = 26 }: { size?: number }) {
     <span className="mark" style={{ width: size, height: size, display: 'inline-block' }}>
       <svg viewBox="0 0 32 32" fill="none" style={{ width: '100%', height: '100%', display: 'block' }} aria-hidden>
         <defs>
-          <linearGradient id={gid} x1="2" y1="1" x2="30" y2="31" gradientUnits="userSpaceOnUse">
+          <linearGradient id={gid} x1="3" y1="2" x2="29" y2="30" gradientUnits="userSpaceOnUse">
             <stop stopColor="#1e1b4b" />
             <stop offset=".48" stopColor="#4338ca" />
             <stop offset="1" stopColor="#818cf8" />
           </linearGradient>
         </defs>
-        <rect x="1" y="1" width="30" height="30" rx="9" fill={`url(#${gid})`} />
-        <g fill="none" stroke="#fff" strokeLinecap="round" strokeLinejoin="round">
-          <ellipse cx="16" cy="16" rx="10.1" ry="4.6" transform="rotate(-38 16 16)" strokeWidth="2.15" strokeOpacity=".94" />
-          <ellipse cx="16" cy="16" rx="10.1" ry="4.6" transform="rotate(52 16 16)" strokeWidth="2.15" strokeOpacity=".94" />
+        <path d="M6 5 Q16 3 26 5 L26 15 Q26 23 16 28 Q6 23 6 15 Z" fill={`url(#${gid})`} />
+        <g fill="#fff">
+          <rect x="8.5" y="8.5" width="15" height="3" rx="1.5" />
+          <rect x="14" y="11.5" width="4" height="12.5" rx="2" />
         </g>
-        <circle cx="16" cy="16" r="2.35" fill="#fff" stroke="none" />
       </svg>
     </span>
   )

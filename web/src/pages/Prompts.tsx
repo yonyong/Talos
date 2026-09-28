@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Icon } from '../icons'
-import { Empty, Modal, PageH, Panel, Search, Tag, useToast } from '../ui'
+import { Empty, Modal, PageH, Panel, Pager, Search, Tag, useToast } from '../ui'
 import { deletePrompt, fetchPrompts, savePrompt, useAsync } from '../api'
 import type { PromptTemplate } from '../types'
 
@@ -20,6 +20,9 @@ function declaredVars(vars: string): string[] {
 
 const EMPTY: PromptTemplate = { name: '', scene: '', backend: '服务端LLM', vars: '', content: '', updated: '—' }
 
+/** 每页模板数：模板数量通常不大，前端分页即可，与调用日志的服务端分页区分（见下） */
+const PAGE = 8
+
 const SCENES = ['准入判定', '业务域分拣 · 歧义裁决', '工作流闸门判定', '需求分析 · 概要文档', '详细设计', '问题分析 · 故障报告']
 
 export default function Prompts() {
@@ -37,6 +40,13 @@ export default function Prompts() {
       || t.name.toLowerCase().includes(kw) || t.scene.toLowerCase().includes(kw)
       || t.backend.toLowerCase().includes(kw) || t.vars.toLowerCase().includes(kw))
   }, [list, q])
+
+  /** 前端分页：模板是用户维护的少量配置，全量在前端过滤后再切片即可 */
+  const [page, setPage] = useState(1)
+  const totalPages = Math.max(1, Math.ceil(shown.length / PAGE))
+  const pageRows = shown.slice((page - 1) * PAGE, page * PAGE)
+  // 搜索词变化回到第 1 页
+  useEffect(() => { setPage(1) }, [q])
 
   const submit = async () => {
     if (!draft) return
@@ -108,7 +118,7 @@ export default function Prompts() {
               </tr>
             </thead>
             <tbody>
-              {shown.map((t) => (
+              {pageRows.map((t) => (
                 <tr key={t.id ?? t.name}>
                   <td style={{ fontFamily: 'var(--mono)', fontSize: 12, fontWeight: 550 }}>{t.name}</td>
                   <td>{t.scene}</td>
@@ -131,6 +141,10 @@ export default function Prompts() {
             </tbody>
           </table>
         ))}
+
+        {!loading && data !== null && shown.length > 0 && totalPages > 1 && (
+          <Pager page={page} totalPages={totalPages} total={shown.length} onChange={setPage} />
+        )}
       </Panel>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 14, fontSize: 12.5, color: 'var(--ink-4)' }}>

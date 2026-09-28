@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
@@ -26,6 +27,7 @@ public class DataInitializer implements CommandLineRunner {
     private final BizDomainRepository bizDomainRepository;
     private final RepoRepository repoRepository;
     private final LlmConfigRepository llmConfigRepository;
+    private final JdbcTemplate jdbcTemplate;
 
     // LLM 通道的初始值来自 application.yml；一旦在控制台改过就以库里的为准
     @Value("${talos.llm.provider:qwen}") private String dftPublicProvider;
@@ -42,6 +44,7 @@ public class DataInitializer implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
+        migrateUserKeyColumns();
         initTemplates();
         initPrompts();
         initKb();
@@ -78,8 +81,51 @@ public class DataInitializer implements CommandLineRunner {
         if (admin == null) return;
         admin.setEmail(AuthService.normalize(bootstrapEmail));
         userRepository.save(admin);
-        log.info("登录引导：已为管理员 {}（工号 {}）登记登录邮箱 {}（可在「用户管理」页修改）",
-                admin.getName(), admin.getEmpNo(), LoginMailService.mask(admin.getEmail()));
+        log.info("登录引导：已为管理员 {} 登记登录邮箱 {}（可在「用户管理」页修改）",
+                admin.getName(), LoginMailService.mask(admin.getEmail()));
+    }
+
+    /**
+     * 一次性迁移：旧版 t_user_agent / t_user_setting 用 emp_no 关联用户，新版统一 user_id（t_user.id），
+     * 工号已从数据模型删除。Hibernate ddl-auto=update 只会新增 user_id 列，存量行的 user_id 为 NULL——
+     * 这里按旧 emp_no 反查 t_user 回填，然后尝试删除旧列（H2 对被约束引用的列可能拒绝删除，失败不影响运行）。
+     * 幂等：旧列不存在（新库或已迁移）时直接跳过。
+     */
+    private void migrateUserKeyColumns() {
+        for (String table : new String[]{"t_user_agent", "t_user_setting"}) {
+            if (!hasColumn(table, "emp_no")) continue;
+            if (!hasColumn(table, "user_id")) {
+                log.warn("用户关联迁移跳过：{} 缺少 user_id 列（请确认 Hibernate schema update 已执行）", table);
+                continue;
+            }
+            int backfilled = jdbcTemplate.update(
+                    "UPDATE " + table + " SET user_id = "
+                            + "(SELECT u.id FROM t_user u WHERE u.emp_no = " + table + ".emp_no) "
+                            + "WHERE user_id IS NULL AND emp_no IS NOT NULL");
+            int orphans = jdbcTemplate.update("DELETE FROM " + table + " WHERE user_id IS NULL");
+            log.info("用户关联迁移：{} 按 emp_no 回填 user_id {} 行，孤儿记录清理 {} 行", table, backfilled, orphans);
+            dropColumnIfExists(table, "emp_no");
+        }
+        // 子表迁完后，t_user 上的旧工号列一并尝试删除
+        if (hasColumn("t_user", "emp_no")) dropColumnIfExists("t_user", "emp_no");
+    }
+
+    /** INFORMATION_SCHEMA 大小写按 UPPER 双侧归一，兼容 DATABASE_TO_LOWER 与默认两种 H2 配置 */
+    private boolean hasColumn(String table, String column) {
+        Integer n = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS "
+                        + "WHERE UPPER(TABLE_NAME) = ? AND UPPER(COLUMN_NAME) = ?",
+                Integer.class, table.toUpperCase(), column.toUpperCase());
+        return n != null && n > 0;
+    }
+
+    private void dropColumnIfExists(String table, String column) {
+        try {
+            jdbcTemplate.execute("ALTER TABLE " + table + " DROP COLUMN " + column);
+            log.info("已删除旧列 {}.{}", table, column);
+        } catch (Exception e) {
+            log.warn("旧列 {}.{} 删除失败（不影响运行，可后续手工清理）：{}", table, column, e.getMessage());
+        }
     }
 
     private void initTemplates() {
@@ -378,18 +424,20 @@ public class DataInitializer implements CommandLineRunner {
 
     private void initUsers() {
         if (userRepository.count() > 0) return;
-        user("杨德", "24988", "admin", "全部", null);
-        user("王磊", "25102", "dev", "行情", "dev-windows-07");
-        user("李娜", "25331", "dev", "行情", "dev-mac-03");
-        user("陈昊", "25007", "lead", "回测/指标", "dev-linux-11");
-        user("赵敏", "25419", "dev", "账户", "dev-windows-09");
-        user("孙悦", "25520", "qa", "资讯", "dev-mac-15");
+        // 邮箱即用户身份（登录 + 全部关联），工号已废弃；种子用 example.com 保留域占位，
+        // 真实部署在「用户管理」里改成实际邮箱，管理员邮箱也可用 talos.auth.bootstrap-email 引导。
+        user("杨德", "yangde@example.com", "admin", "全部", null);
+        user("王磊", "wanglei@example.com", "dev", "行情", "dev-windows-07");
+        user("李娜", "lina@example.com", "dev", "行情", "dev-mac-03");
+        user("陈昊", "chenhao@example.com", "lead", "回测/指标", "dev-linux-11");
+        user("赵敏", "zhaomin@example.com", "dev", "账户", "dev-windows-09");
+        user("孙悦", "sunyue@example.com", "qa", "资讯", "dev-mac-15");
     }
 
-    private void user(String name, String empNo, String role, String biz, String clientId) {
+    private void user(String name, String email, String role, String biz, String clientId) {
         UserEntity u = new UserEntity();
         u.setName(name);
-        u.setEmpNo(empNo);
+        u.setEmail(AuthService.normalize(email));
         u.setRole(role);
         u.setBizDomain(biz);
         u.setClientId(clientId);

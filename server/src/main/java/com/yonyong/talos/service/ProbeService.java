@@ -40,7 +40,7 @@ public class ProbeService {
      */
     public Map<String, Object> probe(String clientId, Map<String, Object> params) {
         if (clientId == null || clientId.isBlank() || "null".equals(clientId)) {
-            throw new IllegalArgumentException("该用户未绑定客户端，无法测试。请先在「用户管理」里为该工号绑定客户端。");
+            throw new IllegalArgumentException("该用户未绑定客户端，无法测试。请先在「用户管理」里为该用户绑定客户端。");
         }
         ClientSink sink = registry.get(clientId);
         if (sink == null || !registry.isOnline(clientId)) {

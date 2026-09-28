@@ -26,7 +26,7 @@ export type Route =
 
 /** 控制台合法页面 key（guide 已迁到官网文档中心，保留仅作旧链兼容） */
 export const PAGE_KEYS: PageKey[] = [
-  'dashboard', 'issues', 'admission', 'workflow', 'monitor',
+  'dashboard', 'issues', 'workflow', 'monitor',
   'clients', 'guide', 'agents', 'logs', 'docs', 'kb',
   'prompts', 'models',
   'biz', 'repos',

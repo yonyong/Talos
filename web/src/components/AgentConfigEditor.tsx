@@ -57,12 +57,14 @@ const DEFAULT_DESC = (
 /**
  * Coding Agent 编辑器：多条配置 + 拖拽排序 + 经客户端真机测试。
  *
- * 「设置面板 → Coding Agent」（改本人）与「Coding Agent 配置 → 用户配置汇总」（管理员改任意人）
- * 共用同一份逻辑与界面，避免两套编辑器行为漂移。写入走 POST /api/profile/{empNo}/agents（整表重写，顺序即优先级），
- * 测试经 gRPC 下发到该工号绑定的客户端本机执行。
+ * 「设置面板 → Coding Agent」（改本人，走会话级 /profile/me）与
+ * 「Coding Agent 配置 → 用户配置汇总」（管理员改任意人，走 /profile/{email}）
+ * 共用同一份逻辑与界面，避免两套编辑器行为漂移。写入走 POST /api/profile/.../agents（整表重写，顺序即优先级），
+ * 测试经 gRPC 下发到该用户绑定的客户端本机执行。
  */
-export function AgentConfigEditor({ empNo, desc, onSaved }: {
-  empNo: string
+export function AgentConfigEditor({ targetEmail, desc, onSaved }: {
+  /** 目标用户邮箱：不传 = 当前登录用户本人（服务端 /profile/me） */
+  targetEmail?: string
   /** 顶部说明文案（默认面向管理员汇总场景） */
   desc?: React.ReactNode
   /** 保存成功回调（管理页据此刷新汇总列表） */
@@ -70,8 +72,8 @@ export function AgentConfigEditor({ empNo, desc, onSaved }: {
 }) {
   const { toast } = useToast()
   const { data, loading, reload } = useAsync(
-    () => (empNo ? fetchUserProfile(empNo) : Promise.reject(new Error('未指定工号'))),
-    [empNo],
+    () => fetchUserProfile(targetEmail),
+    [targetEmail],
   )
   /** 仅首屏未拿到数据时占位；保存后的 reload 不遮挡已渲染的列表 */
   const initialLoading = loading && data === null
@@ -124,12 +126,11 @@ export function AgentConfigEditor({ empNo, desc, onSaved }: {
   }
 
   const save = async () => {
-    if (!empNo) return
     const invalid = list.find((a) => a.enabled && !a.execPath?.trim())
     if (invalid) { toast(`「${BACKEND_NAMES[invalid.backend] ?? invalid.backend}」已启用但未填 CLI 路径`); return }
     setSaving(true)
     try {
-      const r = await saveProfileAgents(empNo, list)
+      const r = await saveProfileAgents(list, targetEmail)
       setDirty(false)
       reload()
       toast(`${profileSaveHint(r)}，优先级即列表顺序`)
@@ -142,12 +143,11 @@ export function AgentConfigEditor({ empNo, desc, onSaved }: {
   }
 
   const test = async (i: number) => {
-    if (!empNo) return
     const a = list[i]
     if (!a.execPath?.trim()) { toast('先填 CLI 路径再测试'); return }
     setProbing(i)
     try {
-      const r = await probeAgent(empNo, a)
+      const r = await probeAgent(a, targetEmail)
       setResults((prev) => ({ ...prev, [i]: r }))
     } catch (e) {
       setResults((prev) => ({ ...prev, [i]: { ok: false, message: e instanceof Error ? e.message : String(e) } }))

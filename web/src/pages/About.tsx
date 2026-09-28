@@ -28,7 +28,6 @@ export default function About() {
             </ul>
             <p className="about-links">
               <a href="#/" onClick={(e) => { e.preventDefault(); window.location.hash = '#/'; setTimeout(() => document.getElementById('arch')?.scrollIntoView({ behavior: 'smooth' }), 80) }}>查看架构 →</a>
-              <a href="#/contact">联系我们 →</a>
               <a href="#/docs">文档中心 →</a>
             </p>
           </div>

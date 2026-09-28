@@ -41,8 +41,8 @@ export default function Kb() {
 
       <div className="grid g3" style={{ marginBottom: 18 }}>
         <Kpi icon="doc" label="文档数" value={String(docs.length)} delta={`切分 ${docs.reduce((s, d) => s + d.chunks, 0)}`} dir="up" />
-        <Kpi icon="db" label="向量化" value="已完成" delta="pgvector" dir="up" color="#16a34a" glow="rgba(22,163,74,.2)" />
-        <Kpi icon="search" label="检索命中" value={hits.length ? `${hits.length} 条` : '—'} delta="实时召回" dir="up" color="#0891b2" glow="rgba(8,145,178,.2)" />
+        <Kpi icon="db" label="向量化" value="已完成" delta="pgvector" dir="up" color="#16a34a" />
+        <Kpi icon="search" label="检索命中" value={hits.length ? `${hits.length} 条` : '—'} delta="实时召回" dir="up" color="#0891b2" />
       </div>
 
       <Panel title="检索测试" sub="模拟准入判定时的知识召回">

@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Talos · 作业监控（改版设计）</title>
+<style>
+/* ============================================================
+   与 web/src/styles.css 共用同一套 token —— 落到代码时零换算
+   ============================================================ */
+:root {
+  --bg: #ffffff; --bg-subtle: #fbfbfc; --bg-muted: #f5f5f7; --bg-sunken: #f0f0f2;
+  --surface: #ffffff; --glass: rgba(255, 255, 255, 0.72);
+  --ink: #0a0a0b; --ink-2: #33343a; --ink-3: #71717a; --ink-4: #a1a1aa; --ink-5: #d4d4d8;
+  --line: rgba(10, 10, 11, 0.08); --line-2: rgba(10, 10, 11, 0.14);
+  --accent: #4f46e5; --accent-2: #6366f1; --accent-ink: #4338ca; --accent-soft: rgba(79, 70, 229, 0.07);
+  --ok: #15803d; --ok-soft: #eaf6ee; --warn: #b45309; --warn-soft: #fdf4e7;
+  --err: #b91c1c; --err-soft: #fdecec;
+  --radius: 18px; --radius-sm: 13px; --radius-xs: 9px;
+  --shadow-xs: 0 1px 2px rgba(10, 10, 11, 0.04);
+  --shadow-sm: 0 1px 2px rgba(10, 10, 11, 0.05), 0 2px 6px -2px rgba(10, 10, 11, 0.05);
+  --shadow: 0 1px 2px rgba(10, 10, 11, 0.04), 0 10px 28px -12px rgba(10, 10, 11, 0.14);
+  --shadow-lg: 0 2px 6px rgba(10, 10, 11, 0.05), 0 18px 44px -16px rgba(10, 10, 11, 0.2);
+  --dur: 0.16s; --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: var(--font); color: var(--ink); background: var(--bg-subtle);
+  -webkit-font-smoothing: antialiased; font-size: 14px; line-height: 1.5;
+}
+button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+.ic { display: inline-block; vertical-align: middle; flex: none; }
+.ic svg { width: 100%; height: 100%; display: block; }
+
+/* ============================== 外壳：侧栏 + 顶栏 ============================== */
+.shell { display: flex; min-height: 100vh; }
+.side {
+  width: 214px; flex: none; background: var(--bg); border-right: 1px solid var(--line);
+  padding: 14px 10px; display: flex; flex-direction: column; gap: 2px;
+}
+.brand { display: flex; align-items: center; gap: 9px; padding: 6px 8px 18px; font-weight: 620; font-size: 15px; letter-spacing: -0.01em; }
+.brand svg { width: 24px; height: 24px; border-radius: 7px; }
+.snav { display: flex; flex-direction: column; gap: 1px; }
+.snav .grp { padding: 14px 10px 6px; font-size: 11px; font-weight: 600; letter-spacing: 0.04em; color: var(--ink-4); }
+.snav a {
+  display: flex; align-items: center; gap: 10px; height: 34px; padding: 0 10px;
+  border-radius: 8px; font-size: 13px; color: var(--ink-2); transition: all var(--dur) var(--ease);
+}
+.snav a:hover { background: var(--bg-muted); }
+.snav a.on { background: var(--accent-soft); color: var(--accent-ink); font-weight: 560; }
+.snav .ic { width: 16px; height: 16px; color: var(--ink-3); }
+.snav a.on .ic { color: var(--accent); }
+
+.main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.topbar {
+  height: 58px; flex: none; display: flex; align-items: center; justify-content: space-between;
+  padding: 0 26px; border-bottom: 1px solid var(--line); background: var(--glass);
+  backdrop-filter: saturate(180%) blur(12px); position: sticky; top: 0; z-index: 20;
+}
+.tb-title { font-size: 14px; font-weight: 600; letter-spacing: -0.01em; }
+.tb-search {
+  display: flex; align-items: center; gap: 8px; height: 34px; width: 260px; padding: 0 12px;
+  border: 1px solid var(--line-2); border-radius: 999px; background: var(--surface);
+  color: var(--ink-4); font-size: 12.5px;
+}
+.bell { position: relative; width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center; color: var(--ink-3); }
+.bell:hover { background: var(--bg-muted); }
+.bell b {
+  position: absolute; top: -2px; right: -2px; min-width: 16px; height: 16px; padding: 0 4px;
+  border-radius: 999px; background: var(--err); color: #fff; font-size: 10px; font-weight: 700;
+  display: grid; place-items: center; border: 2px solid var(--bg);
+}
+.content { padding: 22px 26px 40px; }
+
+/* ============================== 页头：把「刷新」收成一个控件，异常单独醒目 ============================== */
+.page { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; margin-bottom: 18px; }
+.page h1 { font-size: 21px; font-weight: 620; letter-spacing: -0.022em; }
+.page p { font-size: 13px; color: var(--ink-3); margin-top: 5px; }
+.page-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
+
+/* 实时控件：状态 + 时间合体，不再占两个 chip */
+.live {
+  display: inline-flex; align-items: center; gap: 9px; height: 34px; padding: 0 6px 0 12px;
+  border: 1px solid var(--line-2); border-radius: 999px; background: var(--surface);
+  transition: all var(--dur) var(--ease);
+}
+.live:hover { border-color: var(--ink-5); box-shadow: var(--shadow-sm); }
+.live .pulse { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); position: relative; flex: none; }
+.live .pulse::after {
+  content: ''; position: absolute; inset: -4px; border-radius: 50%;
+  background: var(--accent); opacity: 0.28; animation: ring 2.4s var(--ease) infinite;
+}
+@keyframes ring { 0% { transform: scale(0.6); opacity: 0.34; } 70% { transform: scale(1.5); opacity: 0; } 100% { opacity: 0; } }
+.live .lbl { font-size: 12.5px; font-weight: 560; color: var(--accent-ink); }
+.live .t { font-size: 12px; color: var(--ink-4); font-variant-numeric: tabular-nums; }
+.live .rbtn {
+  width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center;
+  color: var(--ink-3); transition: all var(--dur) var(--ease);
+}
+.live .rbtn:hover { background: var(--bg-muted); color: var(--ink); }
+.live .rbtn.spin svg { animation: spin 0.7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* 告警：当一切正常时整行不出现 */
+.alert {
+  display: inline-flex; align-items: center; gap: 7px; height: 34px; padding: 0 13px;
+  border-radius: 999px; font-size: 12.5px; font-weight: 560; border: 1px solid transparent;
+  transition: all var(--dur) var(--ease);
+}
+.alert:hover { transform: translateY(-1px); box-shadow: var(--shadow-sm); }
+.alert.danger { background: var(--err-soft); color: var(--err); border-color: rgba(185, 28, 28, 0.16); }
+.alert.warn { background: var(--warn-soft); color: var(--warn); border-color: rgba(180, 83, 9, 0.16); }
+.alert .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+/* ============================== 两栏主体 ============================== */
+.mon { display: grid; grid-template-columns: 296px minmax(0, 1fr); gap: 18px; align-items: start; }
+
+/* ---------- 左：实例列表 ---------- */
+.side-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow-xs); overflow: hidden; }
+.sc-head { padding: 15px 16px 12px; display: flex; align-items: baseline; justify-content: space-between; }
+.sc-head b { font-size: 13.5px; font-weight: 620; letter-spacing: -0.01em; }
+.sc-head span { font-size: 12px; color: var(--ink-4); font-variant-numeric: tabular-nums; }
+.sc-search { padding: 0 12px 12px; }
+.sc-search .box {
+  display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 11px;
+  border: 1px solid var(--line-2); border-radius: 8px; background: var(--bg-subtle);
+  font-size: 12.5px; color: var(--ink-4);
+}
+.sc-list { padding: 0 8px 8px; display: flex; flex-direction: column; gap: 5px; max-height: calc(100vh - 250px); overflow-y: auto; }
+
+/* 列表项：左侧状态色条 + 当前节点 + 耗时，一屏能分辨该看哪个 */
+.item {
+  position: relative; display: block; width: 100%; text-align: left;
+  padding: 11px 12px 11px 15px; border: 1px solid transparent; border-radius: var(--radius-sm);
+  background: transparent; transition: all var(--dur) var(--ease);
+}
+.item::before {
+  content: ''; position: absolute; left: 6px; top: 12px; bottom: 12px; width: 3px;
+  border-radius: 3px; background: var(--ink-5);
+}
+.item.st-blocked::before { background: var(--warn); }
+.item.st-running::before { background: var(--accent); }
+.item:hover { background: var(--bg-subtle); }
+.item.on { background: var(--surface); border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.item.on::before { background: var(--accent); }
+.it-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.it-code { font-family: var(--mono); font-size: 12px; font-weight: 600; }
+.it-title { font-size: 12.5px; color: var(--ink-2); margin-top: 4px; line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
+.it-meta { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: 11.5px; color: var(--ink-4); }
+.it-meta .cur { display: inline-flex; align-items: center; gap: 5px; min-width: 0; }
+.it-meta .cur b { color: var(--ink-3); font-weight: 560; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.it-meta .t { margin-left: auto; flex: none; font-variant-numeric: tabular-nums; }
+.it-bar { margin-top: 8px; height: 3px; border-radius: 3px; background: var(--bg-sunken); overflow: hidden; }
+.it-bar i { display: block; height: 100%; border-radius: 3px; background: var(--ink-5); transition: width 0.4s var(--ease); }
+.item.st-blocked .it-bar i { background: var(--warn); }
+.item.st-running .it-bar i { background: var(--accent); }
+
+/* ---------- 右：详情 ========== */
+.detail { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+
+/* 概览卡：原来四条等高横带 → 一张卡，三层结构 */
+.ov { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow-xs); overflow: hidden; }
+.ov-main { padding: 19px 20px 16px; }
+.ov-r1 { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; }
+.ov-r1 .lt { min-width: 0; }
+.ov-title { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+.ov-title .code { font-family: var(--mono); font-size: 12.5px; font-weight: 620; color: var(--ink-3); }
+.ov-title h2 { font-size: 16.5px; font-weight: 620; letter-spacing: -0.018em; line-height: 1.35; }
+.ov-why { display: flex; align-items: center; gap: 7px; margin-top: 9px; font-size: 12.5px; color: var(--warn); font-weight: 520; }
+.ov-why .ic { width: 14px; height: 14px; }
+
+/* 按钮分级：主操作实心 / 次操作描边 / 危险弱化 */
+.acts { display: flex; align-items: center; gap: 8px; flex: none; flex-wrap: wrap; justify-content: flex-end; }
+.btn {
+  display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 13px;
+  border-radius: 8px; font-size: 12.5px; font-weight: 560; transition: all var(--dur) var(--ease); white-space: nowrap;
+}
+.btn .ic { width: 14px; height: 14px; }
+.btn:active { transform: scale(0.97); }
+.btn.primary { background: var(--accent); color: #fff; box-shadow: 0 6px 16px -8px rgba(79, 70, 229, 0.6); }
+.btn.primary:hover { background: var(--accent-ink); transform: translateY(-1px); }
+.btn.ghost { background: var(--surface); border: 1px solid var(--line-2); color: var(--ink-2); }
+.btn.ghost:hover { border-color: var(--ink); background: var(--bg-subtle); }
+.btn.quiet { color: var(--ink-4); padding: 0 9px; }
+.btn.quiet:hover { color: var(--ink); background: var(--bg-muted); }
+.btn.danger { color: var(--err); padding: 0 9px; }
+.btn.danger:hover { background: var(--err-soft); }
+.sep-v { width: 1px; height: 20px; background: var(--line); margin: 0 2px; }
+
+/* 进度：1/7 完成，分段一眼看出卡点 */
+.ov-prog { margin-top: 16px; display: flex; align-items: center; gap: 14px; }
+.ov-prog .num { font-size: 20px; font-weight: 650; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.ov-prog .num small { font-size: 12px; font-weight: 500; color: var(--ink-4); margin-left: 3px; }
+.seg { flex: 1; display: flex; gap: 3px; height: 7px; }
+.seg i { flex: 1; border-radius: 2.5px; background: var(--bg-sunken); transition: all var(--dur) var(--ease); }
+.seg i.done { background: var(--ok); }
+.seg i.skip { background: var(--ink-5); }
+.seg i.block { background: var(--warn); animation: blink 2.2s ease-in-out infinite; }
+@keyframes blink { 50% { opacity: 0.42; } }
+.seg-legend { display: flex; gap: 12px; font-size: 11.5px; color: var(--ink-4); flex: none; }
+.seg-legend span { display: inline-flex; align-items: center; gap: 5px; }
+.seg-legend em { width: 7px; height: 7px; border-radius: 2px; display: inline-block; }
+
+/* 诊断带：粘在概览卡底部，不再单独占一条横带 */
+.ov-diag { display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid var(--line); background: var(--bg-subtle); }
+.dg { display: flex; align-items: center; gap: 10px; padding: 12px 16px; min-width: 0; }
+.dg + .dg { border-left: 1px solid var(--line); }
+.dg .ico { width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; flex: none; background: var(--surface); border: 1px solid var(--line); color: var(--ink-3); }
+.dg .ico .ic { width: 14px; height: 14px; }
+.dg .tx { min-width: 0; }
+.dg .k { font-size: 11px; color: var(--ink-4); font-weight: 560; letter-spacing: 0.02em; }
+.dg .v { font-size: 12.5px; font-weight: 560; margin-top: 2px; display: flex; align-items: center; gap: 6px; min-width: 0; }
+.dg .v .ell { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dg .v.ok { color: var(--ok); }
+.dg .v.err { color: var(--err); }
+.dg .v.warn { color: var(--warn); }
+.dg .v .cdot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+.cdot.on { background: var(--ok); box-shadow: 0 0 0 3px rgba(21, 128, 61, 0.12); }
+.cdot.off { background: var(--err); box-shadow: 0 0 0 3px rgba(185, 28, 28, 0.12); }
+.dg .hint { font-size: 11px; color: var(--ink-4); margin-top: 2px; }
+
+/* 节点区：页面主体，吃满剩余高度 */
+.nodes { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow-xs); overflow: hidden; display: flex; flex-direction: column; }
+.nd-head { padding: 15px 18px 13px; display: flex; align-items: center; justify-content: space-between; gap: 14px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.nd-head .lt { display: flex; align-items: baseline; gap: 10px; }
+.nd-head b { font-size: 13.5px; font-weight: 620; }
+.nd-head .sum { display: flex; gap: 11px; font-size: 11.5px; color: var(--ink-4); }
+.nd-head .sum span { display: inline-flex; align-items: center; gap: 5px; }
+.nd-head .sum em { width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
+.tabs { display: inline-flex; padding: 3px; background: var(--bg-muted); border-radius: 9px; }
+.tabs button { height: 26px; padding: 0 12px; border-radius: 7px; font-size: 12px; font-weight: 550; color: var(--ink-3); transition: all var(--dur) var(--ease); }
+.tabs button.on { background: var(--surface); color: var(--ink); box-shadow: var(--shadow-xs); }
+.nd-body { padding: 6px 8px 10px; overflow: auto; flex: 1; }
+
+/* 时间线：一行一个节点，扫一眼知道卡在哪 */
+.tl { position: relative; display: flex; gap: 13px; padding: 11px 12px 11px 10px; border-radius: var(--radius-sm); transition: all var(--dur) var(--ease); }
+.tl:hover { background: var(--bg-subtle); }
+.tl.sel { background: var(--accent-soft); }
+.tl .rail { width: 26px; flex: none; display: flex; flex-direction: column; align-items: center; }
+.tl .dot {
+  width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; flex: none;
+  background: var(--bg-muted); color: var(--ink-3); border: 1px solid var(--line); z-index: 1;
+}
+.tl .dot .ic { width: 13px; height: 13px; }
+.tl.done .dot { background: var(--ok-soft); color: var(--ok); border-color: rgba(21, 128, 61, 0.2); }
+.tl.block .dot { background: var(--warn-soft); color: var(--warn); border-color: rgba(180, 83, 9, 0.2); }
+.tl.fail .dot { background: var(--err-soft); color: var(--err); border-color: rgba(185, 28, 28, 0.2); }
+.tl.active .dot { background: var(--accent); color: #fff; border-color: transparent; box-shadow: 0 0 0 4px var(--accent-soft); }
+.tl .line { flex: 1; width: 1.5px; background: var(--line); margin: 4px 0 -11px; }
+.tl:last-child .line { display: none; }
+.tl .body { flex: 1; min-width: 0; padding-top: 1px; }
+.tl .h { display: flex; align-items: center; gap: 8px; }
+.tl .h .name { font-size: 13px; font-weight: 560; }
+.tl .h .step { font-family: var(--mono); font-size: 11.5px; color: var(--ink-4); }
+.tl .h .t { margin-left: auto; font-size: 11.5px; color: var(--ink-4); font-variant-numeric: tabular-nums; flex: none; }
+.tl .s { font-size: 12px; color: var(--ink-3); margin-top: 5px; line-height: 1.55; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
+.tl.skip .name, .tl.skip .s { color: var(--ink-4); }
+.tl .go {
+  align-self: center; flex: none; display: inline-flex; align-items: center; gap: 3px;
+  font-size: 12px; color: var(--accent); opacity: 0; transition: opacity var(--dur) var(--ease);
+}
+.tl:hover .go, .tl.sel .go { opacity: 1; }
+.tl .go .ic { width: 12px; height: 12px; }
+.note { font-size: 11.5px; color: var(--ink-4); padding: 8px 14px 2px; display: flex; align-items: center; gap: 6px; }
+
+/* 标签 */
+.tag {
+  display: inline-flex; align-items: center; gap: 5px; height: 21px; padding: 0 8px; border-radius: 999px;
+  font-size: 11.5px; font-weight: 560; white-space: nowrap;
+}
+.tag .d { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+.tag.ok { background: var(--ok-soft); color: var(--ok); }
+.tag.warn { background: var(--warn-soft); color: var(--warn); }
+.tag.err { background: var(--err-soft); color: var(--err); }
+.tag.mut { background: var(--bg-muted); color: var(--ink-4); }
+.tag.prog { background: var(--accent-soft); color: var(--accent-ink); }
+.tag.line { background: transparent; border: 1px solid var(--line-2); color: var(--ink-3); }
+
+/* 拓扑图（改版：节点 168×74，边标签让位到节点上方） */
+.graph { padding: 22px 26px 26px; position: relative; min-height: 300px; }
+.gnode {
+  position: absolute; width: 168px; padding: 10px 12px; border-radius: var(--radius-sm);
+  border: 1px solid var(--line-2); background: var(--surface); box-shadow: var(--shadow-xs);
+  transition: all var(--dur) var(--ease);
+}
+.gnode:hover { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); transform: translateY(-1px); }
+.gnode .gn { font-family: var(--mono); font-size: 10.5px; color: var(--ink-4); letter-spacing: 0.03em; }
+.gnode .gt { font-size: 12.5px; font-weight: 600; margin-top: 3px; display: flex; align-items: center; gap: 6px; }
+.gnode .gt .ic { width: 13px; height: 13px; color: var(--ink-3); }
+.gnode .gm { font-size: 11px; color: var(--ink-4); margin-top: 5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gnode.done { border-color: rgba(21, 128, 61, 0.28); }
+.gnode.done .gt { color: var(--ok); }
+.gnode.block { border-color: rgba(180, 83, 9, 0.34); background: var(--warn-soft); }
+.gnode.block .gt { color: var(--warn); }
+.gnode.skip { opacity: 0.62; }
+.glabel {
+  position: absolute; transform: translate(-50%, -50%); font-size: 10.5px; font-family: var(--mono);
+  color: var(--ink-3); background: var(--surface); border: 1px solid var(--line); border-radius: 6px;
+  padding: 1px 6px; white-space: nowrap;
+}
+.glabel.warn { color: var(--warn); border-color: rgba(180, 83, 9, 0.28); background: var(--warn-soft); }
+
+/* 抽屉：节点日志 */
+.mask { position: fixed; inset: 0; background: rgba(10, 10, 11, 0.28); opacity: 0; pointer-events: none; transition: opacity var(--dur) var(--ease); z-index: 40; }
+.mask.on { opacity: 1; pointer-events: auto; }
+.drawer {
+  position: fixed; top: 0; right: 0; bottom: 0; width: 620px; max-width: 92vw; background: var(--surface);
+  border-left: 1px solid var(--line); box-shadow: var(--shadow-xl); z-index: 41;
+  transform: translateX(100%); transition: transform 0.26s var(--ease); display: flex; flex-direction: column;
+}
+.drawer.on { transform: none; }
+.dr-head { padding: 16px 18px; border-bottom: 1px solid var(--line); display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.dr-head .t { font-size: 14.5px; font-weight: 620; display: flex; align-items: center; gap: 8px; }
+.dr-head .s { font-size: 11.5px; color: var(--ink-4); font-family: var(--mono); margin-top: 4px; }
+.dr-bar { display: flex; align-items: center; gap: 8px; padding: 11px 18px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.dr-bar .r { margin-left: auto; display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--ink-4); font-variant-numeric: tabular-nums; }
+.dr-log {
+  flex: 1; margin: 0; padding: 16px 18px; background: var(--bg-subtle); overflow: auto;
+  font-family: var(--mono); font-size: 12px; line-height: 1.75; color: var(--ink-2); white-space: pre-wrap; word-break: break-word;
+}
+.dr-log .ts { color: var(--accent-ink); }
+.dr-log .cmd { color: var(--ink); font-weight: 600; }
+.dr-log .dim { color: var(--ink-4); }
+.icon-x { width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; color: var(--ink-3); }
+.icon-x:hover { background: var(--bg-muted); color: var(--ink); }
+
+/* 设计注记（原型专用，交付代码时删除） */
+.notes { margin-top: 26px; border: 1px dashed var(--line-2); border-radius: var(--radius); padding: 18px 20px; background: var(--surface); }
+.notes h3 { font-size: 13px; font-weight: 620; margin-bottom: 12px; }
+.notes ol { padding-left: 18px; display: flex; flex-direction: column; gap: 8px; }
+.notes li { font-size: 12.5px; color: var(--ink-2); line-height: 1.6; }
+.notes li b { font-weight: 620; }
+.notes code { font-family: var(--mono); font-size: 11.5px; background: var(--bg-muted); padding: 1px 5px; border-radius: 4px; color: var(--ink-2); }
+@media (max-width: 1180px) {
+  .mon { grid-template-columns: 1fr; }
+  .ov-diag { grid-template-columns: 1fr; }
+  .dg + .dg { border-left: none; border-top: 1px solid var(--line); }
+}
+</style>
+</head>
+<body>
+
+<!-- ===== SVG 图标精灵（与 web/src/icons.tsx 同源，线性 1.7px） ===== -->
+<svg width="0" height="0" style="position:absolute" aria-hidden>
+  <symbol id="i-dashboard" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="7.5" height="7.5" rx="1.6"/><rect x="13.5" y="4" width="7.5" height="4.5" rx="1.6"/><rect x="3" y="14" width="7.5" height="6" rx="1.6"/><rect x="13.5" y="11" width="7.5" height="9" rx="1.6"/></symbol>
+  <symbol id="i-issue" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3.2" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-monitor" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8"/><path d="M12 16v4"/></symbol>
+  <symbol id="i-flow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="7" height="5" rx="1.5"/><rect x="14" y="15" width="7" height="5" rx="1.5"/><path d="M6.5 9v5.5a2 2 0 002 2H14"/></symbol>
+  <symbol id="i-biz" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5"/></symbol>
+  <symbol id="i-git" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="6" r="2.6"/><circle cx="7" cy="18" r="2.6"/><circle cx="17" cy="12" r="2.6"/><path d="M7 8.6v6.8"/><path d="M9.6 6h3.2a2.6 2.6 0 012.6 2.6v.8"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 10-2.6 5.9"/><path d="M20 5v6h-6"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M18 15V10a6 6 0 10-12 0v5l-2 3h16z"/><path d="M10 21h4"/></symbol>
+  <symbol id="i-warn" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4l9 16H3z"/><path d="M12 10v4"/><path d="M12 17.2v.6"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18"/><path d="M6 6l12 12"/></symbol>
+  <symbol id="i-doc" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6"/><path d="M9 17h4"/></symbol>
+  <symbol id="i-code" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l-5-6 5-6"/><path d="M15 6l5 6-5 6"/></symbol>
+  <symbol id="i-test" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6"/><path d="M10 3v5.5L5.6 17A2.5 2.5 0 007.8 21h8.4a2.5 2.5 0 002.2-3.5L14 8.5V3"/><path d="M8.5 14h7"/></symbol>
+  <symbol id="i-review" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-6 10-6 10 6 10 6-3.6 6-10 6-10-6-10-6z"/><circle cx="12" cy="12" r="2.8"/></symbol>
+  <symbol id="i-spark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M18 16l.8 2.2L21 19l-2.2.8L18 22l-.8-2.2L15 19l2.2-.8z"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.2 2"/></symbol>
+  <symbol id="i-client" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8"/><path d="M12 16v4"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.4"/><path d="M2.5 20a6.5 6.5 0 0113 0"/><path d="M16 5.2a3.4 3.4 0 010 6.6"/><path d="M18 20a6 6 0 00-2.2-4.6"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M13 6l6 6-6 6"/></symbol>
+  <symbol id="i-settings" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.6 1.6 0 00-2.7 1.1V21a2 2 0 11-4 0v-.1A1.6 1.6 0 007 19.4l-.1.1a2 2 0 11-2.8-2.8l.1-.1A1.6 1.6 0 003 14.6H3a2 2 0 110-4h.1A1.6 1.6 0 004.6 7l-.1-.1a2 2 0 112.8-2.8l.1.1A1.6 1.6 0 0010 3.1V3a2 2 0 114 0v.1a1.6 1.6 0 002.7 1.1l.1-.1a2 2 0 112.8 2.8l-.1.1a1.6 1.6 0 001.1 2.7H21a2 2 0 110 4h-.1a1.6 1.6 0 00-1.5 1z"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4.5l12 7.5-12 7.5z"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="10" width="14" height="10" rx="2.4"/><path d="M8.5 10V7.5a3.5 3.5 0 017 0V10"/></symbol>
+  <symbol id="i-cpu" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="6" width="12" height="12" rx="2"/><rect x="10" y="10" width="4" height="4" rx="1"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"/></symbol>
+</svg>
+
+<div class="shell">
+  <!-- ===== 侧栏 ===== -->
+  <aside class="side">
+    <div class="brand">
+      <svg viewBox="0 0 32 32" fill="none"><defs><linearGradient id="mk" x1="2" y1="1" x2="30" y2="31" gradientUnits="userSpaceOnUse"><stop stop-color="#1e1b4b"/><stop offset=".48" stop-color="#4338ca"/><stop offset="1" stop-color="#818cf8"/></linearGradient></defs><rect x="1" y="1" width="30" height="30" rx="9" fill="url(#mk)"/><g fill="none" stroke="#fff" stroke-linecap="round" stroke-width="2.15" stroke-opacity=".94"><ellipse cx="16" cy="16" rx="10.1" ry="4.6" transform="rotate(-38 16 16)"/><ellipse cx="16" cy="16" rx="10.1" ry="4.6" transform="rotate(52 16 16)"/></g><circle cx="16" cy="16" r="2.35" fill="#fff"/></svg>
+      Talos
+    </div>
+    <nav class="snav">
+      <div class="grp">运营</div>
+      <a href="#"><span class="ic" style="width:16px;height:16px"><svg><use href="#i-dashboard"/></svg></span>总览</a>
+      <a href="#"><span class="ic" style="width:16px;height:16px"><svg><use href="#i-issue"/></svg></span>Issue</a>
+      <a href="#" class="on"><span class="ic" style="width:16px;height:16px"><svg><use href="#i-monitor"/></svg></span>作业监控</a>
+      <a href="#"><span class="ic" style="width:16px;height:16px"><svg><use href="#i-doc"/></svg></span>过程文档</a>
+      <div class="grp">编排</div>
+      <a href="#"><span class="ic" style="width:16px;height:16px"><svg><use href="#i-flow"/></svg></span>工作流编排</a>
+      <a href="#"><span class="ic" style="width:16px;height:16px"><svg><use href="#i-biz"/></svg></span>业务域</a>
+      <div class="grp">AI 配置</div>
+      <a href="#"><span class="ic" style="width:16px;height:16px"><svg><use href="#i-cpu"/></svg></span>模型配置</a>
+      <a href="#"><span class="ic" style="width:16px;height:16px"><svg><use href="#i-client"/></svg></span>客户端</a>
+    </nav>
+  </aside>
+
+  <div class="main">
+    <!-- ===== 顶栏 ===== -->
+    <div class="topbar">
+      <div class="tb-title">作业监控</div>
+      <div style="display:flex;align-items:center;gap:12px">
+        <div class="tb-search"><span class="ic" style="width:14px;height:14px"><svg><use href="#i-search"/></svg></span>搜索 Issue、客户端</div>
+        <button class="bell"><span class="ic" style="width:17px;height:17px"><svg><use href="#i-bell"/></svg></span><b>1</b></button>
+      </div>
+    </div>
+
+    <div class="content">
+      <!-- ===== 页头：一个实时控件 + 两个告警 ===== -->
+      <div class="page">
+        <div>
+          <h1>作业监控</h1>
+          <p>左侧选中实例，点击节点查看完整执行日志。</p>
+        </div>
+        <div class="page-right">
+          <button class="alert danger" title="REQ-2251 停在人工闸门，点击查看">
+            <span class="dot"></span>1 个异常阻塞
+          </button>
+          <button class="alert warn" title="有客户端离线，任务上线后自动补发">
+            <span class="dot"></span>2 台客户端离线
+          </button>
+          <button class="live" id="liveBtn" title="每 5s 自动刷新；标签页切到后台自动暂停。点击暂停">
+            <span class="pulse"></span>
+            <span class="lbl">实时 · 5s</span>
+            <span class="t" id="tick">20:07:02</span>
+            <span class="rbtn" id="rbtn" title="立即刷新"><span class="ic" style="width:14px;height:14px"><svg><use href="#i-refresh"/></svg></span></span>
+          </button>
+        </div>
+      </div>
+
+      <div class="mon">
+        <!-- ===== 左：实例列表 ===== -->
+        <div class="side-card">
+          <div class="sc-head"><b>工作流实例</b><span>2 个进行中</span></div>
+          <div class="sc-search"><div class="box"><span class="ic" style="width:13px;height:13px"><svg><use href="#i-search"/></svg></span>搜索实例 / Issue</div></div>
+          <div class="sc-list">
+            <button class="item st-blocked on">
+              <div class="it-top">
+                <span class="it-code">WI-1634</span>
+                <span class="tag warn"><span class="d"></span>阻塞</span>
+              </div>
+              <div class="it-title">登录页样式美化一下，现在的字体、布局都不够美观</div>
+              <div class="it-meta">
+                <span class="cur"><span class="ic" style="width:11px;height:11px"><svg><use href="#i-review"/></svg></span>卡在 <b>4. 设计评审</b></span>
+                <span class="t">等待 12m</span>
+              </div>
+              <div class="it-bar"><i style="width:14%"></i></div>
+            </button>
+
+            <button class="item st-running">
+              <div class="it-top">
+                <span class="it-code">WI-6588</span>
+                <span class="tag prog"><span class="d"></span>执行中</span>
+              </div>
+              <div class="it-title">REQ-2251 登录页样式美化（第二轮 · 评审后重做）</div>
+              <div class="it-meta">
+                <span class="cur"><span class="ic" style="width:11px;height:11px"><svg><use href="#i-code"/></svg></span>正在 <b>5. 编码实现</b></span>
+                <span class="t">已跑 3m</span>
+              </div>
+              <div class="it-bar"><i style="width:57%"></i></div>
+            </button>
+          </div>
+        </div>
+
+        <!-- ===== 右：详情 ===== -->
+        <div class="detail">
+          <!-- 概览卡：标题 / 进度 / 诊断 三层合一 -->
+          <div class="ov">
+            <div class="ov-main">
+              <div class="ov-r1">
+                <div class="lt">
+                  <div class="ov-title">
+                    <span class="code">REQ-2251</span>
+                    <h2>登录页样式美化一下，现在的字体、布局都不够美观</h2>
+                    <span class="tag warn"><span class="d"></span>阻塞</span>
+                  </div>
+                  <div class="ov-why">
+                    <span class="ic" style="width:14px;height:14px"><svg><use href="#i-warn"/></svg></span>
+                    节点 4「设计评审」是人工闸门，已等待 12 分钟，需要你确认通过或标记失败
+                  </div>
+                </div>
+                <div class="acts">
+                  <button class="btn primary"><span class="ic"><svg><use href="#i-check"/></svg></span>人工通过</button>
+                  <button class="btn ghost"><span class="ic"><svg><use href="#i-x"/></svg></span>标记失败</button>
+                  <span class="sep-v"></span>
+                  <button class="btn quiet"><span class="ic"><svg><use href="#i-refresh"/></svg></span>重新执行</button>
+                  <button class="btn danger">取消实例</button>
+                </div>
+              </div>
+
+              <div class="ov-prog">
+                <div class="num">1<small>/ 7 已完成</small></div>
+                <div class="seg">
+                  <i class="done"></i><i class="skip"></i><i class="skip"></i>
+                  <i class="block"></i><i></i><i></i><i></i>
+                </div>
+                <div class="seg-legend">
+                  <span><em style="background:var(--ok)"></em>1 完成</span>
+                  <span><em style="background:var(--ink-5)"></em>2 跳过</span>
+                  <span><em style="background:var(--warn)"></em>1 阻塞</span>
+                  <span><em style="background:var(--bg-sunken);outline:1px solid var(--line)"></em>3 待执行</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- 诊断带：准入 / 分拣 / 承接客户端 -->
+            <div class="ov-diag">
+              <div class="dg">
+                <span class="ico"><svg class="ic"><use href="#i-check"/></svg></span>
+                <div class="tx">
+                  <div class="k">准入判定</div>
+                  <div class="v ok"><span class="ell">已准入</span><span class="hint" style="margin:0">置信度 80%</span></div>
+                </div>
+              </div>
+              <div class="dg">
+                <span class="ico"><svg class="ic"><use href="#i-spark"/></svg></span>
+                <div class="tx">
+                  <div class="k">分拣</div>
+                  <div class="v"><span class="ell">人工指定 · Talos</span></div>
+                </div>
+              </div>
+              <div class="dg">
+                <span class="ico"><svg class="ic"><use href="#i-client"/></svg></span>
+                <div class="tx">
+                  <div class="k">承接客户端</div>
+                  <div class="v err"><span class="cdot off"></span><span class="ell">老杨的T14P</span></div>
+                  <div class="hint">离线 · 上线后自动补发</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 节点区：页面主体 -->
+          <div class="nodes">
+            <div class="nd-head">
+              <div class="lt">
+                <b>节点进度</b>
+                <span class="sum">
+                  <span><em style="background:var(--ok)"></em>1 已完成</span>
+                  <span><em style="background:var(--ink-5)"></em>2 跳过</span>
+                  <span><em style="background:var(--warn)"></em>1 阻塞</span>
+                  <span><em style="background:var(--bg-sunken);outline:1px solid var(--line)"></em>3 待执行</span>
+                </span>
+              </div>
+              <div class="tabs">
+                <button class="on" data-view="tl">时间线</button>
+                <button data-view="graph">拓扑图</button>
+              </div>
+            </div>
+
+            <!-- 时间线（默认） -->
+            <div class="nd-body" id="viewTl">
+              <div class="tl done" data-node="1">
+                <div class="rail"><div class="dot"><svg class="ic"><use href="#i-git"/></svg></div><div class="line"></div></div>
+                <div class="body">
+                  <div class="h"><span class="step">STEP 01</span><span class="name">拉取 Git</span><span class="tag ok"><span class="d"></span>已完成</span><span class="t">2.4s</span></div>
+                  <div class="s">[20:03:11] $ git clone --progress … 远端 12.4 MB，已切至工作分支 req-2251</div>
+                </div>
+                <span class="go">查看日志<span class="ic"><svg><use href="#i-arrow"/></svg></span></span>
+              </div>
+
+              <div class="tl skip">
+                <div class="rail"><div class="dot"><svg class="ic"><use href="#i-doc"/></svg></div><div class="line"></div></div>
+                <div class="body">
+                  <div class="h"><span class="step">STEP 02</span><span class="name">需求分析</span><span class="tag mut"><span class="d"></span>已跳过</span><span class="t">—</span></div>
+                  <div class="s">条件不成立：诉求已在 Issue 描述中给出完整验收点，跳过需求拆解</div>
+                </div>
+              </div>
+
+              <div class="tl skip">
+                <div class="rail"><div class="dot"><svg class="ic"><use href="#i-doc"/></svg></div><div class="line"></div></div>
+                <div class="body">
+                  <div class="h"><span class="step">STEP 03</span><span class="name">详细设计</span><span class="tag mut"><span class="d"></span>已跳过</span><span class="t">—</span></div>
+                  <div class="s">条件不成立：修改仅涉及样式，无需设计文档</div>
+                </div>
+              </div>
+
+              <div class="tl block sel" data-node="4">
+                <div class="rail"><div class="dot"><svg class="ic"><use href="#i-lock"/></svg></div><div class="line"></div></div>
+                <div class="body">
+                  <div class="h"><span class="step">STEP 04</span><span class="name">设计评审</span><span class="tag warn"><span class="d"></span>阻塞 · 等待人工</span><span class="t">已等待 12m</span></div>
+                  <div class="s">人工闸门：确认后流转至「编码实现」，或标记失败退回重做（本轮第 1 轮）</div>
+                </div>
+                <span class="go">查看日志<span class="ic"><svg><use href="#i-arrow"/></svg></span></span>
+              </div>
+
+              <div class="tl">
+                <div class="rail"><div class="dot"><svg class="ic"><use href="#i-code"/></svg></div><div class="line"></div></div>
+                <div class="body">
+                  <div class="h"><span class="step">STEP 05</span><span class="name">编码实现</span><span class="tag mut"><span class="d"></span>待执行</span><span class="t">—</span></div>
+                  <div class="s">等待前序节点结束</div>
+                </div>
+              </div>
+
+              <div class="tl">
+                <div class="rail"><div class="dot"><svg class="ic"><use href="#i-test"/></svg></div><div class="line"></div></div>
+                <div class="body">
+                  <div class="h"><span class="step">STEP 06</span><span class="name">单元测试</span><span class="tag mut"><span class="d"></span>待执行</span><span class="t">—</span></div>
+                  <div class="s">等待前序节点结束</div>
+                </div>
+              </div>
+
+              <div class="tl">
+                <div class="rail"><div class="dot"><svg class="ic"><use href="#i-review"/></svg></div><div class="line"></div></div>
+                <div class="body">
+                  <div class="h"><span class="step">STEP 07</span><span class="name">交付评审</span><span class="tag mut"><span class="d"></span>待执行</span><span class="t">—</span></div>
+                  <div class="s">等待前序节点结束</div>
+                </div>
+              </div>
+
+              <div class="note"><span class="ic" style="width:12px;height:12px"><svg><use href="#i-spark"/></svg></span>本次 Issue 的服务端 LLM 调用明细（Prompt / Token / 耗时）→ 日志页</div>
+            </div>
+
+            <!-- 拓扑图（节点加宽、边标签移到节点上方） -->
+            <div class="nd-body" id="viewGraph" hidden>
+              <div class="graph">
+                <svg style="position:absolute;inset:0;width:100%;height:100%;overflow:visible">
+                  <defs>
+                    <marker id="ah" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+                      <path d="M0 0L7 3.5L0 7z" fill="var(--ink-5)"/>
+                    </marker>
+                  </defs>
+                  <path d="M196 63 H252" stroke="var(--ink-5)" stroke-width="1.5" marker-end="url(#ah)"/>
+                  <path d="M420 63 H476" stroke="var(--ink-5)" stroke-width="1.5" marker-end="url(#ah)"/>
+                  <path d="M644 63 H700" stroke="var(--warn)" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#ah)"/>
+                </svg>
+                <span class="glabel" style="left:224px;top:34px">always</span>
+                <span class="glabel" style="left:448px;top:34px">priority = P2</span>
+                <span class="glabel warn" style="left:672px;top:34px">闸门 · 待人工</span>
+
+                <div class="gnode done" style="left:28px;top:30px">
+                  <div class="gn">STEP 01</div>
+                  <div class="gt"><svg class="ic"><use href="#i-git"/></svg>拉取 Git</div>
+                  <div class="gm">已完成 · 2.4s · 机械节点</div>
+                </div>
+                <div class="gnode skip" style="left:252px;top:30px">
+                  <div class="gn">STEP 02</div>
+                  <div class="gt"><svg class="ic"><use href="#i-doc"/></svg>需求分析</div>
+                  <div class="gm">已跳过 · 条件不成立</div>
+                </div>
+                <div class="gnode skip" style="left:476px;top:30px">
+                  <div class="gn">STEP 03</div>
+                  <div class="gt"><svg class="ic"><use href="#i-doc"/></svg>详细设计</div>
+                  <div class="gm">已跳过 · 条件不成立</div>
+                </div>
+                <div class="gnode block" style="left:700px;top:30px">
+                  <div class="gn">STEP 04</div>
+                  <div class="gt"><svg class="ic"><use href="#i-lock"/></svg>设计评审</div>
+                  <div class="gm">阻塞 · 等待人工 12m</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 设计注记 -->
+      <div class="notes">
+        <h3>这版改了什么（对照原页面）</h3>
+        <ol>
+          <li><b>页头收敛</b>：原来 4 个同款 chip（自动刷新 / 更新于 / 阻塞 / 离线）语义混杂。<code>自动刷新</code> 与 <code>更新于</code> 合为一个控件；异常改成彩色告警 pill，一切正常时整行消失。</li>
+          <li><b>四条等高横带 → 一张概览卡</b>：标题、阻塞原因、操作、进度、诊断（准入 / 分拣 / 客户端）收进同一张卡，且第一句话直接说清「卡在哪、需要你做什么」。</li>
+          <li><b>操作按钮分级</b>：主操作 <code>人工通过</code> 实心 accent；<code>标记失败</code> 描边；<code>重新执行</code> 弱化；<code>取消实例</code> 红字无边框。危险操作不再和主操作等权。</li>
+          <li><b>进度不再只有一条灰线</b>：<code>1/7 已完成</code> 配分段条（完成 / 跳过 / 阻塞 / 待执行四色）+ 图例，解决「0/7 已完成但四个节点都写着已跳过」的矛盾感。</li>
+          <li><b>左列表能分辨了</b>：加左侧状态色条、当前节点（<code>卡在 4. 设计评审</code>）、等待时长；选中态用 accent 靛蓝，不再与「阻塞」的橙色撞色。</li>
+          <li><b>节点区成为主体</b>：默认时间线，一行一节点、状态 / 耗时 / 日志摘要一行读全；<code>查看日志 →</code> 常态隐藏、hover 才显。</li>
+          <li><b>拓扑图节点 116px → 168px</b>：标题、状态、执行信息分三行不再截断；边标签从连线上移到节点上方，不再压线。</li>
+        </ol>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 节点日志抽屉 -->
+<div class="mask" id="mask"></div>
+<aside class="drawer" id="drawer">
+  <div class="dr-head">
+    <div>
+      <div class="t">4. 设计评审<span class="tag warn"><span class="d"></span>阻塞 · 等待人工</span></div>
+      <div class="s">WI-1634 · REQ-2251</div>
+    </div>
+    <button class="icon-x" id="drClose"><span class="ic" style="width:16px;height:16px"><svg><use href="#i-x"/></svg></span></button>
+  </div>
+  <div class="dr-bar">
+    <span class="tag mut">服务端执行</span>
+    <span class="tag line">闸门 设计评审 · 未判定</span>
+    <div class="r"><span class="ic" style="width:12px;height:12px"><svg><use href="#i-clock"/></svg></span>20:05:02 → 进行中 · <b>12m 03s</b></div>
+  </div>
+  <pre class="dr-log"><span class="ts">[20:05:02]</span> <span class="cmd">$ 闸门判定 · 设计评审</span>
+<span class="dim">前置节点全部终结，进入人工闸门。</span>
+等待人工确认：通过 → 流转至 5. 编码实现；失败 → 退回 3. 详细设计（第 1 轮）。
+<span class="ts">[20:05:02]</span> <span class="cmd">[闸门判定]</span> 未收到人工回执，节点保持阻塞
+<span class="dim">人工回执入口：本页顶部「人工通过 / 标记失败」，或节点右侧「从此节点重跑」。</span>
+提示：承接客户端 老杨的T14P 当前离线，人工回执不受影响（回执在服务端落库）。</pre>
+</aside>
+
+<script>
+  // 视图切换
+  const tabs = document.querySelectorAll('.tabs button')
+  tabs.forEach((b) => b.addEventListener('click', () => {
+    tabs.forEach((x) => x.classList.toggle('on', x === b))
+    const v = b.dataset.view
+    document.getElementById('viewTl').hidden = v !== 'tl'
+    document.getElementById('viewGraph').hidden = v !== 'graph'
+  }))
+
+  // 抽屉
+  const mask = document.getElementById('mask')
+  const drawer = document.getElementById('drawer')
+  const open = () => { mask.classList.add('on'); drawer.classList.add('on') }
+  const close = () => { mask.classList.remove('on'); drawer.classList.remove('on') }
+  document.querySelectorAll('.tl[data-node]').forEach((r) => r.addEventListener('click', (e) => { e.stopPropagation(); open() }))
+  document.getElementById('drClose').addEventListener('click', close)
+  mask.addEventListener('click', close)
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') close() })
+
+  // 列表切换（仅演示选中态）
+  document.querySelectorAll('.item').forEach((it) => it.addEventListener('click', () => {
+    document.querySelectorAll('.item').forEach((x) => x.classList.remove('on'))
+    it.classList.add('on')
+  }))
+
+  // 刷新按钮：转一下 + 更新时间
+  const rbtn = document.getElementById('rbtn')
+  const tick = document.getElementById('tick')
+  rbtn.addEventListener('click', (e) => {
+    e.stopPropagation()
+    rbtn.classList.add('spin')
+    setTimeout(() => {
+      rbtn.classList.remove('spin')
+      const d = new Date()
+      tick.textContent = [d.getHours(), d.getMinutes(), d.getSeconds()].map((n) => String(n).padStart(2, '0')).join(':')
+    }, 700)
+  })
+</script>
+</body>
+</html>

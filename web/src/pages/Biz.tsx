@@ -5,8 +5,6 @@ import { Empty, Modal, PageH, Search, Stepper, Tag, useToast } from '../ui'
 import { deleteBizDomain, fetchBizTree, fetchClients, fetchRepos, fetchUsers, saveBizDomain, sortPreview, useAsync } from '../api'
 import type { BizDomain, BizTreeNode, Repo, SortPreview } from '../types'
 
-const LEVEL_TONE: Record<string, 'ok' | 'warn' | 'err' | 'mut'> = { 普通: 'mut', 敏感: 'warn', 核心: 'err' }
-
 const EMPTY: BizDomain = {
   code: '', name: '', parentCode: null, repoProject: null, keywords: '', bizOwners: '', devOwners: '',
   defaultPriority: 'P1', sensitiveLevel: '普通',
@@ -228,7 +226,6 @@ function TreeRow({
           <Icon name="git" size={12} />
         </span>
       )}
-      {node.sensitiveLevel !== '普通' && <Tag tone={LEVEL_TONE[node.sensitiveLevel] ?? 'mut'}>{node.sensitiveLevel}</Tag>}
       {!node.enabled && <Tag tone="mut">停用</Tag>}
       {hasKids && <span className="tree-count">{node.children.length}</span>}
     </div>
@@ -308,7 +305,6 @@ export default function Biz() {
     roots: roots.length,
     total: allDomains.length,
     owners: allDomains.filter((d) => d.devOwners || d.bizOwners).length,
-    sensitive: allDomains.filter((d) => d.sensitiveLevel !== '普通').length,
     leaf: allDomains.filter((d) => !rows.some((r) => r.node.parentCode === d.code)).length,
   }), [roots.length, allDomains, rows])
 
@@ -419,7 +415,6 @@ export default function Biz() {
         <i />
         <span><b>{stats.owners}</b> 个已配负责人</span>
         <i />
-        <span><b>{stats.sensitive}</b> 个敏感 / 核心</span>
       </div>
 
       <div className="probe-fold">
@@ -549,7 +544,6 @@ export default function Biz() {
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <b style={{ fontSize: 14 }}>{current.name}</b>
-                    <Tag tone={LEVEL_TONE[current.sensitiveLevel] ?? 'mut'}>{current.sensitiveLevel}</Tag>
                     {!current.enabled && <Tag tone="mut">停用</Tag>}
                   </div>
                   <div style={{ fontSize: 12, color: 'var(--ink-4)', fontFamily: 'var(--mono)', marginTop: 3 }}>
@@ -737,11 +731,6 @@ export default function Biz() {
                   <input type="number" min={1} value={draft.slaHours ?? ''}
                     onChange={(e) => setDraft({ ...draft, slaHours: e.target.value ? Number(e.target.value) : undefined })} />
                 </F>
-                <F label="敏感等级">
-                  <select value={draft.sensitiveLevel} onChange={(e) => setDraft({ ...draft, sensitiveLevel: e.target.value as BizDomain['sensitiveLevel'] })}>
-                    <option value="普通">普通</option><option value="敏感">敏感</option><option value="核心">核心</option>
-                  </select>
-                </F>
               </div>
 
               <F label="绑定仓库" help="本域专属落点，一个仓库可服务多个业务域；留空则沿父链继承。也可在业务树详情区直接改">
@@ -764,7 +753,6 @@ export default function Biz() {
 
               <div className="fhelp" style={{ marginTop: 12 }}>
                 工作流模板无需在此选择：Issue 为「需求」走需求工作流、「缺陷」走缺陷工作流，由诉求类型自动决定。
-                敏感等级为「核心」时，配套仓库应设置强制后端，确保 Issue 只在私有化模型上执行。
               </div>
             </>
           )}

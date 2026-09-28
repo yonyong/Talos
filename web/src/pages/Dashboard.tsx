@@ -21,7 +21,9 @@ export default function Dashboard({ nav }: { nav: (p: PageKey, focus?: PageFocus
 
   const issueList = issues ?? []
   const clientList = clients ?? []
-  const logList = logs ?? []
+  // fetchLogs 现返回分页结构，看板只取首窗（第 1 页 50 条）做概览；总数用 total
+  const logPage = logs ?? null
+  const logList = logPage?.content ?? []
   const instList = instances ?? []
 
   const online = clientList.filter((c) => c.state !== 'off').length
@@ -34,7 +36,7 @@ export default function Dashboard({ nav }: { nav: (p: PageKey, focus?: PageFocus
   /** 真正在跑的实例（待启动 / 执行中 / 阻塞也算在流转中） */
   const activeInst = instList.filter((i) => ['running', 'blocked', 'pending'].includes(String(i.status))).length
   const blockedCount = issueList.filter((i) => i.status === 'blocked').length
-  const aiNodeCount = logList.length
+  const aiNodeCount = logPage?.total ?? 0
 
   const alerts = useMemo(() => {
     const blocked = issueList.filter((i) => i.status === 'blocked')
@@ -70,25 +72,25 @@ export default function Dashboard({ nav }: { nav: (p: PageKey, focus?: PageFocus
 
       <div className="grid g4">
         <Kpi
-          icon="issue" label="待处理 Issue" value={String(openCount)} delta={`共 ${issueList.length} 条`} dir="up"
-          color="#4f46e5" hint="查看未走完的 Issue"
+          icon="issue" label="待处理 Issue" value={String(openCount)} delta={`共 ${issueList.length} 条`}
+          hint="查看未走完的 Issue"
           onClick={() => nav('issues', { status: 'open' })}
         />
         <Kpi
           icon="flow" label="进行中工作流" value={String(activeInst)}
-          delta={activeInst ? '实例流转中' : '暂无实例'} dir={activeInst ? 'up' : 'flat'}
-          color="#f59e0b" glow="rgba(245,158,11,.22)" hint="前往作业监控查看实例进度"
+          delta={activeInst ? '实例流转中' : '暂无实例'}
+          hint="前往作业监控查看实例进度"
           onClick={() => nav('monitor')}
         />
         <Kpi
           icon="client" label="在线客户端" value={`${online} / ${totalClients}`}
-          delta={offline > 0 ? `${offline} 台离线` : '全部在线'} dir={offline ? 'down' : 'up'}
-          color="#0891b2" glow="rgba(8,145,178,.22)" hint="查看客户端连接状态"
+          delta={offline > 0 ? `${offline} 台离线` : '全部在线'} dir={offline ? 'down' : 'flat'}
+          hint="查看客户端连接状态"
           onClick={() => nav('clients', offline > 0 ? { offline: true } : undefined)}
         />
         <Kpi
           icon="bolt" label="AI Token 消耗" value={tokenSum > 10000 ? `${(tokenSum / 1000).toFixed(1)}K` : String(tokenSum)}
-          delta={`${aiNodeCount} 次调用`} dir="up" color="#16a34a" glow="rgba(22,163,74,.2)"
+          delta={`${aiNodeCount} 次调用`}
           hint="查看调用日志" onClick={() => nav('logs')}
         />
       </div>

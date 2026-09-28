@@ -73,10 +73,12 @@ export function Sparkline({ points, color = '#4f46e5', id }: { points: number[];
 }
 
 export function Kpi({
-  icon, label, value, delta, dir = 'up', series, color = '#4f46e5', glow = 'rgba(79,70,229,.25)', onClick, hint,
+  icon, label, value, delta, dir = 'flat', series, color = '#4f46e5', onClick, hint,
 }: {
   icon: string; label: string; value: string; delta?: string; dir?: 'up' | 'down' | 'flat'
-  series?: number[]; color?: string; glow?: string
+  series?: number[]; color?: string
+  /** 兼容旧调用方（视觉已收敛到主题变量，传入不生效） */
+  glow?: string
   /** 传入后卡片可点击下钻，鼠标悬停显示 hint */
   onClick?: () => void; hint?: string
 }) {
@@ -90,14 +92,34 @@ export function Kpi({
       tabIndex={onClick ? 0 : undefined}
       onKeyDown={onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick() } } : undefined}
     >
-      <span className="glow" style={{ background: glow, top: -50, right: -40 }} />
       <div className="kpi-in">
         <div className="kl"><Icon name={icon} size={15} />{label}</div>
         <div className="kv">{value}</div>
-        {delta && <div className={`kd ${dir}`}>{dir === 'up' ? '↑' : dir === 'down' ? '↓' : '·'} {delta}</div>}
+        {delta && <div className={`kd ${dir}`}>{dir === 'up' ? '↑' : dir === 'down' ? '↓' : ''}{delta}</div>}
         {series && <Sparkline points={series} color={color} id={id} />}
       </div>
       {onClick && <span className="kpi-go"><Icon name="arrow" size={14} /></span>}
+    </div>
+  )
+}
+
+/* ============ Pager ============ */
+/** 通用分页条：上一页 / 页码信息 / 下一页；仅 totalPages > 1 时由调用方渲染 */
+export function Pager({ page, totalPages, total, onChange }: {
+  page: number
+  totalPages: number
+  total: number
+  onChange: (p: number) => void
+}) {
+  return (
+    <div className="pager">
+      <button className="pager-btn" disabled={page <= 1} onClick={() => onChange(page - 1)}>
+        <Icon name="arrowLeft" size={14} />上一页
+      </button>
+      <span className="pager-info">第 {page} / {totalPages} 页 · 共 {total} 条</span>
+      <button className="pager-btn" disabled={page >= totalPages} onClick={() => onChange(page + 1)}>
+        下一页<Icon name="arrow" size={14} />
+      </button>
     </div>
   )
 }
@@ -154,6 +176,33 @@ export function Seg<T extends string>({ value, options, onChange }: { value: T; 
     <div className="seg">
       {options.map((o) => (
         <button key={o.v} className={value === o.v ? 'on' : ''} onClick={() => onChange(o.v)}>{o.l}</button>
+      ))}
+    </div>
+  )
+}
+
+/**
+ * 页面级分页签：把同一路由下的多个「重点」拆开，一屏只强调一个。
+ * 与 Seg 的区别：Seg 是同一块内容内的筛选/切换，Tabs 是整页主题的切换（下带 1px 基线）。
+ */
+export function Tabs<T extends string>({ value, items, onChange }: {
+  value: T
+  items: { v: T; l: string; n?: number; tone?: 'warn' | 'err'; hint?: string }[]
+  onChange: (v: T) => void
+}) {
+  return (
+    <div className="tabs">
+      {items.map((i) => (
+        <button
+          key={i.v}
+          type="button"
+          title={i.hint}
+          className={value === i.v ? 'on' : ''}
+          onClick={() => onChange(i.v)}
+        >
+          {i.l}
+          {i.n !== undefined && i.n > 0 && <span className={`tcnt ${i.tone ?? ''}`}>{i.n}</span>}
+        </button>
       ))}
     </div>
   )
@@ -269,7 +318,7 @@ export function PersonSelect({ value, options, onChange, placeholder, width }: {
             <input
               autoFocus
               value={q}
-              placeholder="搜索姓名或工号"
+              placeholder="搜索姓名或邮箱"
               onChange={(e) => setQ(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Escape') setOpen(false)

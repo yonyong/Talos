@@ -55,15 +55,16 @@ public class ClientController {
      * 用户绑定客户端后不可自行更换（UserController.save 已拦截），
      * 唯一出口是这里：管理员在「客户端管理」解除绑定后，用户才能重新绑定。
      */
-    @PostMapping("/{clientId}/bound-users/{empNo}/unbind")
-    public ResponseEntity<Map<String, Object>> unbindUser(@PathVariable String clientId, @PathVariable String empNo) {
-        UserEntity u = userRepository.findByEmpNo(empNo);
+    @PostMapping("/{clientId}/bound-users/{userId}/unbind")
+    public ResponseEntity<Map<String, Object>> unbindUser(@PathVariable String clientId, @PathVariable Long userId) {
+        UserEntity u = userRepository.findById(userId).orElse(null);
         if (u == null || !clientId.equals(u.getClientId())) {
-            throw new IllegalArgumentException("用户 " + empNo + " 未绑定客户端 " + clientId);
+            throw new IllegalArgumentException("用户 " + userId + " 未绑定客户端 " + clientId);
         }
         u.setClientId(null);
         userRepository.save(u);
-        clientLog.info(clientId, "server", "管理员已解除用户绑定 · " + u.getName() + "（" + empNo + "）");
+        clientLog.info(clientId, "server", "管理员已解除用户绑定 · " + u.getName()
+                + (u.getEmail() == null || u.getEmail().isBlank() ? "" : "（" + u.getEmail() + "）"));
         // 解绑后个人配置层失效：客户端在线则立即重推，回退到全局/客户端层
         boolean pushed = false;
         if (registry.isOnline(clientId)) {
@@ -71,7 +72,7 @@ public class ClientController {
         }
         return ResponseEntity.ok(Map.of(
                 "clientId", clientId,
-                "empNo", empNo,
+                "userId", userId,
                 "name", u.getName() == null ? "" : u.getName(),
                 "configPushed", pushed));
     }

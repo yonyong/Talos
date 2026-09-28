@@ -1,7 +1,5 @@
-import React from 'react'
-import { Mark } from '../icons'
-import SiteFooter from '../components/SiteFooter'
-import { navigate } from '../router'
+import React, { useEffect } from 'react'
+import SiteChrome from '../components/SiteChrome'
 
 /* ---------------- 架构图（深色科技风） ---------------- */
 function ArchSvg() {
@@ -53,11 +51,11 @@ function ArchSvg() {
       <text x="990" y="208" textAnchor="middle" fontSize="12" fontWeight="600" fill="#c7d2fe">CodeBuddy</text>
 
       {/* ---- 连线 ---- */}
-      <path d="M318 150 H 412" stroke="#818cf8" strokeWidth="1.8" strokeDasharray="5 5" strokeLinecap="round" markerStart="url(#ah)" markerEnd="url(#ah)" />
+      <path className="flow" d="M318 150 H 412" stroke="#818cf8" strokeWidth="1.8" strokeDasharray="5 5" strokeLinecap="round" markerStart="url(#ah)" markerEnd="url(#ah)" />
       <text x="365" y="138" textAnchor="middle" fontSize="11" fontWeight="650" fill="#a5b4fc">gRPC 双向流</text>
-      <path d="M412 205 H 318" stroke="#4ade80" strokeWidth="1.6" strokeDasharray="5 5" strokeLinecap="round" markerEnd="url(#ah2)" />
+      <path className="flow" d="M412 205 H 318" stroke="#4ade80" strokeWidth="1.6" strokeDasharray="5 5" strokeLinecap="round" markerEnd="url(#ah2)" />
       <text x="365" y="226" textAnchor="middle" fontSize="11" fontWeight="650" fill="#86efac">产物 / 日志回流</text>
-      <path d="M698 150 H 762" stroke="#818cf8" strokeWidth="1.8" strokeLinecap="round" markerEnd="url(#ah)" />
+      <path className="flow" d="M698 150 H 762" stroke="#818cf8" strokeWidth="1.8" strokeLinecap="round" markerEnd="url(#ah)" />
       <text x="730" y="138" textAnchor="middle" fontSize="10.5" fontWeight="650" fill="#a5b4fc">调用</text>
 
       {/* ---- footnotes ---- */}
@@ -157,32 +155,30 @@ function VisObserve() {
 }
 
 /* ---------------- Landing ---------------- */
-export default function Landing({ onEnter, onDownload }: { onEnter: () => void; onDownload: () => void }) {
-  return (
-    <div>
-      <header className="nav">
-        <div className="wrap nav-in">
-          <div className="brand"><Mark />Talos</div>
-          <nav className="nav-links">
-            <a href="#arch">架构</a>
-            <a href="#feat">核心能力</a>
-            <a href="#sec">安全</a>
-            <a href="#/docs" onClick={(e) => { e.preventDefault(); navigate({ view: 'docs' }); window.scrollTo(0, 0) }}>文档</a>
-            <a href="#/download" onClick={(e) => { e.preventDefault(); onDownload() }}>下载</a>
-          </nav>
-          <div className="nav-cta">
-            <a className="ghost" onClick={(e) => { e.preventDefault(); onEnter() }}>登录</a>
-            <button className="btn btn-primary btn-sm" onClick={onEnter}>进入控制台</button>
-          </div>
-        </div>
-      </header>
+export default function Landing({ onEnter }: { onEnter: () => void }) {
+  useEffect(() => {
+    const els = Array.from(document.querySelectorAll<HTMLElement>('[data-reveal]'))
+    if (!els.length) return
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach((e) => {
+        if (e.isIntersecting) {
+          e.target.classList.add('in')
+          io.unobserve(e.target)
+        }
+      })
+    }, { threshold: 0.12, rootMargin: '0px 0px -8% 0px' })
+    els.forEach((el) => io.observe(el))
+    return () => io.disconnect()
+  }, [])
 
+  return (
+    <SiteChrome active="home">
       <header className="hero">
         <div className="hero-grid" />
         <div className="hero-glow" />
         <div className="wrap hero-in">
           <div className="pill"><span className="dot" />内网部署 · 研发闭环自动化</div>
-          <h1 className="hero-title">让交付<span className="grad">自己发生</span></h1>
+          <h1 className="hero-title">为研发全流程<br />而生的<span className="grad">自动化平台</span></h1>
           <p className="hero-sub">在服务端定义规则，在研发终端自动执行，让 Issue 从采集到交付全程可观测。</p>
           <div className="hero-actions">
             <button className="btn btn-primary" onClick={onEnter}>进入控制台</button>
@@ -194,7 +190,7 @@ export default function Landing({ onEnter, onDownload }: { onEnter: () => void; 
 
       <section className="block" id="arch" style={{ paddingTop: 0 }}>
         <div className="wrap">
-          <div className="arch">
+          <div className="arch" data-reveal>
             <div className="arch-head">
               <h3>系统架构 · 反向长连接</h3>
               <span>服务端编排 · 客户端执行 · 文档回流</span>
@@ -206,13 +202,13 @@ export default function Landing({ onEnter, onDownload }: { onEnter: () => void; 
 
       <section className="block" id="feat" style={{ paddingTop: 0 }}>
         <div className="wrap">
-          <div className="sec-head">
+          <div className="sec-head" data-reveal>
             <div className="sec-tag">核心能力</div>
             <div className="sec-h">从一条 Issue 到一次交付</div>
             <p className="sec-p">采集、判定、分拣、编排、执行、回流——研发流程的每个环节都在同一条可观测的流水线上。</p>
           </div>
           <div className="bento">
-            <div className="bcard ba">
+            <div className="bcard ba" data-reveal style={{ '--rd': 0 } as React.CSSProperties}>
               <span className="glow" style={{ background: 'rgba(79,70,229,.28)', top: -60, right: -50 }} />
               <div className="bicon b1i"><span className="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M3 5h18l-7 8v6l-4 2v-8z" /></svg></span></div>
               <h4>智能准入与分拣</h4>
@@ -220,7 +216,7 @@ export default function Landing({ onEnter, onDownload }: { onEnter: () => void; 
               <div className="bvis"><div className="bvis-in"><VisAdmission /></div></div>
             </div>
 
-            <div className="bcard bb">
+            <div className="bcard bb" data-reveal style={{ '--rd': 1 } as React.CSSProperties}>
               <span className="glow" style={{ background: 'rgba(14,116,144,.26)', top: -60, right: -50 }} />
               <div className="bicon b3i"><span className="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="7" width="16" height="12" rx="3" /><path d="M9 19v2M15 19v2" /><circle cx="9" cy="13" r="1.2" fill="currentColor" stroke="none" /><circle cx="15" cy="13" r="1.2" fill="currentColor" stroke="none" /><path d="M12 7V4" /></svg></span></div>
               <h4>端侧 Coding Agent</h4>
@@ -228,7 +224,7 @@ export default function Landing({ onEnter, onDownload }: { onEnter: () => void; 
               <div className="bvis"><div className="bvis-in"><VisAgents /></div></div>
             </div>
 
-            <div className="bcard">
+            <div className="bcard" data-reveal style={{ '--rd': 2 } as React.CSSProperties}>
               <span className="glow" style={{ background: 'rgba(109,40,217,.26)', bottom: -60, left: -50 }} />
               <div className="bicon b2i"><span className="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="7" height="5" rx="1.5" /><rect x="14" y="15" width="7" height="5" rx="1.5" /><path d="M6.5 9v5.5a2 2 0 002 2H14" /></svg></span></div>
               <h4>双轨工作流编排</h4>
@@ -236,7 +232,7 @@ export default function Landing({ onEnter, onDownload }: { onEnter: () => void; 
               <div className="bvis"><div className="bvis-in"><VisWorkflow /></div></div>
             </div>
 
-            <div className="bcard">
+            <div className="bcard" data-reveal style={{ '--rd': 3 } as React.CSSProperties}>
               <span className="glow" style={{ background: 'rgba(21,128,61,.24)', bottom: -60, right: -50 }} />
               <div className="bicon b4i"><span className="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3.6-6 10-6 10 6 10 6-3.6 6-10 6-10-6-10-6z" /><circle cx="12" cy="12" r="2.8" /></svg></span></div>
               <h4>全链路可观测</h4>
@@ -249,7 +245,7 @@ export default function Landing({ onEnter, onDownload }: { onEnter: () => void; 
 
       <section className="block" id="sec" style={{ paddingTop: 0 }}>
         <div className="wrap">
-          <div className="sec-dark">
+          <div className="sec-dark" data-reveal>
             <div>
               <h3>代码不出内网，<br />过程全程留痕</h3>
               <p className="sp">服务端只在内网编排，敏感仓库强制走私有化推理；所有 AI 调用记录渲染后的 Prompt 与用量，可审计、可追溯、可回滚。</p>
@@ -272,7 +268,6 @@ export default function Landing({ onEnter, onDownload }: { onEnter: () => void; 
         </div>
       </section>
 
-      <SiteFooter onDownload={onDownload} />
-    </div>
+    </SiteChrome>
   )
 }

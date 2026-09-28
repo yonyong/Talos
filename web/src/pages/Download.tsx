@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
-import { Icon, Mark } from '../icons'
+import { Icon } from '../icons'
 import { useToast } from '../ui'
 import { fetchAgentRelease } from '../api'
 import type { AgentRelease } from '../types'
-import SiteFooter from '../components/SiteFooter'
+import SiteChrome from '../components/SiteChrome'
 
 const INSTALL_CMD = 'scripts\\install.bat --server talos.yonyong.dev:9443 --token <一次性凭证> --id <客户端ID>'
 
@@ -28,7 +28,7 @@ function shortSha(sha?: string): string {
   return sha.length <= 20 ? sha : `${sha.slice(0, 8)}…${sha.slice(-6)}`
 }
 
-export default function Download({ onBack }: { onBack: (anchor?: string) => void }) {
+export default function Download() {
   const { toast } = useToast()
   const [release, setRelease] = useState<AgentRelease | null>(null)
 
@@ -37,28 +37,22 @@ export default function Download({ onBack }: { onBack: (anchor?: string) => void
   const available = !!release?.available
   const downloadUrl = release?.downloadUrl ?? '/api/agent/release/download'
 
+  /** 顶栏右侧 CTA：下载页保留突出的一键下载按钮 */
+  const downloadCta = available ? (
+    <a className="btn btn-primary btn-sm" href={downloadUrl} download onClick={() => toast(`开始下载 ${release?.fileName}`)}>
+      下载 Windows 版
+    </a>
+  ) : (
+    <button className="btn btn-primary btn-sm" disabled>暂无可下载版本</button>
+  )
+
   return (
-    <div>
-      <header className="nav">
-        <div className="wrap nav-in">
-          <div className="brand"><Mark />Talos</div>
-          <nav className="nav-links">
-            <a href="#" onClick={(e) => { e.preventDefault(); onBack('arch') }}>架构</a>
-            <a href="#" onClick={(e) => { e.preventDefault(); onBack('feat') }}>核心能力</a>
-            <a href="#" onClick={(e) => { e.preventDefault(); onBack('sec') }}>安全</a>
-            <a href="#" className="active" onClick={(e) => { e.preventDefault(); window.scrollTo({ top: 0, behavior: 'smooth' }) }}>下载</a>
-          </nav>
-          <div className="nav-cta">
-            {available ? (
-              <a className="btn btn-primary btn-sm" href={downloadUrl} download onClick={() => toast(`开始下载 ${release?.fileName}`)}>
-                下载 Windows 版
-              </a>
-            ) : (
-              <button className="btn btn-primary btn-sm" disabled>暂无可下载版本</button>
-            )}
-          </div>
-        </div>
-      </header>
+    <SiteChrome
+      active="download"
+      right={downloadCta}
+      footerCompact
+      footerVersionNote={available ? `客户端 ${release?.version} · 服务端要求 1.4.x` : '客户端未发布'}
+    >
 
       <section className="block" style={{ paddingBottom: 40 }}>
         <div className="wrap">
@@ -234,10 +228,6 @@ export default function Download({ onBack }: { onBack: (anchor?: string) => void
         </div>
       </section>
 
-      <SiteFooter
-        compact
-        versionNote={available ? `客户端 ${release?.version} · 服务端要求 1.4.x` : '客户端未发布'}
-      />
-    </div>
+    </SiteChrome>
   )
 }

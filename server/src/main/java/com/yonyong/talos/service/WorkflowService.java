@@ -356,7 +356,18 @@ public class WorkflowService {
         }
 
         nodes = nodeRepository.findByInstanceCodeOrderByStepAsc(instanceCode);
-        boolean anyActive = nodes.stream().anyMatch(n -> "waiting".equals(n.getStatus()) || ACTIVE.contains(n.getStatus()));
+        // 失败节点的前向可达集：这些 waiting 节点是被上游失败卡住的，不算「活跃」，
+        // 否则实例会被误判为 running 而非 blocked（链式 1→2→…→7 里节点 3 的直接前驱是 2=waiting，必须按可达集判）
+        Set<Integer> failedSteps = nodes.stream().filter(n -> "failed".equals(n.getStatus()))
+                .map(TaskNodeEntity::getStep).collect(Collectors.toSet());
+        Set<Integer> blockedByFailure = new HashSet<>();
+        for (int f : failedSteps) blockedByFailure.addAll(reach(graph, f, true));
+        blockedByFailure.removeAll(failedSteps);
+        boolean anyActive = nodes.stream().anyMatch(n -> {
+            if (ACTIVE.contains(n.getStatus())) return true;
+            if (!"waiting".equals(n.getStatus())) return false;
+            return !blockedByFailure.contains(n.getStep());
+        });
 
         if (exceededRounds) {
             return block(inst, issue, "回退重做超过 " + MAX_ROUNDS + " 轮上限，转人工介入", false);
@@ -408,7 +419,9 @@ public class WorkflowService {
     /**
      * 全局扫描并推导就绪节点。
      *
-     * <p>反复迭代到不动点：条件全部不成立的节点标记 skipped，并继续向下游级联跳过。
+     * <p>反复迭代到不动点：前驱全部终结但入边均不命中的节点，按成因区分——
+     * 仅当上游「失败」时保持 waiting（非终结态，等待上游恢复后自动续跑，不影响进度计数）；
+     * 其余（分支条件未走此路等）标记 skipped 并向下游级联跳过。
      *
      * <p><b>回退边不参与前驱就绪判定</b>：否则「评审 →（驳回）→ 详设」会让详设永远等不到
      * 评委终结，形成死锁。回退边的唯一作用是重置路径，重置后的目标由
@@ -458,11 +471,18 @@ public class WorkflowService {
                 if (taken) {
                     ready.add(n.getStep());
                 } else if (allowSkip) {
-                    n.setStatus("skipped");
-                    n.setFinishedAt(LocalDateTime.now());
-                    n.setExecLog(append(n.getExecLog(), "[条件不成立] 所有入边条件均未命中，节点跳过"));
-                    nodeRepository.save(n);
-                    changed = true;
+                    // 上游失败导致本节点无法承接：保持 waiting（非终结态），等待上游恢复后由 sweep 自动续跑。
+                    // 不标 skipped —— 否则会被计入「已处理」使进度出现 7/7 这类误导，且下游彻底失去续跑可能。
+                    boolean anyPredFailed = fwdIns.stream()
+                            .map(e -> idx.get(e.from()))
+                            .anyMatch(p -> p != null && "failed".equals(p.getStatus()));
+                    if (!anyPredFailed) {
+                        n.setStatus("skipped");
+                        n.setFinishedAt(LocalDateTime.now());
+                        n.setExecLog(append(n.getExecLog(), "[条件不成立] 所有入边条件均未命中，节点跳过"));
+                        nodeRepository.save(n);
+                        changed = true;
+                    }
                 }
             }
         }

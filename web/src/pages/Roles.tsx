@@ -91,8 +91,8 @@ export default function Roles() {
 
       <div className="grid g3" style={{ marginBottom: 18 }}>
         <Kpi icon="shield" label="角色" value={String(ROLES.length)} delta="RBAC 模型" dir="flat" color="#4f46e5" />
-        <Kpi icon="key" label="能力项" value={String(capabilities.length)} delta="可扩展" dir="flat" color="#0f766e" glow="rgba(15,118,110,.2)" />
-        <Kpi icon="lock" label="完整授权占比" value={`${stats.rate}%`} delta={`${stats.full} / ${stats.total} 条`} dir="flat" color="#b45309" glow="rgba(180,83,9,.2)" />
+        <Kpi icon="key" label="能力项" value={String(capabilities.length)} delta="可扩展" dir="flat" color="#0f766e" />
+        <Kpi icon="lock" label="完整授权占比" value={`${stats.rate}%`} delta={`${stats.full} / ${stats.total} 条`} dir="flat" color="#b45309" />
       </div>
 
       <Panel

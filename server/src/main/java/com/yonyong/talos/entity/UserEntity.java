@@ -17,11 +17,9 @@ public class UserEntity {
     @Column(length = 64)
     private String name;
 
-    @Column(unique = true, length = 32)
-    private String empNo;
-
     /**
-     * 登录邮箱：控制台以「邮箱 + 邮件授权码」登录，授权码发往此地址。
+     * 登录邮箱，也是全系统的用户身份标识（个人配置、接口定位、显示均以邮箱为准；工号已废弃删除）。
+     * 控制台以「邮箱 + 邮件授权码」登录，授权码发往此地址。
      * 为空表示该用户暂不可登录（由管理员在「用户管理」页维护）。
      * 唯一性在 UserController / AuthService 层校验（不加 DB 唯一约束，避免老库全 NULL 时的迁移风险）。
      */

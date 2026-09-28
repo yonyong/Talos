@@ -95,8 +95,8 @@ public class AuthService {
         codeService.verify(addr, code);
 
         AuthSessionService.Issued issued = sessionService.issue(user);
-        log.info("登录成功：{} · {}（会话有效期 {} 小时）",
-                user.getEmpNo(), LoginMailService.mask(addr), sessionService.ttlHours());
+        log.info("登录成功：{}（会话有效期 {} 小时）",
+                LoginMailService.mask(addr), sessionService.ttlHours());
 
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("token", issued.token());
@@ -115,7 +115,7 @@ public class AuthService {
             throw AuthException.unauthorized("账号已被删除，请重新登录");
         }
         return new AuthSessionService.Session(
-                fresh.getId(), fresh.getEmpNo(), fresh.getName(), fresh.getRole(), fresh.getEmail(),
+                fresh.getId(), fresh.getName(), fresh.getRole(), fresh.getEmail(),
                 fresh.getClientId(), fresh.getBizCodes(), session.expireAt()).toView();
     }
 

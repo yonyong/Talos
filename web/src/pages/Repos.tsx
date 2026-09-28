@@ -132,9 +132,9 @@ export default function Repos() {
       <div className="grid g3" style={{ marginBottom: 18 }}>
         <Kpi icon="git" label="仓库总数" value={String(list.length)} delta="分拣落地目标" dir="flat" />
         <Kpi icon="layers" label="已绑定仓库的业务域" value={String(bizList.filter((b) => b.repoProject).length)}
-          delta="可自动定位" dir="flat" color="#0f766e" glow="rgba(15,118,110,.2)" />
+          delta="可自动定位" dir="flat" color="#0f766e" />
         <Kpi icon="lock" label="敏感仓库" value={String(list.filter((r) => r.sensitive).length)}
-          delta="仅内网客户端可执行" dir="flat" color="#b45309" glow="rgba(180,83,9,.2)" />
+          delta="仅内网客户端可执行" dir="flat" color="#b45309" />
       </div>
 
       {orphans.length > 0 && (

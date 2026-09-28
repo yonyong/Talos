@@ -373,6 +373,15 @@ export interface AiCallLog {
   output: string
 }
 
+/** 调用日志分页响应（服务端分页 + 关键字过滤后回传的窗口） */
+export interface LogPage {
+  content: AiCallLog[]
+  page: number
+  size: number
+  total: number
+  totalPages: number
+}
+
 /** RAW = 提出人上传的原始材料；PROCESS = 工作流过程产出（客户端回传） */
 export type DocCategory = 'RAW' | 'PROCESS'
 
@@ -410,9 +419,8 @@ export interface TerminalLine {
 export interface UserRow {
   id?: number
   name: string
-  no: string
   role: string
-  /** 登录邮箱：控制台以「邮箱 + 邮件授权码」登录，空表示该账号不可登录 */
+  /** 登录邮箱 = 用户身份：控制台以「邮箱 + 邮件授权码」登录，个人配置/关联均以邮箱定位；空表示该账号不可登录 */
   email: string
   /** 兼容展示用：业务域名称（存量单值或编码拼接）；新数据以 bizCodes 为准 */
   biz: string
@@ -431,7 +439,7 @@ export interface RolePermission {
 }
 
 export type PageKey =
-  | 'dashboard' | 'issues' | 'admission' | 'workflow' | 'monitor'
+  | 'dashboard' | 'issues' | 'workflow' | 'monitor'
   | 'clients' | 'guide' | 'agents' | 'logs' | 'docs' | 'kb'
   | 'biz' | 'repos' | 'prompts' | 'models'
   | 'users' | 'roles'
