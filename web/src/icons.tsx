@@ -74,18 +74,18 @@ export function Mark({ size = 26 }: { size?: number }) {
     <span className="mark" style={{ width: size, height: size, display: 'inline-block' }}>
       <svg viewBox="0 0 32 32" fill="none" style={{ width: '100%', height: '100%', display: 'block' }} aria-hidden>
         <defs>
-          <linearGradient id={gid} x1="4" y1="2" x2="28" y2="30" gradientUnits="userSpaceOnUse">
-            <stop stopColor="#312e81" />
-            <stop offset=".42" stopColor="#4f46e5" />
-            <stop offset="1" stopColor="#818cf8" />
+          <linearGradient id={gid} x1="3" y1="2" x2="29" y2="30" gradientUnits="userSpaceOnUse">
+            <stop stopColor="#2e2a7a" />
+            <stop offset=".4" stopColor="#4f46e5" />
+            <stop offset="1" stopColor="#8b9cf7" />
           </linearGradient>
         </defs>
-        <rect x="1.2" y="1.2" width="29.6" height="29.6" rx="9.2" fill={`url(#${gid})`} />
-        <circle cx="16" cy="16.4" r="9.1" fill="none" stroke="#fff" strokeOpacity=".22" strokeWidth="1.15" />
-        <path d="M9.2 12.1c2.1-1.55 4.4-2.35 6.8-2.35s4.7.8 6.8 2.35"
-          stroke="#fff" strokeWidth="2.35" strokeLinecap="round" />
-        <path d="M16 10.2v10.4" stroke="#fff" strokeWidth="2.35" strokeLinecap="round" />
-        <path d="M16 22.35l1.55 1.55L16 25.45l-1.55-1.55z" fill="#fff" stroke="none" />
+        <rect x="1" y="1" width="30" height="30" rx="9" fill={`url(#${gid})`} />
+        <circle cx="16" cy="16.2" r="8.6" fill="none" stroke="#fff" strokeOpacity=".38" strokeWidth="1.25" />
+        <path d="M8.6 12.4c2.4-2.05 4.9-3.05 7.4-3.05s5 1 7.4 3.05"
+          stroke="#fff" strokeWidth="2.5" strokeLinecap="round" />
+        <path d="M16 10v10.2" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" />
+        <path d="M16 21.6l1.85 1.85L16 25.3l-1.85-1.85z" fill="#fff" stroke="none" />
       </svg>
     </span>
   )
