@@ -10,7 +10,7 @@ import DocsCenter from './pages/DocsCenter'
 import About from './pages/About'
 import Contact from './pages/Contact'
 import Guide from './pages/Guide'
-import SiteChrome from './components/SiteChrome'
+import DocsLayout from './components/DocsLayout'
 
 export default function App() {
   const route = useRoute()
@@ -46,13 +46,9 @@ export default function App() {
       )}
       {route.view === 'docs' && !route.doc && <DocsCenter />}
       {route.view === 'docs' && route.doc === 'guide' && (
-        <SiteChrome active="docs">
-          <section className="block site-page">
-            <div className="wrap">
-              <Guide />
-            </div>
-          </section>
-        </SiteChrome>
+        <DocsLayout doc="guide" section={route.section}>
+          <Guide section={route.section} />
+        </DocsLayout>
       )}
       {route.view === 'about' && <About />}
       {route.view === 'contact' && <Contact />}

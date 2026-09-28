@@ -66,7 +66,7 @@ scripts\\upgrade.bat
 # 拒绝被远程替换的机器
 conf\\agent.yml 中 client.allowUpgrade: false`
 
-export default function Guide() {
+export default function Guide({ section }: { section?: string }) {
   const { toast } = useToast()
   const [release, setRelease] = useState<AgentRelease | null>(null)
   const copy = (text: string, msg: string) => {
@@ -76,15 +76,21 @@ export default function Guide() {
 
   useEffect(() => { fetchAgentRelease().then(setRelease).catch(() => setRelease(null)) }, [])
 
+  useEffect(() => {
+    if (!section) {
+      window.scrollTo(0, 0)
+      return
+    }
+    const t = window.setTimeout(() => {
+      document.getElementById(section)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 60)
+    return () => window.clearTimeout(t)
+  }, [section])
+
   const curUrl = release?.downloadUrl ?? '/api/agent/release/download'
 
   return (
-    <div>
-      <div style={{ marginBottom: 18, fontSize: 13, color: 'var(--ink-4)' }}>
-        <a href="#/docs" style={{ color: 'var(--ink-3)' }}>文档中心</a>
-        <span aria-hidden> / </span>
-        <span style={{ color: 'var(--ink)' }}>接入指南</span>
-      </div>
+    <div className="docs-article">
       <PageH
         title="接入指南"
         desc="客户端接入 Talos 的完整说明：连接机制、消息契约、配置字段与常见故障。发布包管理请到控制台「客户端」页。"
@@ -103,6 +109,7 @@ export default function Guide() {
         }
       />
 
+      <div id="connect" className="docs-sec">
       <Panel title="连接机制" sub="客户端主动建连，服务端顺流下发 —— 服务端从不主动入站">
         <div style={{ fontSize: 13, color: 'var(--ink-3)', lineHeight: 1.8 }}>
           研发终端通常位于 NAT 或防火墙之后，无法被服务端直接访问。因此接入方向是<strong style={{ color: 'var(--ink)' }}>反向</strong>的：
@@ -141,9 +148,9 @@ export default function Guide() {
           </tbody>
         </table>
       </Panel>
+      </div>
 
-      <div style={{ height: 18 }} />
-
+      <div id="install" className="docs-sec">
       <Panel title="三步接入" sub="Windows 安装包内置运行环境，无需单独安装 JDK">
         <div className="grid g3">
           <div className="card card-pad">
@@ -182,9 +189,9 @@ export default function Guide() {
           <div className="codeblk">{WATCHDOG}</div>
         </div>
       </Panel>
+      </div>
 
-      <div style={{ height: 18 }} />
-
+      <div id="scripts" className="docs-sec">
       <Panel title="一键脚本" sub="安装目录下的全部运维脚本，均为双击/单命令可用" flush>
         <table>
           <thead>
@@ -206,12 +213,12 @@ export default function Guide() {
           排障：<code style={{ fontFamily: 'var(--mono)' }}>scripts\status.bat</code> 一屏看完配置、进程、保活任务与最近 15 行日志。
         </div>
       </Panel>
+      </div>
 
-      <div style={{ height: 18 }} />
-
+      <div id="upgrade" className="docs-sec">
       <Panel title="静默升级" sub="服务端驱动，终端后台完成下载、校验、替换与重启">
         <div style={{ fontSize: 13, color: 'var(--ink-3)', lineHeight: 1.8 }}>
-          服务端的「当前生效版本」在本页顶部的「客户端版本」面板上传与维护，安装包落盘于
+          服务端的「当前生效版本」在控制台「客户端」页维护，安装包落盘于
           <code style={{ fontFamily: 'var(--mono)' }}> talos.agent.release-dir</code>
           （默认 <code style={{ fontFamily: 'var(--mono)' }}>client/target</code>）。
           打包产物自带 <code style={{ fontFamily: 'var(--mono)' }}>Implementation-Version</code>，客户端的
@@ -254,8 +261,9 @@ export default function Guide() {
         </div>
       </Panel>
 
-      <div style={{ height: 18 }} />
+      </div>
 
+      <div id="protocol" className="docs-sec">
       <Panel title="消息契约" sub="客户端与服务端之间传输的全部消息类型" flush>
         <table>
           <thead>
@@ -334,8 +342,9 @@ export default function Guide() {
         </div>
       </Panel>
 
-      <div style={{ height: 18 }} />
+      </div>
 
+      <div id="logs" className="docs-sec">
       <Panel title="运行日志" sub="控制台「客户端」页 → 查看日志，三个视图定位不同层次的问题">
         <table>
           <thead>
@@ -366,8 +375,9 @@ export default function Guide() {
         </div>
       </Panel>
 
-      <div style={{ height: 18 }} />
+      </div>
 
+      <div id="config" className="docs-sec">
       <Panel title="客户端配置字段" sub="conf/agent.yml —— 由 install.bat 生成，可手工修改后重启生效" flush>
         <table>
           <thead>
@@ -389,8 +399,9 @@ export default function Guide() {
         </table>
       </Panel>
 
-      <div style={{ height: 18 }} />
+      </div>
 
+      <div id="exec" className="docs-sec">
       <Panel title="服务端下发的执行参数" sub="在「Coding Agent」页配置，随 CONFIG_PUSH 下发，优先级高于客户端本地配置" flush>
         <table>
           <thead>
@@ -416,8 +427,9 @@ export default function Guide() {
         </div>
       </Panel>
 
-      <div style={{ height: 18 }} />
+      </div>
 
+      <div id="troubleshoot" className="docs-sec">
       <Panel title="常见故障" sub="先看 logs 下最新的 agent*.log，再看控制台「调用日志」页的渲染结果" flush>
         <table>
           <thead>
@@ -438,6 +450,8 @@ export default function Guide() {
           </tbody>
         </table>
       </Panel>
+
+      </div>
 
       <div style={{ marginTop: 16, fontSize: 12.5, color: 'var(--ink-4)' }}>
         本页内容与客户端实现保持一致；修改客户端接入方式时请同步更新此处。

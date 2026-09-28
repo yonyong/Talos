@@ -9,6 +9,7 @@ import type { PageFocus, PageKey } from './types'
  *   #/download         客户端下载
  *   #/docs             文档中心
  *   #/docs/guide       接入指南
+ *   #/docs/guide/<sec> 接入指南某章节
  *   #/about            关于 Talos
  *   #/contact          联系我们
  *   #/login            登录
@@ -17,7 +18,7 @@ import type { PageFocus, PageKey } from './types'
 export type Route =
   | { view: 'landing' }
   | { view: 'download' }
-  | { view: 'docs'; doc?: 'guide' }
+  | { view: 'docs'; doc?: 'guide'; section?: string }
   | { view: 'about' }
   | { view: 'contact' }
   | { view: 'login' }
@@ -56,7 +57,7 @@ export function parseHash(hash: string): Route {
 
   if (segs[0] === 'download') return { view: 'download' }
   if (segs[0] === 'docs') {
-    if (segs[1] === 'guide') return { view: 'docs', doc: 'guide' }
+    if (segs[1] === 'guide') return { view: 'docs', doc: 'guide', section: segs[2] || undefined }
     return { view: 'docs' }
   }
   if (segs[0] === 'about') return { view: 'about' }
@@ -75,7 +76,9 @@ export function parseHash(hash: string): Route {
 export function routeToHash(r: Route): string {
   switch (r.view) {
     case 'download': return '#/download'
-    case 'docs': return r.doc === 'guide' ? '#/docs/guide' : '#/docs'
+    case 'docs':
+      if (r.doc === 'guide') return r.section ? `#/docs/guide/${r.section}` : '#/docs/guide'
+      return '#/docs'
     case 'about': return '#/about'
     case 'contact': return '#/contact'
     case 'login': return '#/login'
