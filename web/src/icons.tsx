@@ -75,13 +75,13 @@ export function Mark({ size = 26 }: { size?: number }) {
       <svg viewBox="0 0 32 32" fill="none" style={{ width: '100%', height: '100%', display: 'block' }} aria-hidden>
         <defs>
           <linearGradient id={gid} x1="2" y1="28" x2="30" y2="4" gradientUnits="userSpaceOnUse">
-            <stop stopColor="#2e2a7a" />
-            <stop offset=".45" stopColor="#4f46e5" />
-            <stop offset="1" stopColor="#8b9cf7" />
+            <stop stopColor="#4f46e5" />
+            <stop offset=".5" stopColor="#6366f1" />
+            <stop offset="1" stopColor="#a5b4fc" />
           </linearGradient>
         </defs>
         <rect x="1" y="1" width="30" height="30" rx="9" fill={`url(#${gid})`} />
-        <circle cx="16" cy="16.2" r="8.6" fill="none" stroke="#fff" strokeOpacity=".38" strokeWidth="1.25" />
+        <circle cx="16" cy="16.2" r="8.6" fill="none" stroke="#fff" strokeOpacity=".45" strokeWidth="1.25" />
         <path d="M8.6 12.4c2.4-2.05 4.9-3.05 7.4-3.05s5 1 7.4 3.05"
           stroke="#fff" strokeWidth="2.5" strokeLinecap="round" />
         <path d="M16 10v10.2" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" />
