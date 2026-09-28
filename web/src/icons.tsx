@@ -66,7 +66,7 @@ export function Icon({ name, size = 18, className = '' }: { name: string; size?:
   )
 }
 
-/** Talos 品牌标记 — Cycle T（弧形 T + 轨道环 + 交付节点） */
+/** Talos 品牌标记 — Gyroscope（双轨交汇核心，无字母） */
 export function Mark({ size = 26 }: { size?: number }) {
   const uid = React.useId().replace(/:/g, '')
   const gid = `talos-mark-${uid}`
@@ -74,18 +74,18 @@ export function Mark({ size = 26 }: { size?: number }) {
     <span className="mark" style={{ width: size, height: size, display: 'inline-block' }}>
       <svg viewBox="0 0 32 32" fill="none" style={{ width: '100%', height: '100%', display: 'block' }} aria-hidden>
         <defs>
-          <linearGradient id={gid} x1="3" y1="2" x2="29" y2="30" gradientUnits="userSpaceOnUse">
-            <stop stopColor="#2e2a7a" />
-            <stop offset=".4" stopColor="#4f46e5" />
-            <stop offset="1" stopColor="#8b9cf7" />
+          <linearGradient id={gid} x1="2" y1="1" x2="30" y2="31" gradientUnits="userSpaceOnUse">
+            <stop stopColor="#1e1b4b" />
+            <stop offset=".48" stopColor="#4338ca" />
+            <stop offset="1" stopColor="#818cf8" />
           </linearGradient>
         </defs>
         <rect x="1" y="1" width="30" height="30" rx="9" fill={`url(#${gid})`} />
-        <circle cx="16" cy="16.2" r="8.6" fill="none" stroke="#fff" strokeOpacity=".38" strokeWidth="1.25" />
-        <path d="M8.6 12.4c2.4-2.05 4.9-3.05 7.4-3.05s5 1 7.4 3.05"
-          stroke="#fff" strokeWidth="2.5" strokeLinecap="round" />
-        <path d="M16 10v10.2" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" />
-        <path d="M16 21.6l1.85 1.85L16 25.3l-1.85-1.85z" fill="#fff" stroke="none" />
+        <g fill="none" stroke="#fff" strokeLinecap="round">
+          <ellipse cx="16" cy="16" rx="10.2" ry="4.35" transform="rotate(-38 16 16)" strokeWidth="1.85" strokeOpacity=".92" />
+          <ellipse cx="16" cy="16" rx="10.2" ry="4.35" transform="rotate(52 16 16)" strokeWidth="1.85" strokeOpacity=".92" />
+        </g>
+        <path d="M16 13.55l2.45 2.45L16 18.45l-2.45-2.45z" fill="#fff" stroke="none" />
       </svg>
     </span>
   )
