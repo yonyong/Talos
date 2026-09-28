@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Talos · 工作台 UI v2 原型</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@450;500;600;700&family=JetBrains+Mono:wght@450;500&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #f6f6f9;
+    --bg-side: rgba(255,255,255,.72);
+    --surface: #ffffff;
+    --ink: #12121a;
+    --ink-2: #3a3a48;
+    --ink-3: #6b6b7b;
+    --ink-4: #9a9aab;
+    --line: rgba(18,18,26,.08);
+    --line-2: rgba(18,18,26,.14);
+    --accent: #4f46e5;
+    --accent-2: #6366f1;
+    --accent-soft: rgba(79,70,229,.09);
+    --accent-glow: rgba(99,102,241,.18);
+    --ok: #0f9f6e;
+    --warn: #c2410c;
+    --err: #dc2626;
+    --radius: 18px;
+    --radius-sm: 12px;
+    --font: 'Plus Jakarta Sans', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+    --side-w: 232px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: var(--font);
+    color: var(--ink);
+    background:
+      radial-gradient(900px 420px at 12% -10%, rgba(99,102,241,.14), transparent 55%),
+      radial-gradient(700px 380px at 92% 8%, rgba(165,180,252,.18), transparent 50%),
+      var(--bg);
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+  .app { display: grid; grid-template-columns: var(--side-w) 1fr; min-height: 100vh; }
+
+  /* ---- Side ---- */
+  .side {
+    position: sticky; top: 0; height: 100vh;
+    display: flex; flex-direction: column;
+    padding: 18px 14px 14px;
+    border-right: 1px solid var(--line);
+    background: var(--bg-side);
+    backdrop-filter: blur(16px) saturate(1.2);
+  }
+  .brand {
+    display: flex; align-items: center; gap: 10px;
+    padding: 4px 8px 18px; font-weight: 700; font-size: 16px; letter-spacing: -.02em;
+  }
+  .brand svg { width: 28px; height: 28px; display: block; }
+  .nav-sec { margin-top: 10px; }
+  .nav-sec h6 {
+    font-size: 11px; font-weight: 600; color: var(--ink-4);
+    letter-spacing: .06em; text-transform: uppercase;
+    padding: 8px 10px 6px;
+  }
+  .nav-i {
+    display: flex; align-items: center; gap: 10px;
+    height: 36px; padding: 0 10px; border-radius: 10px;
+    font-size: 13.5px; font-weight: 500; color: var(--ink-2);
+    cursor: pointer; transition: .15s ease;
+  }
+  .nav-i:hover { background: rgba(18,18,26,.04); color: var(--ink); }
+  .nav-i.on { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+  .nav-i .dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: currentColor; opacity: .35;
+  }
+  .nav-i.on .dot { opacity: 1; box-shadow: 0 0 0 3px var(--accent-glow); }
+  .side-foot { margin-top: auto; padding-top: 12px; border-top: 1px solid var(--line); }
+  .user {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px; border-radius: 12px;
+  }
+  .user:hover { background: rgba(18,18,26,.04); }
+  .avatar {
+    width: 34px; height: 34px; border-radius: 10px;
+    background: linear-gradient(135deg, #4f46e5, #818cf8);
+    color: #fff; display: grid; place-items: center;
+    font-size: 12px; font-weight: 700;
+  }
+  .user b { display: block; font-size: 13px; font-weight: 600; }
+  .user span { font-size: 11.5px; color: var(--ink-3); }
+
+  /* ---- Main ---- */
+  .main { padding: 22px 32px 40px; max-width: 1180px; }
+  .topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 22px; gap: 16px;
+  }
+  .crumb { font-size: 13px; color: var(--ink-3); font-weight: 500; }
+  .crumb strong { color: var(--ink); font-weight: 650; }
+  .search {
+    display: flex; align-items: center; gap: 8px;
+    height: 38px; width: min(340px, 40vw); padding: 0 12px;
+    border: 1px solid var(--line-2); border-radius: 11px;
+    background: var(--surface); color: var(--ink-4); font-size: 13px;
+  }
+
+  .hero {
+    position: relative; overflow: hidden;
+    display: flex; align-items: flex-end; justify-content: space-between;
+    gap: 20px; flex-wrap: wrap;
+    padding: 28px 28px 24px;
+    border-radius: calc(var(--radius) + 4px);
+    background:
+      linear-gradient(135deg, rgba(79,70,229,.12), rgba(165,180,252,.08) 45%, transparent 70%),
+      var(--surface);
+    border: 1px solid var(--line);
+    box-shadow: 0 1px 0 rgba(255,255,255,.7) inset, 0 18px 40px -28px rgba(79,70,229,.35);
+    margin-bottom: 22px;
+  }
+  .hero::after {
+    content: ''; position: absolute; right: -40px; top: -60px;
+    width: 220px; height: 220px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(99,102,241,.2), transparent 65%);
+    pointer-events: none;
+  }
+  .hero-kicker {
+    font-size: 12px; font-weight: 650; color: var(--accent);
+    letter-spacing: .04em; text-transform: uppercase; margin-bottom: 8px;
+  }
+  .hero h1 {
+    font-size: 28px; font-weight: 700; letter-spacing: -.03em; line-height: 1.15;
+  }
+  .hero p { margin-top: 8px; font-size: 14px; color: var(--ink-3); max-width: 420px; line-height: 1.55; }
+  .roles { display: flex; gap: 8px; flex-wrap: wrap; position: relative; z-index: 1; }
+  .role {
+    height: 34px; padding: 0 14px; border-radius: 999px;
+    border: 1px solid var(--line-2); background: var(--surface);
+    font: inherit; font-size: 13px; font-weight: 600; color: var(--ink-2);
+    cursor: pointer;
+  }
+  .role.on {
+    background: var(--accent); border-color: var(--accent); color: #fff;
+    box-shadow: 0 8px 20px -10px rgba(79,70,229,.7);
+  }
+  .cta-row { display: flex; gap: 10px; margin-top: 18px; position: relative; z-index: 1; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    height: 40px; padding: 0 16px; border-radius: 11px;
+    font: inherit; font-size: 13.5px; font-weight: 600; cursor: pointer; border: none;
+  }
+  .btn-primary {
+    background: var(--accent); color: #fff;
+    box-shadow: 0 10px 24px -12px rgba(79,70,229,.75);
+  }
+  .btn-primary:hover { filter: brightness(1.05); }
+  .btn-ghost {
+    background: transparent; color: var(--ink-2);
+    border: 1px solid var(--line-2);
+  }
+
+  .strip {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
+    margin-bottom: 22px;
+  }
+  .kpi {
+    padding: 16px 16px 14px; border-radius: var(--radius-sm);
+    background: var(--surface); border: 1px solid var(--line);
+    cursor: pointer; transition: .15s ease;
+  }
+  .kpi:hover { border-color: rgba(79,70,229,.35); box-shadow: 0 10px 28px -22px rgba(79,70,229,.55); transform: translateY(-1px); }
+  .kpi .lab { font-size: 12px; color: var(--ink-3); font-weight: 550; }
+  .kpi .val {
+    margin-top: 6px; font-size: 26px; font-weight: 700; letter-spacing: -.03em;
+    font-variant-numeric: tabular-nums;
+  }
+  .kpi .hint { margin-top: 4px; font-size: 11.5px; color: var(--ink-4); }
+  .kpi.warn .val { color: var(--warn); }
+  .kpi.ok .val { color: var(--ok); }
+
+  .grid2 {
+    display: grid; grid-template-columns: 1.55fr 1fr; gap: 14px;
+  }
+  .panel {
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: var(--radius); padding: 18px 18px 14px;
+  }
+  .panel-h {
+    display: flex; align-items: baseline; justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .panel-h h3 { font-size: 15px; font-weight: 700; letter-spacing: -.01em; }
+  .panel-h span { font-size: 12px; color: var(--ink-4); }
+
+  .todo {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 12px 10px; border-radius: 12px; cursor: pointer;
+  }
+  .todo:hover { background: var(--accent-soft); }
+  .todo + .todo { border-top: 1px solid var(--line); }
+  .todo b { display: block; font-size: 13.5px; font-weight: 600; }
+  .todo small { display: block; margin-top: 3px; font-size: 12px; color: var(--ink-3); font-family: var(--mono); }
+  .tag {
+    flex: none; height: 24px; padding: 0 9px; border-radius: 999px;
+    font-size: 11.5px; font-weight: 650; display: inline-flex; align-items: center;
+  }
+  .tag.warn { background: #fff1e7; color: var(--warn); }
+  .tag.prog { background: #eef0ff; color: var(--accent); }
+  .tag.err { background: #feecec; color: var(--err); }
+
+  .empty {
+    padding: 28px 16px 22px; text-align: center;
+  }
+  .empty .orb {
+    width: 56px; height: 56px; margin: 0 auto 14px; border-radius: 16px;
+    background: linear-gradient(145deg, #eef0ff, #f8f8ff);
+    border: 1px solid var(--line);
+    display: grid; place-items: center;
+  }
+  .empty p { font-size: 13.5px; color: var(--ink-3); line-height: 1.55; }
+  .empty .sub { margin-top: 6px; font-size: 12px; color: var(--ink-4); }
+
+  .side-list a {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 11px 4px; border-bottom: 1px solid var(--line);
+    font-size: 13.5px; color: var(--ink-2); text-decoration: none; font-weight: 500;
+  }
+  .side-list a:last-child { border-bottom: none; }
+  .side-list a:hover { color: var(--accent); }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+  .chip {
+    height: 30px; padding: 0 12px; border-radius: 999px;
+    border: 1px solid var(--line-2); background: #fafafc;
+    font-size: 12.5px; font-weight: 600; color: var(--ink-2); cursor: pointer;
+  }
+  .chip:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+
+  .note {
+    margin-top: 18px; font-size: 12px; color: var(--ink-4); line-height: 1.6;
+  }
+  .note b { color: var(--ink-3); font-weight: 650; }
+
+  @media (max-width: 980px) {
+    .app { grid-template-columns: 1fr; }
+    .side { display: none; }
+    .strip { grid-template-columns: 1fr 1fr; }
+    .grid2 { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="side">
+    <div class="brand">
+      <svg viewBox="0 0 32 32" aria-hidden="true">
+        <defs>
+          <linearGradient id="m" x1="2" y1="28" x2="30" y2="4" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#4f46e5"/><stop offset=".5" stop-color="#6366f1"/><stop offset="1" stop-color="#a5b4fc"/>
+          </linearGradient>
+        </defs>
+        <rect x="1" y="1" width="30" height="30" rx="9" fill="url(#m)"/>
+        <circle cx="16" cy="16.2" r="8.6" fill="none" stroke="#fff" stroke-opacity=".45" stroke-width="1.25"/>
+        <path d="M8.6 12.4c2.4-2.05 4.9-3.05 7.4-3.05s5 1 7.4 3.05" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
+        <path d="M16 10v10.2" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
+        <path d="M16 21.6l1.85 1.85L16 25.3l-1.85-1.85z" fill="#fff"/>
+      </svg>
+      Talos
+    </div>
+
+    <div class="nav-sec">
+      <h6>今日</h6>
+      <div class="nav-i on"><span class="dot"></span>我的工作台</div>
+      <div class="nav-i"><span class="dot"></span>Issue</div>
+      <div class="nav-i"><span class="dot"></span>作业监控</div>
+    </div>
+    <div class="nav-sec">
+      <h6>编排</h6>
+      <div class="nav-i"><span class="dot"></span>准入判定</div>
+      <div class="nav-i"><span class="dot"></span>工作流</div>
+      <div class="nav-i"><span class="dot"></span>业务域</div>
+    </div>
+    <div class="nav-sec">
+      <h6>系统</h6>
+      <div class="nav-i"><span class="dot"></span>平台总览</div>
+      <div class="nav-i"><span class="dot"></span>客户端</div>
+      <div class="nav-i"><span class="dot"></span>用户与权限</div>
+    </div>
+
+    <div class="side-foot">
+      <div class="user">
+        <div class="avatar">YD</div>
+        <div><b>杨德</b><span>管理员 · 可切换角色</span></div>
+      </div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <div class="crumb">运营 / <strong>我的工作台</strong></div>
+      <div class="search">⌕　搜索 Issue、客户端</div>
+    </div>
+
+    <section class="hero">
+      <div>
+        <div class="hero-kicker">Workbench · Admin</div>
+        <h1>你好，杨德</h1>
+        <p>先处理卡住平台的事。当前以管理员视角查看告警与全局健康度，可随时切换角色。</p>
+        <div class="cta-row">
+          <button class="btn btn-primary">查看平台总览</button>
+          <button class="btn btn-ghost">用户管理</button>
+        </div>
+      </div>
+      <div class="roles">
+        <button class="role on">管理员</button>
+        <button class="role">技术负责人</button>
+      </div>
+    </section>
+
+    <div class="strip">
+      <div class="kpi">
+        <div class="lab">待处理 Issue</div>
+        <div class="val">12</div>
+        <div class="hint">3 条今日新增</div>
+      </div>
+      <div class="kpi warn">
+        <div class="lab">阻塞 / 需拍板</div>
+        <div class="val">2</div>
+        <div class="hint">优先处理</div>
+      </div>
+      <div class="kpi">
+        <div class="lab">活跃实例</div>
+        <div class="val">5</div>
+        <div class="hint">运行中</div>
+      </div>
+      <div class="kpi ok">
+        <div class="lab">客户端在线</div>
+        <div class="val">8/9</div>
+        <div class="hint">1 台离线</div>
+      </div>
+    </div>
+
+    <div class="grid2">
+      <section class="panel">
+        <div class="panel-h">
+          <h3>需要我处理</h3>
+          <span>按紧急度 · 点击打开</span>
+        </div>
+        <div class="todo">
+          <div>
+            <b>行情网关超时导致分拣失败</b>
+            <small>BUG-2041 · market-gateway · 王磊</small>
+          </div>
+          <span class="tag warn">阻塞</span>
+        </div>
+        <div class="todo">
+          <div>
+            <b>回测引擎需求待准入复核</b>
+            <small>REQ-1988 · backtest · 赵敏</small>
+          </div>
+          <span class="tag prog">准入中</span>
+        </div>
+        <div class="todo">
+          <div>
+            <b>dev-windows-07 心跳中断</b>
+            <small>客户端 · 离线 16 分钟</small>
+          </div>
+          <span class="tag err">离线</span>
+        </div>
+      </section>
+
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <section class="panel">
+          <div class="panel-h"><h3>管理入口</h3><span>Admin</span></div>
+          <div class="side-list">
+            <a href="#">平台总览<span>→</span></a>
+            <a href="#">用户与权限<span>→</span></a>
+            <a href="#">模型配置<span>→</span></a>
+          </div>
+        </section>
+        <section class="panel">
+          <div class="panel-h"><h3>快捷入口</h3></div>
+          <div class="chips">
+            <button class="chip">Issue</button>
+            <button class="chip">作业监控</button>
+            <button class="chip">客户端</button>
+            <button class="chip">工作流</button>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <p class="note">
+      <b>原型说明（相对现网）：</b>主按钮改品牌靛、去掉纯黑主 CTA；侧栏收敛为「今日 / 编排 / 系统」三组；
+      第一屏用品牌渐变 hero 建立层次；KPI 与待办用示例数据展示有内容时的密度；字体改为 Plus Jakarta Sans。
+    </p>
+  </main>
+</div>
+</body>
+</html>
