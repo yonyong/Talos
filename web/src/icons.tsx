@@ -66,7 +66,7 @@ export function Icon({ name, size = 18, className = '' }: { name: string; size?:
   )
 }
 
-/** Talos 品牌标记 — Gyroscope（双轨交汇核心，无字母） */
+/** Talos 品牌标记 — Gyroscope（双轨交汇，圆润线条） */
 export function Mark({ size = 26 }: { size?: number }) {
   const uid = React.useId().replace(/:/g, '')
   const gid = `talos-mark-${uid}`
@@ -81,11 +81,11 @@ export function Mark({ size = 26 }: { size?: number }) {
           </linearGradient>
         </defs>
         <rect x="1" y="1" width="30" height="30" rx="9" fill={`url(#${gid})`} />
-        <g fill="none" stroke="#fff" strokeLinecap="round">
-          <ellipse cx="16" cy="16" rx="10.2" ry="4.35" transform="rotate(-38 16 16)" strokeWidth="1.85" strokeOpacity=".92" />
-          <ellipse cx="16" cy="16" rx="10.2" ry="4.35" transform="rotate(52 16 16)" strokeWidth="1.85" strokeOpacity=".92" />
+        <g fill="none" stroke="#fff" strokeLinecap="round" strokeLinejoin="round">
+          <ellipse cx="16" cy="16" rx="10.1" ry="4.6" transform="rotate(-38 16 16)" strokeWidth="2.15" strokeOpacity=".94" />
+          <ellipse cx="16" cy="16" rx="10.1" ry="4.6" transform="rotate(52 16 16)" strokeWidth="2.15" strokeOpacity=".94" />
         </g>
-        <path d="M16 13.55l2.45 2.45L16 18.45l-2.45-2.45z" fill="#fff" stroke="none" />
+        <circle cx="16" cy="16" r="2.35" fill="#fff" stroke="none" />
       </svg>
     </span>
   )
