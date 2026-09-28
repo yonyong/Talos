@@ -48,7 +48,7 @@ const NAV: { group: string; items: { k: PageKey; l: string; icon: string }[] }[]
       { k: 'dashboard', l: '平台总览', icon: 'grid' },
       { k: 'issues', l: 'Issue', icon: 'issue' },
       { k: 'monitor', l: '作业监控', icon: 'terminal' },
-      { k: 'docs', l: '文档中心', icon: 'doc' },
+      // 文档中心不进控制台侧栏：过程文档在 Issue 详情内查看；对外说明放官网资源区
     ],
   },
   {
@@ -344,7 +344,7 @@ export default function Console({ page, focus, onLogout }: {
         <div className="topbar">
           <div className="crumb"><Icon name={navGroups.flatMap((g) => g.items).find((i) => i.k === page)?.icon ?? 'grid'} size={16} />{TITLE[page]}</div>
           <div className="tools">
-            <div className="search"><Icon name="search" size={15} /><input placeholder="搜索 Issue、客户端、文档" /></div>
+            <div className="search"><Icon name="search" size={15} /><input placeholder="搜索 Issue、客户端" /></div>
             <NotifCenter nav={nav} />
           </div>
         </div>

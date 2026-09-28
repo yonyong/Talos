@@ -186,7 +186,6 @@ export function buildWorkbench(input: {
         shortcuts: [
           { label: 'Issue', page: 'issues' },
           { label: '准入判定', page: 'admission' },
-          { label: '文档中心', page: 'docs' },
         ],
       }
     }
@@ -302,7 +301,6 @@ export function buildWorkbench(input: {
         ],
         shortcuts: [
           { label: 'Issue', page: 'issues' },
-          { label: '文档中心', page: 'docs' },
           { label: '作业监控', page: 'monitor' },
         ],
       }
@@ -366,7 +364,7 @@ export function buildWorkbench(input: {
         sideTitle: '说明',
         sideLines: [{ text: '访客无法录入或执行任务', tone: 'mut' }],
         ctas: [],
-        shortcuts: [{ label: '文档中心', page: 'docs' }],
+        shortcuts: [{ label: 'Issue', page: 'issues' }],
       }
     }
   }

@@ -340,7 +340,7 @@ export default function Clients({ focus, nav }: { focus?: PageFocus; nav: (p: Pa
             onClick={() => nav('guide')}
           >
             <Icon name="info" size={14} />
-            新终端接入？安装命令、保活机制、配置字段与排障见「接入指南」（文档中心）
+            新终端接入？安装命令、保活机制、配置字段与排障见「接入指南」
             <Icon name="arrow" size={13} />
           </a>
         </>

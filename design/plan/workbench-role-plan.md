@@ -37,6 +37,7 @@
 | 原「总览」 | 改称 **平台总览**（`dashboard`）；仅 `activeRole ∈ {admin, lead}` 时渲染侧栏项 |
 | 默认首页 | `settings.homePage` 默认 → `workbench`；Logo 点击回工作台 |
 | 误入守卫 | 若 URL 停在 `dashboard` 但当前激活角色无权，自动重定向到 `workbench` |
+| 文档中心 | **不进控制台侧栏**；过程文档在 Issue 详情内查看；对外说明放官网「资源」区 |
 
 ### 3.2 页面骨架
 
