@@ -38,16 +38,24 @@ export default function SiteFooter({ compact, versionNote, onDownload }: SiteFoo
             <a href="#arch">架构</a>
             <a href="#feat">核心能力</a>
             <a href="#sec">安全</a>
-            {onDownload ? (
-              <a href="#" onClick={(e) => { e.preventDefault(); onDownload() }}>客户端下载</a>
-            ) : null}
           </div>
           <div className="foot-col">
             <h5>资源</h5>
-            <ContactIcons />
+            <a href="#/app/docs">文档中心</a>
+            <a
+              href="#/download"
+              onClick={(e) => {
+                if (!onDownload) return
+                e.preventDefault()
+                onDownload()
+              }}
+            >
+              客户端下载
+            </a>
           </div>
           <div className="foot-col">
             <h5>关于</h5>
+            <a href="#arch">关于 Talos</a>
             <ContactIcons />
           </div>
         </div>
