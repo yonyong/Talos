@@ -1,5 +1,6 @@
 import React from 'react'
 import { Mark } from '../icons'
+import SiteFooter from '../components/SiteFooter'
 
 /* ---------------- 架构图（深色科技风） ---------------- */
 function ArchSvg() {
@@ -269,27 +270,7 @@ export default function Landing({ onEnter, onDownload }: { onEnter: () => void; 
         </div>
       </section>
 
-      <footer className="foot">
-        <div className="wrap">
-          <div className="foot-in">
-            <div className="foot-brand">
-              <Mark size={24} />
-              <p>Talos · 研发周期全自动流程平台<br />服务端编排，客户端执行。</p>
-            </div>
-            <div className="foot-col">
-              <h5>产品</h5>
-              <a href="#arch">架构</a><a href="#feat">核心能力</a><a href="#sec">安全</a>
-              <a href="#" onClick={(e) => { e.preventDefault(); onDownload() }}>客户端下载</a>
-            </div>
-            <div className="foot-col"><h5>资源</h5><a href="#">部署文档</a><a href="#">API 参考</a><a href="#">变更日志</a></div>
-            <div className="foot-col"><h5>关于</h5><a href="#">版本 1.4.3</a><a href="#">内网部署说明</a><a href="#">问题反馈</a></div>
-          </div>
-          <div className="foot-bot">
-            <span>© 2026 Talos · 仅供内网使用</span>
-            <span>构建 1.4.3 · 数据不出内网</span>
-          </div>
-        </div>
-      </footer>
+      <SiteFooter onDownload={onDownload} />
     </div>
   )
 }
