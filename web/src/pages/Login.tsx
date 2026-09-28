@@ -53,7 +53,7 @@ export default function Login({ onBack, onLogin }: { onBack: () => void; onLogin
           <div style={{ marginTop: 24, fontSize: 12, color: 'var(--ink-4)', lineHeight: 1.6 }}>
             登录即代表你同意遵守内网数据使用规范；所有操作将记录审计日志。
           </div>
-          <ContactIcons size="sm" className="login-contact" />
+          <ContactIcons className="login-contact" />
         </div>
       </div>
     </div>

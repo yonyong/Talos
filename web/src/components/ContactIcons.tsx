@@ -2,18 +2,19 @@ import { Icon } from '../icons'
 import { SITE_CONTACT } from '../constants'
 
 type ContactIconsProps = {
-  /** sm：页脚底栏 / 文末；md：品牌区与「关于」列 */
-  size?: 'sm' | 'md'
+  /** 是否显示「联系我们」文案（默认显示） */
+  label?: boolean | string
   className?: string
 }
 
 const ext = { target: '_blank', rel: 'noopener noreferrer' } as const
 
-/** GitHub / 邮箱图标入口（无文字，靠 title + aria-label） */
-export default function ContactIcons({ size = 'md', className = '' }: ContactIconsProps) {
-  const icon = size === 'sm' ? 16 : 18
+/** 「联系我们」+ GitHub / 邮箱图标（纯图标链，无方框） */
+export default function ContactIcons({ label = '联系我们', className = '' }: ContactIconsProps) {
+  const text = label === true ? '联系我们' : label === false ? '' : label
   return (
-    <div className={`contact-icons contact-icons-${size} ${className}`.trim()} role="group" aria-label="联系方式">
+    <div className={`contact-row ${className}`.trim()} role="group" aria-label="联系方式">
+      {text ? <span className="contact-label">{text}</span> : null}
       <a
         className="contact-ico"
         href={SITE_CONTACT.github}
@@ -21,7 +22,7 @@ export default function ContactIcons({ size = 'md', className = '' }: ContactIco
         title={`GitHub · ${SITE_CONTACT.github.replace(/^https?:\/\//, '')}`}
         aria-label="GitHub 仓库"
       >
-        <Icon name="github" size={icon} />
+        <Icon name="github" size={18} />
       </a>
       <a
         className="contact-ico"
@@ -29,7 +30,7 @@ export default function ContactIcons({ size = 'md', className = '' }: ContactIco
         title={SITE_CONTACT.email}
         aria-label={`发送邮件至 ${SITE_CONTACT.email}`}
       >
-        <Icon name="mail" size={icon} />
+        <Icon name="mail" size={18} />
       </a>
     </div>
   )

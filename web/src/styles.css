@@ -215,20 +215,18 @@ h1.hero-title .grad {
 .foot-col a { display: block; font-size: 13px; color: var(--ink-3); padding: 4px 0; }
 .foot-col a:hover { color: var(--ink); }
 .foot-bot { border-top: 1px solid var(--line); margin-top: 36px; padding-top: 22px; display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; align-items: center; font-size: 12.5px; color: var(--ink-4); }
-.foot-bot-right { display: inline-flex; align-items: center; gap: 14px; flex-wrap: wrap; }
-.foot-brand .contact-icons { margin-top: 18px; }
-.foot-col-desc { margin: 0 0 10px; font-size: 12.5px; color: var(--ink-4); line-height: 1.5; }
-.foot-col .contact-icons { margin-top: 2px; }
+.foot-bot-right { display: inline-flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+.foot-meta { color: var(--ink-4); }
+.foot-col .contact-row { margin-top: 2px; }
 
-/* GitHub / 邮箱图标按钮 */
-.contact-icons { display: inline-flex; align-items: center; gap: 8px; }
+/* 「联系我们」+ 图标：一行横排，无方框 */
+.contact-row { display: inline-flex; align-items: center; gap: 10px; }
+.contact-label { font-size: 13px; color: var(--ink-3); line-height: 1; }
 .contact-ico {
-  width: 36px; height: 36px; display: inline-flex; align-items: center; justify-content: center;
-  border: 1px solid var(--line); border-radius: 10px; color: var(--ink-3);
-  background: var(--surface, #fff); transition: color .15s ease, border-color .15s ease, background .15s ease;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px; color: var(--ink-3); transition: color .15s ease;
 }
-.contact-ico:hover { color: var(--ink); border-color: var(--line-2); background: var(--bg-subtle, #f4f4f5); }
-.contact-icons-sm .contact-ico { width: 30px; height: 30px; border-radius: 8px; }
+.contact-ico:hover { color: var(--ink); }
 
 /* ============================================================
    LOGIN

@@ -583,9 +583,9 @@ export default function Guide() {
         </table>
       </Panel>
 
-      <div style={{ marginTop: 16, fontSize: 12.5, color: 'var(--ink-4)', display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center' }}>
+      <div style={{ marginTop: 16, fontSize: 12.5, color: 'var(--ink-4)', display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'center' }}>
         <span>本页内容与客户端实现保持一致；修改客户端接入方式时请同步更新此处。</span>
-        <ContactIcons size="sm" />
+        <ContactIcons />
       </div>
     </div>
   )
