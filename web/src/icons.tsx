@@ -66,19 +66,26 @@ export function Icon({ name, size = 18, className = '' }: { name: string; size?:
   )
 }
 
-/** Talos 品牌标记（几何盾形渐变） */
+/** Talos 品牌标记 — Cycle T（弧形 T + 轨道环 + 交付节点） */
 export function Mark({ size = 26 }: { size?: number }) {
+  const uid = React.useId().replace(/:/g, '')
+  const gid = `talos-mark-${uid}`
   return (
     <span className="mark" style={{ width: size, height: size, display: 'inline-block' }}>
-      <svg viewBox="0 0 32 32" fill="none" style={{ width: '100%', height: '100%', display: 'block' }}>
+      <svg viewBox="0 0 32 32" fill="none" style={{ width: '100%', height: '100%', display: 'block' }} aria-hidden>
         <defs>
-          <linearGradient id="talos-mark" x1="0" y1="0" x2="1" y2="1">
-            <stop stopColor="#6366f1" />
-            <stop offset="1" stopColor="#a78bfa" />
+          <linearGradient id={gid} x1="4" y1="2" x2="28" y2="30" gradientUnits="userSpaceOnUse">
+            <stop stopColor="#312e81" />
+            <stop offset=".42" stopColor="#4f46e5" />
+            <stop offset="1" stopColor="#818cf8" />
           </linearGradient>
         </defs>
-        <path d="M16 2.5l11 4.2v9.1c0 6.4-4.4 11.3-11 13.7C9.4 27.1 5 22.2 5 15.8V6.7z" fill="url(#talos-mark)" />
-        <path d="M11 16.5l3.2 3.2L21.5 12" stroke="#fff" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" />
+        <rect x="1.2" y="1.2" width="29.6" height="29.6" rx="9.2" fill={`url(#${gid})`} />
+        <circle cx="16" cy="16.4" r="9.1" fill="none" stroke="#fff" strokeOpacity=".22" strokeWidth="1.15" />
+        <path d="M9.2 12.1c2.1-1.55 4.4-2.35 6.8-2.35s4.7.8 6.8 2.35"
+          stroke="#fff" strokeWidth="2.35" strokeLinecap="round" />
+        <path d="M16 10.2v10.4" stroke="#fff" strokeWidth="2.35" strokeLinecap="round" />
+        <path d="M16 22.35l1.55 1.55L16 25.45l-1.55-1.55z" fill="#fff" stroke="none" />
       </svg>
     </span>
   )
