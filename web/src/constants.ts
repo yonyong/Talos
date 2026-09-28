@@ -1,5 +1,13 @@
 /* UI 映射常量（非数据，仅用于展示，不依赖后端） */
 
+/** 官网 / 功能页对外联系方式 */
+export const SITE_CONTACT = {
+  github: 'https://github.com/yonyong/Talos',
+  githubLabel: 'GitHub',
+  email: '2365878736@qq.com',
+  mailto: 'mailto:2365878736@qq.com',
+} as const
+
 export const statusMeta: Record<string, { l: string; tone: 'ok' | 'warn' | 'err' | 'info' | 'prog' | 'mut' }> = {
   admitting: { l: '准入中', tone: 'mut' },
   admitted: { l: '已准入', tone: 'info' },

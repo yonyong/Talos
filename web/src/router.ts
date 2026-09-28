@@ -4,24 +4,27 @@ import type { PageFocus, PageKey } from './types'
 /**
  * 极简 hash 路由（零依赖）。
  *
- * 为什么用 hash 而不是 history：
- * 前端产物是嵌进 server jar 的静态资源，服务端没有 SPA fallback —— 直接访问
- * /console/monitor 会 404。hash 全部由浏览器处理，刷新、收藏、前进后退都无需服务端配合。
- *
  * 形态：
  *   #/                 品牌官网
- *   #/download         客户端下载页
+ *   #/download         客户端下载
+ *   #/docs             文档中心
+ *   #/docs/guide       接入指南
+ *   #/docs/guide/<sec> 接入指南某章节
+ *   #/about            关于 Talos
+ *   #/contact          联系我们
  *   #/login            登录
- *   #/app/<page>       控制台页面（page 省略时回落 dashboard）
- *   #/app/monitor?issueCode=BUG-1   跨页下钻参数
+ *   #/app/<page>       控制台
  */
 export type Route =
   | { view: 'landing' }
   | { view: 'download' }
+  | { view: 'docs'; doc?: 'guide'; section?: string }
+  | { view: 'about' }
+  | { view: 'contact' }
   | { view: 'login' }
   | { view: 'app'; page: PageKey; focus?: PageFocus }
 
-/** 控制台所有合法页面 key，与 Console 的 NAV 保持一致 */
+/** 控制台合法页面 key（guide 已迁到官网文档中心，保留仅作旧链兼容） */
 export const PAGE_KEYS: PageKey[] = [
   'dashboard', 'issues', 'admission', 'workflow', 'monitor',
   'clients', 'guide', 'agents', 'logs', 'docs', 'kb',
@@ -53,9 +56,17 @@ export function parseHash(hash: string): Route {
   }
 
   if (segs[0] === 'download') return { view: 'download' }
+  if (segs[0] === 'docs') {
+    if (segs[1] === 'guide') return { view: 'docs', doc: 'guide', section: segs[2] || undefined }
+    return { view: 'docs' }
+  }
+  if (segs[0] === 'about') return { view: 'about' }
+  if (segs[0] === 'contact') return { view: 'contact' }
   if (segs[0] === 'login') return { view: 'login' }
   if (segs[0] === 'app') {
     const candidate = segs[1] as PageKey | undefined
+    // 旧链 #/app/guide → 官网文档中心接入指南
+    if (candidate === 'guide') return { view: 'docs', doc: 'guide' }
     const page = candidate && PAGE_KEYS.includes(candidate) ? candidate : 'dashboard'
     return { view: 'app', page, focus: focusOf() }
   }
@@ -65,6 +76,11 @@ export function parseHash(hash: string): Route {
 export function routeToHash(r: Route): string {
   switch (r.view) {
     case 'download': return '#/download'
+    case 'docs':
+      if (r.doc === 'guide') return r.section ? `#/docs/guide/${r.section}` : '#/docs/guide'
+      return '#/docs'
+    case 'about': return '#/about'
+    case 'contact': return '#/contact'
     case 'login': return '#/login'
     case 'app': {
       const q = new URLSearchParams()
@@ -92,21 +108,15 @@ function emit() {
   listeners.forEach((l) => l(r))
 }
 
-/**
- * 跳转。
- * @param replace 用 replace 而不是 push —— 登录跳转、退出登录这类不该留在历史里
- */
 export function navigate(r: Route, replace = false) {
   const hash = routeToHash(r)
   if (window.location.hash !== hash) {
     if (replace) window.location.replace(hash)
     else window.location.hash = hash
   }
-  // location.replace 的 hashchange 时机不保证，这里同步通知一次，避免界面等下一帧
   emit()
 }
 
-/** 订阅当前路由；刷新与前进/后退都会同步 */
 export function useRoute(): Route {
   const [route, setRoute] = useState<Route>(() => parseHash(window.location.hash))
   useEffect(() => {
