@@ -3,6 +3,7 @@ import { Icon } from '../icons'
 import { PageH, Panel, Tag, useToast } from '../ui'
 import { activateAgentRelease, deleteAgentReleaseFile, fetchAgentReleaseList, uploadAgentRelease } from '../api'
 import type { AgentReleaseList } from '../types'
+import { SITE_CONTACT } from '../constants'
 
 const INSTALL = `# 1. 解压安装包到目标目录，例如 C:\\Talos
 # 2. 一键安装并启动（双击 setup.bat 亦可，无参数时进入交互式问答）
@@ -582,8 +583,13 @@ export default function Guide() {
         </table>
       </Panel>
 
-      <div style={{ marginTop: 16, fontSize: 12.5, color: 'var(--ink-4)' }}>
-        本页内容与客户端实现保持一致；修改客户端接入方式时请同步更新此处。
+      <div style={{ marginTop: 16, fontSize: 12.5, color: 'var(--ink-4)', display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+        <span>本页内容与客户端实现保持一致；修改客户端接入方式时请同步更新此处。</span>
+        <span className="foot-contact">
+          <a href={SITE_CONTACT.github} target="_blank" rel="noopener noreferrer">{SITE_CONTACT.githubLabel}</a>
+          <span aria-hidden>·</span>
+          <a href={SITE_CONTACT.mailto}>{SITE_CONTACT.email}</a>
+        </span>
       </div>
     </div>
   )
