@@ -6,8 +6,11 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /** 用户与角色 */
 @RestController
@@ -19,7 +22,14 @@ public class UserController {
 
     @GetMapping
     public List<UserEntity> list(@RequestParam(required = false) String role) {
-        return role == null ? userRepository.findAll() : userRepository.findByRole(role);
+        List<UserEntity> all = userRepository.findAll();
+        // 兼容旧数据：roles 空则回落单值 role
+        for (UserEntity u : all) hydrateRoles(u);
+        if (role == null || role.isBlank()) return all;
+        String needle = role.trim().toLowerCase(Locale.ROOT);
+        return all.stream()
+                .filter(u -> rolesOf(u).stream().anyMatch(r -> r.equalsIgnoreCase(needle)))
+                .collect(Collectors.toList());
     }
 
     /**
@@ -52,12 +62,61 @@ public class UserController {
             user.setBizCodes(existing.getBizCodes());
             user.setBizDomain(existing.getBizDomain());
         }
-        return ResponseEntity.ok(userRepository.save(user));
+        // 多角色：请求携带 roles 时以它为准，并同步主角色 role；未携带则保留
+        if (user.getRoles() != null) {
+            List<String> roles = normalizeRoles(user.getRoles());
+            if (roles.isEmpty() && user.getRole() != null && !user.getRole().isBlank()) {
+                roles = normalizeRoles(List.of(user.getRole()));
+            }
+            if (roles.isEmpty()) roles = List.of("guest");
+            user.setRoles(roles);
+            user.setRole(roles.get(0));
+        } else if (existing != null) {
+            hydrateRoles(existing);
+            user.setRoles(existing.getRoles());
+            user.setRole(existing.getRole());
+        } else if (user.getRole() != null && !user.getRole().isBlank()) {
+            List<String> roles = normalizeRoles(List.of(user.getRole()));
+            user.setRoles(roles);
+            user.setRole(roles.get(0));
+        }
+        UserEntity saved = userRepository.save(user);
+        hydrateRoles(saved);
+        return ResponseEntity.ok(saved);
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<?> delete(@PathVariable Long id) {
         userRepository.deleteById(id);
         return ResponseEntity.ok(Map.of("deleted", true));
+    }
+
+    /** roles 空时用单值 role 回填，保证前端始终拿到数组 */
+    private static void hydrateRoles(UserEntity u) {
+        if (u == null) return;
+        List<String> roles = rolesOf(u);
+        u.setRoles(roles);
+        if (u.getRole() == null || u.getRole().isBlank()) {
+            u.setRole(roles.isEmpty() ? "guest" : roles.get(0));
+        }
+    }
+
+    private static List<String> rolesOf(UserEntity u) {
+        if (u.getRoles() != null && !u.getRoles().isEmpty()) {
+            return normalizeRoles(u.getRoles());
+        }
+        if (u.getRole() != null && !u.getRole().isBlank()) {
+            return normalizeRoles(List.of(u.getRole()));
+        }
+        return new ArrayList<>(List.of("guest"));
+    }
+
+    private static List<String> normalizeRoles(List<String> raw) {
+        return raw.stream()
+                .filter(r -> r != null && !r.isBlank())
+                .map(String::trim)
+                .map(r -> r.toLowerCase(Locale.ROOT))
+                .distinct()
+                .collect(Collectors.toCollection(ArrayList::new));
     }
 }

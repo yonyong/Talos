@@ -411,7 +411,10 @@ export interface UserRow {
   id?: number
   name: string
   no: string
+  /** 主角色（roles[0]），兼容旧筛选 */
   role: string
+  /** 拥有的全部角色编码 */
+  roles: string[]
   /** 兼容展示用：业务域名称（存量单值或编码拼接）；新数据以 bizCodes 为准 */
   biz: string
   /** 归属业务域编码列表，与仓库 bizCodes 一致 */
@@ -429,7 +432,7 @@ export interface RolePermission {
 }
 
 export type PageKey =
-  | 'dashboard' | 'issues' | 'admission' | 'workflow' | 'monitor'
+  | 'workbench' | 'dashboard' | 'issues' | 'admission' | 'workflow' | 'monitor'
   | 'clients' | 'guide' | 'agents' | 'logs' | 'docs' | 'kb'
   | 'biz' | 'repos' | 'prompts' | 'models'
   | 'users' | 'roles'

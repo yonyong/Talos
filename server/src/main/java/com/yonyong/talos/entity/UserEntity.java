@@ -20,9 +20,21 @@ public class UserEntity {
     @Column(unique = true, length = 32)
     private String empNo;
 
-    /** admin / pm / lead / dev / qa / guest */
+    /**
+     * 主角色（兼容旧字段）= roles 的第一项。
+     * 新链路以 {@link #roles} 为准；读写时由 UserController 同步。
+     */
     @Column(length = 16)
     private String role;
+
+    /**
+     * 用户拥有的全部角色（多值）：admin / pm / lead / dev / qa / guest。
+     * 逗号分隔持久化；工作台按「当前激活角色」展示，激活角色必须 ∈ roles。
+     * 默认 null：请求未携带 roles 时保留旧值。
+     */
+    @Convert(converter = StringListConverter.class)
+    @Column(length = 128)
+    private List<String> roles;
 
     /**
      * 归属业务域编码列表（多值），与仓库的 bizCodes 一致。

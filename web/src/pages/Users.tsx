@@ -10,9 +10,13 @@ const ROLE_TONE: Record<string, 'info' | 'ok' | 'warn' | 'mut'> = {
   admin: 'info', pm: 'info', lead: 'ok', dev: 'mut', qa: 'mut', guest: 'mut',
 }
 
-/** 归属业务域与仓库一致：多选编码列表，来自业务树 */
-type Draft = { id?: number; name: string; no: string; role: string; bizCodes: string[]; client: string }
-const EMPTY_DRAFT: Draft = { name: '', no: '', role: 'dev', bizCodes: [], client: '' }
+/** 归属业务域与仓库一致：多选编码列表，来自业务树；角色支持多选 */
+type Draft = { id?: number; name: string; no: string; roles: string[]; bizCodes: string[]; client: string }
+const EMPTY_DRAFT: Draft = { name: '', no: '', roles: ['dev'], bizCodes: [], client: '' }
+
+function userRoles(u: UserRow): string[] {
+  return (u.roles?.length ? u.roles : [u.role]).filter(Boolean)
+}
 export default function Users() {
   const { toast } = useToast()
   const { data, loading, reload } = useAsync<UserRow[]>(() => fetchUsers(), [])
@@ -38,7 +42,7 @@ export default function Users() {
   const shown = useMemo(() => {
     const kw = q.trim().toLowerCase()
     return list
-      .filter((u) => (role === 'all' ? true : u.role === role))
+      .filter((u) => (role === 'all' ? true : userRoles(u).includes(role)))
       .filter((u) => !kw || u.name.toLowerCase().includes(kw) || u.no.includes(kw)
         || bizText(u).toLowerCase().includes(kw)
         || (u.bizCodes ?? []).some((c) => c.toLowerCase().includes(kw))
@@ -48,17 +52,19 @@ export default function Users() {
 
   const chips = useMemo(() => [
     { v: 'all', l: '全部', n: list.length },
-    ...ROLES.map((r) => ({ v: r, l: roleLabel[r], n: list.filter((u) => u.role === r).length })),
+    ...ROLES.map((r) => ({ v: r, l: roleLabel[r], n: list.filter((u) => userRoles(u).includes(r)).length })),
   ], [list])
 
   const submit = async () => {
     if (!draft) return
     if (!draft.name.trim() || !draft.no.trim()) { toast('姓名与工号为必填'); return }
+    if (!draft.roles.length) { toast('至少选择一个角色'); return }
     setSaving(true)
     try {
       await saveUser({
         id: draft.id, name: draft.name.trim(), empNo: draft.no.trim(),
-        role: draft.role, bizCodes: draft.bizCodes, clientId: draft.client.trim() || undefined,
+        role: draft.roles[0], roles: draft.roles, bizCodes: draft.bizCodes,
+        clientId: draft.client.trim() || undefined,
       })
       setDraft(null)
       reload()
@@ -99,7 +105,7 @@ export default function Users() {
 
       <div className="grid g3" style={{ marginBottom: 18 }}>
         <Kpi icon="users" label="用户总数" value={String(list.length)} delta="按业务域授权" dir="flat" />
-        <Kpi icon="code" label="研发角色" value={String(list.filter((u) => u.role === 'dev' || u.role === 'lead').length)}
+        <Kpi icon="code" label="研发角色" value={String(list.filter((u) => userRoles(u).some((r) => r === 'dev' || r === 'lead')).length)}
           delta="可承接执行" dir="flat" color="#0f766e" glow="rgba(15,118,110,.2)" />
         <Kpi icon="client" label="已绑定客户端" value={String(list.filter((u) => u.client !== '—').length)}
           delta="可执行任务" dir="flat" color="#b45309" glow="rgba(180,83,9,.2)" />
@@ -126,14 +132,20 @@ export default function Users() {
                 <tr key={u.id ?? u.no}>
                   <td style={{ fontWeight: 550 }}>{u.name}</td>
                   <td className="tid">{u.no}</td>
-                  <td><Tag tone={ROLE_TONE[u.role] ?? 'mut'}>{roleLabel[u.role] ?? u.role}</Tag></td>
+                  <td>
+                    <span style={{ display: 'inline-flex', gap: 4, flexWrap: 'wrap' }}>
+                      {userRoles(u).map((r) => (
+                        <Tag key={r} tone={ROLE_TONE[r] ?? 'mut'}>{roleLabel[r] ?? r}</Tag>
+                      ))}
+                    </span>
+                  </td>
                   <td>{bizText(u)}</td>
                   <td className="tid">{u.client}</td>
                   <td style={{ textAlign: 'right', paddingRight: 14, whiteSpace: 'nowrap' }}>
                     <button className="btn btn-xs btn-outline" style={{ marginRight: 6 }}
                       onClick={() => {
                         setBoundOrig(u.client === '—' ? '' : u.client)
-                        setDraft({ id: u.id, name: u.name, no: u.no, role: u.role, bizCodes: u.bizCodes ?? [], client: u.client === '—' ? '' : u.client })
+                        setDraft({ id: u.id, name: u.name, no: u.no, roles: userRoles(u), bizCodes: u.bizCodes ?? [], client: u.client === '—' ? '' : u.client })
                       }}>
                       <Icon name="edit" size={13} />编辑
                     </button>
@@ -167,10 +179,35 @@ export default function Users() {
               <input value={draft.name} placeholder="如 王磊" onChange={(e) => setDraft({ ...draft, name: e.target.value })} /></div>
             <div className="field"><label>工号</label>
               <input value={draft.no} placeholder="如 25102" onChange={(e) => setDraft({ ...draft, no: e.target.value })} /></div>
-            <div className="field"><label>角色</label>
-              <select value={draft.role} onChange={(e) => setDraft({ ...draft, role: e.target.value })}>
-                {ROLES.map((r) => <option key={r} value={r}>{roleLabel[r]}</option>)}
-              </select></div>
+            <div className="field" style={{ gridColumn: '1 / -1' }}><label>角色（可多选，工作台可切换）</label>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, paddingTop: 4 }}>
+                {ROLES.map((r) => {
+                  const on = draft.roles.includes(r)
+                  return (
+                    <label key={r} style={{
+                      display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13,
+                      padding: '6px 10px', borderRadius: 8,
+                      border: `1px solid ${on ? 'var(--accent)' : 'var(--line-2)'}`,
+                      background: on ? 'var(--accent-soft)' : 'var(--surface)',
+                      cursor: 'pointer',
+                    }}>
+                      <input
+                        type="checkbox"
+                        checked={on}
+                        onChange={() => {
+                          const roles = on
+                            ? draft.roles.filter((x) => x !== r)
+                            : [...draft.roles, r]
+                          setDraft({ ...draft, roles })
+                        }}
+                      />
+                      {roleLabel[r]}
+                    </label>
+                  )
+                })}
+              </div>
+              <div className="fhelp">一人可兼多岗；登录后在「我的工作台」点击角色芯片切换视图</div>
+            </div>
             <div className="field" style={{ gridColumn: '1 / -1' }}><label>归属业务域</label>
               <BizTreeSelect
                 tree={treeData ?? []}
@@ -214,7 +251,7 @@ export default function Users() {
             {!boundOrig && <div className="fhelp">候选为已注册客户端，标注在线状态；绑定后个人设置测试与配置下发到该机器。</div>}
           </div>
           <div style={{ fontSize: 12, color: 'var(--ink-4)', marginTop: 14, lineHeight: 1.7 }}>
-            角色决定该用户在工作台可见的能力范围，可在「权限管理」中调整。
+            当前激活角色决定工作台内容与平台总览显隐；能力矩阵见「权限管理」。
           </div>
         </Modal>
       )}
@@ -234,7 +271,7 @@ export default function Users() {
           }
         >
           <div style={{ fontSize: 13.5, lineHeight: 1.8 }}>
-            即将删除用户 <strong>{pendingDelete.name}</strong>（工号 {pendingDelete.no}，角色 {roleLabel[pendingDelete.role] ?? pendingDelete.role}）。
+            即将删除用户 <strong>{pendingDelete.name}</strong>（工号 {pendingDelete.no}，角色 {userRoles(pendingDelete).map((r) => roleLabel[r] ?? r).join('、')}）。
             <div style={{ color: 'var(--ink-3)', marginTop: 8 }}>
               该用户已认领或正在执行的 Issue 不会被回收，但将不再出现在成员列表中。
             </div>

@@ -12,7 +12,7 @@ import type { PageFocus, PageKey } from './types'
  *   #/                 品牌官网
  *   #/download         客户端下载页
  *   #/login            登录
- *   #/app/<page>       控制台页面（page 省略时回落 dashboard）
+ *   #/app/<page>       控制台页面（page 省略时回落 workbench）
  *   #/app/monitor?issueCode=BUG-1   跨页下钻参数
  */
 export type Route =
@@ -23,7 +23,7 @@ export type Route =
 
 /** 控制台所有合法页面 key，与 Console 的 NAV 保持一致 */
 export const PAGE_KEYS: PageKey[] = [
-  'dashboard', 'issues', 'admission', 'workflow', 'monitor',
+  'workbench', 'dashboard', 'issues', 'admission', 'workflow', 'monitor',
   'clients', 'guide', 'agents', 'logs', 'docs', 'kb',
   'prompts', 'models',
   'biz', 'repos',
@@ -56,7 +56,7 @@ export function parseHash(hash: string): Route {
   if (segs[0] === 'login') return { view: 'login' }
   if (segs[0] === 'app') {
     const candidate = segs[1] as PageKey | undefined
-    const page = candidate && PAGE_KEYS.includes(candidate) ? candidate : 'dashboard'
+    const page = candidate && PAGE_KEYS.includes(candidate) ? candidate : 'workbench'
     return { view: 'app', page, focus: focusOf() }
   }
   return { view: 'landing' }

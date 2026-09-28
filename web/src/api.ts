@@ -63,7 +63,10 @@ interface RawDoc {
   hasFile?: boolean; hasText?: boolean
 }
 interface RawKb { name: string; category?: string; chunks?: number; status?: string; content?: string }
-interface RawUser { id?: number; name?: string; empNo?: string; role?: string; bizDomain?: string; bizCodes?: string[]; clientId?: string }
+interface RawUser {
+  id?: number; name?: string; empNo?: string; role?: string; roles?: string[]
+  bizDomain?: string; bizCodes?: string[]; clientId?: string
+}
 interface RawRolePerm { id?: number; role?: string; capability?: string; level?: string }
 interface RawTemplate { code?: string; name?: string; definitionJson?: string }
 interface RawInstance {
@@ -205,8 +208,14 @@ function mapKb(e: RawKb): KbDoc {
 }
 function mapUser(e: RawUser): UserRow {
   const codes = e.bizCodes ?? []
+  const roles = (e.roles && e.roles.length)
+    ? e.roles.map((r) => String(r).trim().toLowerCase()).filter(Boolean)
+    : (e.role ? [String(e.role).trim().toLowerCase()] : ['guest'])
+  const uniq = [...new Set(roles)]
   return {
-    id: e.id, name: e.name ?? '—', no: e.empNo ?? '—', role: e.role ?? 'guest',
+    id: e.id, name: e.name ?? '—', no: e.empNo ?? '—',
+    role: uniq[0] ?? 'guest',
+    roles: uniq,
     bizCodes: codes,
     biz: codes.length ? codes.join('、') : (e.bizDomain ?? '全部'),
     client: e.clientId ?? '—',

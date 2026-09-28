@@ -10,6 +10,7 @@ import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 /** 首次启动初始化：两套工作流模板、Prompt 模板、知识库、用户、LLM 通道与默认 Agent 配置 */
 @Slf4j
@@ -350,20 +351,43 @@ public class DataInitializer implements CommandLineRunner {
     }
 
     private void initUsers() {
-        if (userRepository.count() > 0) return;
-        user("杨德", "24988", "admin", "全部", null);
-        user("王磊", "25102", "dev", "行情", "dev-windows-07");
-        user("李娜", "25331", "dev", "行情", "dev-mac-03");
-        user("陈昊", "25007", "lead", "回测/指标", "dev-linux-11");
-        user("赵敏", "25419", "dev", "账户", "dev-windows-09");
-        user("孙悦", "25520", "qa", "资讯", "dev-mac-15");
+        if (userRepository.count() == 0) {
+            user("杨德", "24988", "admin,lead", "全部", null);
+            user("王磊", "25102", "dev", "行情", "dev-windows-07");
+            user("李娜", "25331", "dev,qa", "行情", "dev-mac-03");
+            user("陈昊", "25007", "lead,dev", "回测/指标", "dev-linux-11");
+            user("赵敏", "25419", "dev", "账户", "dev-windows-09");
+            user("孙悦", "25520", "qa", "资讯", "dev-mac-15");
+        }
+        // 存量库：roles 为空时按工号补多角色示范
+        ensureRoles("24988", "admin", "lead");
+        ensureRoles("25331", "dev", "qa");
+        ensureRoles("25007", "lead", "dev");
+    }
+
+    /** 存量升级：roles 为空，或仅有与主角色相同的单项时，写入示范多角色 */
+    private void ensureRoles(String empNo, String... roles) {
+        UserEntity u = userRepository.findByEmpNo(empNo);
+        if (u == null) return;
+        List<String> want = List.of(roles);
+        List<String> have = u.getRoles() == null ? List.of() : u.getRoles();
+        boolean upgrade = have.isEmpty()
+                || (have.size() == 1 && want.size() > 1 && have.get(0).equalsIgnoreCase(want.get(0)));
+        if (!upgrade) return;
+        u.setRoles(want);
+        u.setRole(want.get(0));
+        userRepository.save(u);
     }
 
     private void user(String name, String empNo, String role, String biz, String clientId) {
         UserEntity u = new UserEntity();
         u.setName(name);
         u.setEmpNo(empNo);
-        u.setRole(role);
+        List<String> roles = java.util.Arrays.stream(role.split(","))
+                .map(String::trim).filter(s -> !s.isEmpty()).distinct().toList();
+        if (roles.isEmpty()) roles = List.of("guest");
+        u.setRoles(roles);
+        u.setRole(roles.get(0));
         u.setBizDomain(biz);
         u.setClientId(clientId);
         userRepository.save(u);

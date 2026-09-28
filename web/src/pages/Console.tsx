@@ -1,13 +1,16 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Icon, Mark } from '../icons'
 import { useToast, Modal } from '../ui'
 import { navigate } from '../router'
 import { startNotifier, stopNotifier } from '../notify'
+import { fetchUsers } from '../api'
 import type { PageFocus, PageKey } from '../types'
 import {
-  applySettings, avatarText, loadProfile, loadSettings, saveProfile, saveSettings, SETTINGS_EVENT,
+  ACTIVE_ROLE_EVENT, applySettings, avatarText, loadProfile, loadSettings, saveProfile, saveSettings, SETTINGS_EVENT,
 } from '../settings'
 import type { Profile, Settings } from '../settings'
+import { canSeePlatformOverview, identityFromUser, roleChipLabel, type RoleCode } from '../workbench'
+import Workbench from './Workbench'
 import Dashboard from './Dashboard'
 import Issues from './Issues'
 import Admission from './Admission'
@@ -41,7 +44,8 @@ const NAV: { group: string; items: { k: PageKey; l: string; icon: string }[] }[]
   {
     group: '运营',
     items: [
-      { k: 'dashboard', l: '总览', icon: 'dashboard' },
+      { k: 'workbench', l: '我的工作台', icon: 'dashboard' },
+      { k: 'dashboard', l: '平台总览', icon: 'grid' },
       { k: 'issues', l: 'Issue', icon: 'issue' },
       { k: 'monitor', l: '作业监控', icon: 'terminal' },
       { k: 'docs', l: '文档中心', icon: 'doc' },
@@ -83,7 +87,7 @@ const NAV: { group: string; items: { k: PageKey; l: string; icon: string }[] }[]
 ]
 
 const TITLE: Record<PageKey, string> = {
-  dashboard: '总览', issues: 'Issue', admission: '准入判定', workflow: '工作流编排',
+  workbench: '我的工作台', dashboard: '平台总览', issues: 'Issue', admission: '准入判定', workflow: '工作流编排',
   monitor: '作业监控', clients: '客户端', guide: '接入指南', agents: 'Coding Agent', logs: '调用日志',
   docs: '文档中心', kb: '知识库', users: '用户管理', roles: '权限管理',
   biz: '业务域', repos: '仓库管理', prompts: 'Prompt 模板', models: '模型配置',
@@ -123,8 +127,11 @@ function ProfileModal({ initial, onClose, onSave }: {
           <input value={p.no} onChange={(e) => set('no', e.target.value)} placeholder="工号" />
         </div>
         <div className="field" style={{ gridColumn: '1 / -1' }}>
-          <label>角色</label>
-          <input value={p.role} onChange={(e) => set('role', e.target.value)} placeholder="角色" />
+          <label>角色（在「我的工作台」切换激活角色）</label>
+          <div style={{ fontSize: 13.5, color: 'var(--ink-2)', paddingTop: 6 }}>
+            {(p.roles?.length ? p.roles : [p.activeRole]).map((r) => roleChipLabel(r as RoleCode)).join(' · ')}
+            {p.activeRole ? `　· 当前：${roleChipLabel(p.activeRole)}` : ''}
+          </div>
         </div>
         <div className="field">
           <label>邮箱</label>
@@ -149,6 +156,7 @@ export default function Console({ page, focus, onLogout }: {
 }) {
   const { toast } = useToast()
   const [profile, setProfile] = useState<Profile>(() => loadProfile())
+  const [activeRole, setActiveRole] = useState<RoleCode>(() => loadProfile().activeRole)
   const [settings, setSettings] = useState<Settings>(() => loadSettings())
   const [profOpen, setProfOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
@@ -161,6 +169,59 @@ export default function Console({ page, focus, onLogout }: {
   const nav = (p: PageKey, f?: PageFocus) => {
     navigate({ view: 'app', page: p, focus: f })
   }
+
+  const showOverview = canSeePlatformOverview(activeRole)
+  const navGroups = useMemo(
+    () => NAV.map((g) => ({
+      ...g,
+      items: g.items.filter((it) => it.k !== 'dashboard' || showOverview),
+    })),
+    [showOverview],
+  )
+
+  // 从用户表回填多角色（工号优先）
+  useEffect(() => {
+    let cancelled = false
+    fetchUsers().then((rows) => {
+      if (cancelled) return
+      const p = loadProfile()
+      const hit = rows.find((u) => u.no === p.no || u.name === p.name)
+      if (!hit) return
+      const id = identityFromUser(hit, { name: p.name, no: p.no })
+      let nextActive = p.activeRole
+      if (!id.roles.includes(nextActive)) nextActive = id.roles[0]
+      const next: Profile = {
+        ...p,
+        name: id.name || p.name,
+        no: id.no || p.no,
+        roles: id.roles,
+        activeRole: nextActive,
+        role: roleChipLabel(nextActive),
+      }
+      saveProfile(next)
+      setProfile(next)
+      setActiveRole(nextActive)
+    }).catch(() => { /* 离线时保留本地 profile */ })
+    return () => { cancelled = true }
+  }, [])
+
+  // 工作台切换角色
+  useEffect(() => {
+    const h = (e: Event) => {
+      const r = (e as CustomEvent<RoleCode>).detail
+      setActiveRole(r)
+      setProfile(loadProfile())
+    }
+    window.addEventListener(ACTIVE_ROLE_EVENT, h)
+    return () => window.removeEventListener(ACTIVE_ROLE_EVENT, h)
+  }, [])
+
+  // 无权限访问平台总览时踢回工作台
+  useEffect(() => {
+    if (page === 'dashboard' && !canSeePlatformOverview(activeRole)) {
+      navigate({ view: 'app', page: 'workbench' }, true)
+    }
+  }, [page, activeRole])
 
   // 设置在别处（如登录跳转）被修改时保持同步
   useEffect(() => applySettings(settings), [settings])
@@ -208,6 +269,7 @@ export default function Console({ page, focus, onLogout }: {
 
   const render = () => {
     switch (page) {
+      case 'workbench': return <Workbench nav={nav} activeRole={activeRole} onActiveRole={setActiveRole} />
       case 'dashboard': return <Dashboard nav={nav} />
       case 'issues': return <Issues nav={nav} focus={focus} />
       case 'admission': return <Admission />
@@ -232,8 +294,8 @@ export default function Console({ page, focus, onLogout }: {
   return (
     <div className="app">
       <aside className="side">
-        {/* Logo 回总览 + 折叠开关 */}
-        <div className="side-top clickable" onClick={() => nav('dashboard')} title="返回总览">
+        {/* Logo 回工作台 + 折叠开关 */}
+        <div className="side-top clickable" onClick={() => nav('workbench')} title="返回我的工作台">
           <Mark size={25} /><span className="wt">Talos</span>
           <button className="iconbtn side-ic side-toggle"
             onClick={(e) => { e.stopPropagation(); toggleSide() }}
@@ -242,7 +304,7 @@ export default function Console({ page, focus, onLogout }: {
           </button>
         </div>
         <nav className="side-nav">
-          {NAV.map((g) => (
+          {navGroups.map((g) => (
             <div key={g.group}>
               <div className="nav-group">{g.group}</div>
               {g.items.map((it) => (
@@ -280,7 +342,7 @@ export default function Console({ page, focus, onLogout }: {
 
       <div className="main">
         <div className="topbar">
-          <div className="crumb"><Icon name={NAV.flatMap((g) => g.items).find((i) => i.k === page)?.icon ?? 'grid'} size={16} />{TITLE[page]}</div>
+          <div className="crumb"><Icon name={navGroups.flatMap((g) => g.items).find((i) => i.k === page)?.icon ?? 'grid'} size={16} />{TITLE[page]}</div>
           <div className="tools">
             <div className="search"><Icon name="search" size={15} /><input placeholder="搜索 Issue、客户端、文档" /></div>
             <NotifCenter nav={nav} />

@@ -7,6 +7,7 @@
  * 后续接入真实用户体系时，仅需把读写换成接口调用。
  */
 import type { PageKey } from './types'
+import { parseRoles, roleChipLabel, type RoleCode } from './workbench'
 
 /* ============ 偏好设置 ============ */
 
@@ -61,7 +62,7 @@ export interface Settings {
 const DEFAULTS: Settings = {
   accent: 'indigo',
   density: 'comfort',
-  homePage: 'dashboard',
+  homePage: 'workbench',
   theme: 'light',
   scale: 'md',
   sideCollapsed: false,
@@ -81,7 +82,7 @@ export function loadSettings(): Settings {
     return {
       accent: s.accent && s.accent in ACCENTS ? s.accent : DEFAULTS.accent,
       density: s.density === 'compact' ? 'compact' : 'comfort',
-      homePage: (['dashboard', 'issues', 'monitor'] as PageKey[]).includes(s.homePage as PageKey)
+      homePage: (['workbench', 'dashboard', 'issues', 'monitor'] as PageKey[]).includes(s.homePage as PageKey)
         ? (s.homePage as PageKey)
         : DEFAULTS.homePage,
       theme: s.theme === 'dark' || s.theme === 'system' ? s.theme : DEFAULTS.theme,
@@ -133,32 +134,60 @@ export function applySettings(s: Settings) {
 export interface Profile {
   name: string
   no: string
+  /** 当前激活角色的中文标签（兼容旧展示） */
   role: string
+  /** 拥有的全部角色编码 */
+  roles: RoleCode[]
+  /** 工作台 / 平台总览显隐所跟随的激活角色 */
+  activeRole: RoleCode
   email: string
   phone: string
 }
 
 export const DEFAULT_PROFILE: Profile = {
-  name: 'YangDe',
+  name: '杨德',
   no: '24988',
-  role: '平台管理员',
+  role: '管理员',
+  roles: ['admin', 'lead'],
+  activeRole: 'admin',
   email: 'yangde@wind.com.cn',
   phone: '',
 }
 
 const PROFILE_KEY = 'talos.profile'
 
+/** 激活角色变更事件：Console 据此刷新侧栏「平台总览」显隐 */
+export const ACTIVE_ROLE_EVENT = 'talos:active-role'
+
 export function loadProfile(): Profile {
   try {
     const raw = localStorage.getItem(PROFILE_KEY)
-    return raw ? { ...DEFAULT_PROFILE, ...(JSON.parse(raw) as Partial<Profile>) } : { ...DEFAULT_PROFILE }
+    const base = raw ? { ...DEFAULT_PROFILE, ...(JSON.parse(raw) as Partial<Profile>) } : { ...DEFAULT_PROFILE }
+    const roles = parseRoles(base.roles?.length ? base.roles : base.role)
+    let activeRole: RoleCode = parseRoles([base.activeRole || roles[0]])[0]
+    if (!roles.includes(activeRole)) activeRole = roles[0]
+    return {
+      ...base,
+      roles,
+      activeRole,
+      role: base.role && !parseRoles([base.role]).length ? base.role : roleChipLabel(activeRole),
+    }
   } catch {
     return { ...DEFAULT_PROFILE }
   }
 }
 
 export function saveProfile(p: Profile) {
-  localStorage.setItem(PROFILE_KEY, JSON.stringify(p))
+  const roles = parseRoles(p.roles?.length ? p.roles : p.role)
+  let activeRole: RoleCode = parseRoles([p.activeRole || roles[0]])[0]
+  if (!roles.includes(activeRole)) activeRole = roles[0]
+  const next: Profile = {
+    ...p,
+    roles,
+    activeRole,
+    role: roleChipLabel(activeRole),
+  }
+  localStorage.setItem(PROFILE_KEY, JSON.stringify(next))
 }
 
 /** 头像字母：取姓名前两个字符的大写 */

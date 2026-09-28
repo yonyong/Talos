@@ -56,10 +56,11 @@ export default function Dashboard({ nav }: { nav: (p: PageKey, focus?: PageFocus
   return (
     <div>
       <PageH
-        title="总览"
-        desc="研发流水线的实时健康度。卡片与行都可点击下钻到对应明细。"
+        title="平台总览"
+        desc="全站研发流水线健康度。个人待办请回「我的工作台」。卡片与行可点击下钻。"
         actions={
           <>
+            <button className="btn btn-outline btn-sm" onClick={() => nav('workbench')}>我的工作台</button>
             <button className="btn btn-outline btn-sm" onClick={() => nav('issues')}>查看 Issue</button>
             <button className="btn btn-primary btn-sm" onClick={() => nav('issues')}>
               <Icon name="plus" size={15} />新建 Issue

@@ -232,7 +232,12 @@ function GeneralTab({ initial }: { initial: Settings }) {
         <div className="set-label">登录后默认页</div>
         <Seg
           value={s.homePage}
-          options={[{ v: 'dashboard' as const, l: '总览' }, { v: 'issues' as const, l: 'Issue' }, { v: 'monitor' as const, l: '作业监控' }]}
+          options={[
+            { v: 'workbench' as const, l: '我的工作台' },
+            { v: 'dashboard' as const, l: '平台总览' },
+            { v: 'issues' as const, l: 'Issue' },
+            { v: 'monitor' as const, l: '作业监控' },
+          ]}
           onChange={(v) => patch({ homePage: v })}
         />
       </div>
