@@ -13,11 +13,9 @@ export default function SiteFooter({ compact, versionNote, onDownload }: SiteFoo
       <footer className="foot">
         <div className="wrap">
           <div className="foot-bot" style={{ borderTop: 'none', marginTop: 0, paddingTop: 0 }}>
-            <span>© 2026 Talos</span>
-            <span className="foot-bot-right">
-              <ContactIcons />
-              {versionNote ? <span className="foot-meta">{versionNote}</span> : null}
-            </span>
+            <span className="foot-copy">© 2026 Talos</span>
+            <ContactIcons className="foot-contact-center" />
+            {versionNote ? <span className="foot-meta">{versionNote}</span> : <span className="foot-meta" aria-hidden />}
           </div>
         </div>
       </footer>
@@ -59,8 +57,8 @@ export default function SiteFooter({ compact, versionNote, onDownload }: SiteFoo
           </div>
         </div>
         <div className="foot-bot">
-          <span>© 2026 Talos</span>
-          <ContactIcons />
+          <span className="foot-copy">© 2026 Talos</span>
+          <ContactIcons className="foot-contact-center" />
         </div>
       </div>
     </footer>
