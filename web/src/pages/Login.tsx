@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Mark } from '../icons'
 import { Icon } from '../icons'
-import { SITE_CONTACT } from '../constants'
+import ContactIcons from '../components/ContactIcons'
 
 export default function Login({ onBack, onLogin }: { onBack: () => void; onLogin: () => void }) {
   const [user, setUser] = useState('yangde')
@@ -53,11 +53,7 @@ export default function Login({ onBack, onLogin }: { onBack: () => void; onLogin
           <div style={{ marginTop: 24, fontSize: 12, color: 'var(--ink-4)', lineHeight: 1.6 }}>
             登录即代表你同意遵守内网数据使用规范；所有操作将记录审计日志。
           </div>
-          <div className="foot-contact" style={{ marginTop: 18, fontSize: 12.5 }}>
-            <a href={SITE_CONTACT.github} target="_blank" rel="noopener noreferrer">{SITE_CONTACT.githubLabel}</a>
-            <span aria-hidden>·</span>
-            <a href={SITE_CONTACT.mailto}>{SITE_CONTACT.email}</a>
-          </div>
+          <ContactIcons size="sm" className="login-contact" />
         </div>
       </div>
     </div>

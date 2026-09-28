@@ -214,10 +214,21 @@ h1.hero-title .grad {
 .foot-col h5 { font-size: 12.5px; font-weight: 600; margin-bottom: 14px; }
 .foot-col a { display: block; font-size: 13px; color: var(--ink-3); padding: 4px 0; }
 .foot-col a:hover { color: var(--ink); }
-.foot-bot { border-top: 1px solid var(--line); margin-top: 36px; padding-top: 22px; display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; font-size: 12.5px; color: var(--ink-4); }
-.foot-contact { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.foot-contact a { color: var(--ink-3); }
-.foot-contact a:hover { color: var(--ink); }
+.foot-bot { border-top: 1px solid var(--line); margin-top: 36px; padding-top: 22px; display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; align-items: center; font-size: 12.5px; color: var(--ink-4); }
+.foot-bot-right { display: inline-flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.foot-brand .contact-icons { margin-top: 18px; }
+.foot-col-desc { margin: 0 0 10px; font-size: 12.5px; color: var(--ink-4); line-height: 1.5; }
+.foot-col .contact-icons { margin-top: 2px; }
+
+/* GitHub / 邮箱图标按钮 */
+.contact-icons { display: inline-flex; align-items: center; gap: 8px; }
+.contact-ico {
+  width: 36px; height: 36px; display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid var(--line); border-radius: 10px; color: var(--ink-3);
+  background: var(--surface, #fff); transition: color .15s ease, border-color .15s ease, background .15s ease;
+}
+.contact-ico:hover { color: var(--ink); border-color: var(--line-2); background: var(--bg-subtle, #f4f4f5); }
+.contact-icons-sm .contact-ico { width: 30px; height: 30px; border-radius: 8px; }
 
 /* ============================================================
    LOGIN
@@ -233,6 +244,7 @@ h1.hero-title .grad {
 .login-card { width: 100%; max-width: 380px; padding: 40px; }
 .login-card h2 { font-size: 22px; font-weight: 650; letter-spacing: -0.02em; }
 .login-card .sub { font-size: 13.5px; color: var(--ink-3); margin-top: 8px; }
+.login-contact { margin-top: 18px; }
 /* 行内紧凑控件（动作条 / 详情内联表单） */
 .inp {
   height: 34px; padding: 0 11px; border: 1px solid var(--line-2); border-radius: 8px;
